@@ -545,11 +545,18 @@ in
   	touch (make_filename [dir_test;"essai1"]);
   	expect_true (test Exists (make_filename [dir_test;"essai1"]))
   );
-  
-  (* Too fast 
+ 
+  (* Too fast : creation time is different less than 1 sec 
   expect_pass ~desc:"Touch precedence"
   ~body:( fun () ->
-  	expect_true (test (Is_newer_than(concat dir_test "essai0",concat dir_test "essai1")) dir_test )
+        let stat_fln1 = stat (make_filename [ dir_test ; "essai0" ])
+        in
+        let stat_fln2 = stat (make_filename [ dir_test ; "essai1" ])
+        in
+        print_endline ("Modification time of \"essai0\" : "^(string_of_float stat_fln1.modification_time));
+        print_endline ("Modification time of \"essai1\" : "^(string_of_float stat_fln2.modification_time));
+  	expect_true (test (Is_newer_than (make_filename [ dir_test ; "essai0" ]))
+        (make_filename [dir_test; "essai1"]))
   );*)
   
   expect_pass ~desc:"Mkdir simple v1"
@@ -593,17 +600,18 @@ in
   	let lst = find True dir_test ( fun lst fln -> fln :: lst ) [] 
   	in
   	expect_equal_list_string 		
-  		(
-  			(make_filename [ dir_test ; "essai4" ; "essai5" ]) :: 
-  			(List.map (fun x -> make_filename [ dir_test ; x ] ) [
-  				"essai0";
-  				"essai1";
-  				"essai2";
-  				"essai3";
-  				"essai4"
-  			])
-  		)
-  		lst 
+          (
+            List.map (fun x -> make_filename  [ dir_test ; x ] ) 
+            [
+            (make_filename [ "essai4" ; "essai5" ]);
+            "essai4";
+            "essai3";
+            "essai2";
+            "essai1";
+            "essai0";
+            ] @ [ dir_test ]
+  	  )
+  	  lst 
   
   );
   
@@ -613,13 +621,16 @@ in
   	in
   	expect_equal_list_string 
   		(
-  		(make_filename [ dir_test ; "essai4" ; "essai5" ]) ::
-  			(List.map (fun x -> make_filename [ dir_test ; x ]) [
-  				"essai2";
-  				"essai3";
-  				"essai4";
-  			])
-  		)
+                  (
+                    List.map (fun x -> make_filename [ dir_test ; x ]) 
+                    [
+                      make_filename [ "essai4"; "essai5" ];
+                      "essai4";
+                      "essai3";
+                      "essai2";
+                    ]
+                  ) @ [ dir_test ]
+                )
   		lst
   );
   			
@@ -628,10 +639,13 @@ in
   	let lst = find Is_file dir_test ( fun lst fln -> fln :: lst ) [] 
   	in
   	expect_equal_list_string 
-  		(List.map (fun x -> make_filename [ dir_test ; x ]) [
-  			"essai0";
-  			"essai1"
-  		])
+  		(
+                  List.map (fun x -> make_filename [ dir_test ; x ]) 
+                  [
+                        "essai1";
+                        "essai0";
+                  ]
+                )
   		lst
   );
   
@@ -646,11 +660,13 @@ in
   	cp [(make_filename [dir_test ; "essai0"])] (make_filename [ dir_test ; "essai4" ]);
   	expect_true (test (Exists) (make_filename [ dir_test ; "essai4" ; "essai0" ]))
   );
+ 
+  
   
   expect_pass ~desc:"Rm v1"
   ~body:(fun () ->
-  	rm ~force:(Ask ask_user) [(make_filename [dir_test  ; "essai2"])];
-  	expect_true (test (Not Exists) (make_filename [ dir_test ; "essai2" ]))
+  	rm ~force:(Ask ask_user) [(make_filename [dir_test  ; "essai0"])];
+  	expect_true (test (Not Exists) (make_filename [ dir_test ; "essai0" ]))
   );
   
   Fort.test ~desc:"Rm v2"

@@ -277,6 +277,9 @@ sig
   * file scanned *)
   val du : filename list -> size * ((filename * size) list)
 
+  (** stat fln : Returns information about the file ( like Unix.stat ) *)
+  val stat : filename -> stat
+  
   (** For future release : 
      - pathchk : filename -> boolean * string 
     *)
@@ -667,12 +670,15 @@ struct
     in
     fun x -> res_filter x 
 
+  let solve_dirname dirname =
+    (* We have an ambiguity concerning "" and "." *)
+    if is_current dirname then
+      current_dir
+    else
+      dirname
+    
   let ls dirname =
-    let real_dirname = 
-      if is_current dirname then
-        current_dir
-      else
-        dirname
+    let real_dirname = solve_dirname dirname
     in
     let array_dir = Sys.readdir real_dirname
     in
@@ -680,16 +686,13 @@ struct
     in
     List.map (fun x -> concat dirname x)  list_dir
 
-
-  let filter flt lst =
-    let cflt = compile_filter flt
-    in
-    List.filter cflt lst
-
-  let test tst fln =
+  let test tst =
     let ctst = compile_filter tst
     in
-    ctst fln 
+    fun fln -> ctst (solve_dirname fln)
+
+  let filter flt lst =
+    List.filter (test flt) lst
 
   let all_upper_dir fln = 
     let rec all_upper_dir_aux lst fln = 
@@ -789,7 +792,7 @@ struct
       else
         true    
     in
-    let rec find_simple (already_read,accu) fln =
+    let rec find_dir (already_read,accu) fln =
       let newly_read = prevent_recursion already_read (make_absolute (pwd ()) (readlink fln))
       in
       let dir_content = ls fln
@@ -801,34 +804,44 @@ struct
       if directories = [] then
         (newly_read,new_accu)
       else
-        List.fold_left find_simple (newly_read,new_accu) directories
+        List.fold_left find_dir (newly_read,new_accu) directories
+    in
+    let find_simple (already_read,accu) fln =
+      let new_accu = 
+        if ctest fln then
+          exec accu fln
+        else
+          accu
+      in
+      if cdir fln then
+        find_dir (already_read,new_accu) fln
+      else
+        (already_read,new_accu)
     in
     snd(find_simple (SetFilename.empty,accu) fln)
 
   let rm ?(force=Force) ?(recurse=false) fln_lst =
     let rmdir () fln =
       try 
-        if doit force fln then
           Unix.rmdir fln
-        else
-          ()
       with Unix.Unix_error(Unix.ENOTEMPTY,_,_) ->
         raise (RmDirNotEmpty fln)
     in
     let rmfile () fln =
-      if doit force fln then
         Unix.unlink fln
-      else
-        ()
     in
     let rmfull fln = 
       find (And(Custom (doit force),Not(Is_dir))) fln rmfile ();
-      find (And(Custom (doit force),Is_dir)) fln rmdir ()
+      let set_dir = 
+        find (And(Custom (doit force),Is_dir)) fln 
+        ( fun set fln -> SetFilename.add fln set) SetFilename.empty
+      in
+      List.iter (rmdir ()) (SetFilename.elements set_dir)
     in
     if recurse then
       List.iter rmfull fln_lst 
     else
-      List.iter (rmfile ()) (filter (Not(Is_dir)) fln_lst)
+      List.iter (rmfile ()) (filter (And(Custom (doit force),Not(Is_dir))) fln_lst)
 
   let cp ?(follow=Skip) ?(force=Force) ?(recurse=false) fln_src_lst fln_dst = 
     let cpfile fln_src fln_dst =
@@ -874,30 +887,36 @@ struct
         fun () fln_src -> cpfile fln_src (reparent dir_src dir_dst fln)
         ) ()
     in
-    (* Test sur l'existence des fichiers source *)
-    List.iter ( 
-      fun x -> 
-        if test (Not(Exists)) x then 
-          raise (CpNoSourceFile x) 
-        else if test Is_dir x && not recurse then
-          raise (CpCannotCopyDir x)
-        else
-          () 
-      ) 
-    fln_src_lst;
-    if test Is_dir fln_dst then
-      List.iter ( fun x -> cpfull (dirname x) fln_dst x ) fln_src_lst
+    (* Test sur l'existence des fichiers source et création des noms de fichiers
+    * absolu *)
+    let real_fln_src_lst = 
+      List.map ( 
+        fun x -> 
+          if test (Not(Exists)) x then 
+            raise (CpNoSourceFile x) 
+          else if test Is_dir x && not recurse then
+            raise (CpCannotCopyDir x)
+          else
+            make_absolute (pwd ()) x
+        ) 
+      fln_src_lst
+    in
+    let real_fln_dst =
+      make_absolute (pwd ()) fln_dst
+    in
+    if test Is_dir real_fln_dst then
+      List.iter ( fun x -> cpfull (dirname x) real_fln_dst x ) real_fln_src_lst
     else 
       (
-        if (List.length fln_src_lst) = 1 then
-          let fln_src = List.nth fln_src_lst 0
+        if (List.length real_fln_src_lst) = 1 then
+          let real_fln_src = List.nth real_fln_src_lst 0
           in
-          cpfull fln_src fln_dst fln_src 
+          cpfull real_fln_src real_fln_dst real_fln_src 
           (* Off course, reparent will replace the common prefix 
           * of 3rd arg and 1st arg by 2nd arg, which give 
           * fln_src -> fln_dst *)
         else
-          raise (CpCannotCopyFilesToFile (fln_src_lst, fln_dst))
+          raise (CpCannotCopyFilesToFile (real_fln_src_lst, real_fln_dst))
       )
 
   let rec mv ?(force=Force) fln_src fln_dst =
