@@ -12,12 +12,12 @@ let filename_of_filename_part cmp =
 let dir_separator  = "/"
 ;;
 
-let dir_spec   = (UnixPath_parser.main_filename,UnixPath_lexer.token_filename)
+let dir_spec   = UnixPath_parser.main_filename UnixPath_lexer.token_filename
 ;;
 
 let path_separator = ":" 
 ;;
 
-let path_spec      = (UnixPath_parser.main_path_variable,UnixPath_lexer.token_path_variable)
+let path_spec      = UnixPath_parser.main_path_variable UnixPath_lexer.token_path_variable
 ;;
 

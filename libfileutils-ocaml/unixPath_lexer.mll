@@ -9,7 +9,9 @@ token_filename = parse
   '/'                  { SLASH }
 | ".."                 { DOUBLE_DOT }
 | "."                  { DOT }
-| "\\/" as cmp         { (IDENT cmp) }
+| "\\/" as cmp         
+| "\\." as cmp
+| "\\.\\." as cmp      
 | [^'.''/''\\']* as cmp{ (IDENT cmp) }
 | eof                  { EOF }
 and 

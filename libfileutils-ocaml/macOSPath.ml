@@ -14,11 +14,11 @@ let filename_of_filename_part cmp =
 let dir_separator  = ":"
 ;;
 
-let dir_spec       = (MacOSPath_parser.main_filename,MacOSPath_lexer.token_filename)
+let dir_spec       = MacOSPath_parser.main_filename MacOSPath_lexer.token_filename
 ;;
 
 let path_separator = ";" 
 ;;
 
-let path_spec      = (MacOSPath_parser.main_path_variable,MacOSPath_lexer.token_path_variable)
+let path_spec      = MacOSPath_parser.main_path_variable MacOSPath_lexer.token_path_variable
 ;;
