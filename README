@@ -18,7 +18,7 @@ windows user, mac os user...
 Send bug report at submit@bugs.gallu.homelinux.org beginning with
 
 Package: ocaml-fileutils
-Version: 0.3
+Version: 0.3.0
 Severity: { choose wishlist,normal,important }
 
 and tell me your problem.

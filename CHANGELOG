@@ -1,4 +1,4 @@
-v0.3 : 
+v0.3.0 : 
   * Change the version to 0.3 ( lot of changes for a minor version )
   * Update webpages
   * Correct a bug that prevent sr\@Ltn to be parsed ( which comes from the
