@@ -195,7 +195,7 @@ let make_absolute base_path path =
 			check_base_path base_path;
 			make_absolute_list 
 				(reduce_list (explode base_path))
-				(explode base_path)
+				(explode path)
 		in
 		implode list_absolute
 		end

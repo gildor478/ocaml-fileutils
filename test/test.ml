@@ -36,7 +36,18 @@ let test_explode_path test imp =
 		expect_equal_list_string ["/a";"b";"/c/d"] (explode_path imp)
 	)
 in
-
+let test_make_absolute test base rela res =
+	expect_pass ~desc:("Make absolute " ^ test)
+	~body:( fun () ->
+		expect_equal_string res (make_absolute base rela)
+	)
+in
+let test_make_relative test base abs res =
+	expect_pass ~desc:("Make absolute " ^ test)
+	~body:( fun () ->
+		expect_equal_string res (make_relative base abs)
+	)
+in
 
 
 test_implode "absolute"		"/a/b/c" 	["" ; "a" ; "b" ; "c"];
@@ -66,5 +77,14 @@ test_reduce "remove multiple . and .." 	"/a/../a/./b/../c/../b/./c";
 
 test_make_path "identity"	["/a";"b";"/c/d"];
 test_explode_path "identity"	"/a:b:/c/d";
+
+
+test_make_absolute "identity" "/a/b/c" "." "/a/b/c";
+test_make_absolute "simple v1" "/a/b/c" "./d" "/a/b/c/d";
+test_make_absolute "simple v2" "/a/b/c" "../d" "/a/b/d";
+
+
+test_make_relative "identity" "/a/b/c" "/a/b/c" "";
+test_make_relative "simple v1" "/a/b/c" "/a/b/d" "../d";
 
 ();;
