@@ -88,6 +88,12 @@
 	<title>Nouvelles</title>
 
 	<section>
+		<title>Version 0.2.1</title>
+		
+		<para>Version mineur qui met à jour le site web</para>
+	</section>
+
+	<section>
 		<title>Version 0.2</title>
 
 		<para>Cette première version publique, offre un ensemble de fonctionnalité assez complet.
