@@ -35,7 +35,8 @@ uninstall:
 clean:: mkdir-temp-clean
 	cd libfileutils-ocaml && $(MAKE) clean
 
-doc-html:
+doc: mkdir-temp
+	cd libfileutils-ocaml && $(MAKE) doc
 
 mkdir-temp: mkdir-temp-stamp
 mkdir-temp-stamp: 

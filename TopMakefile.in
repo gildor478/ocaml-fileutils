@@ -138,19 +138,20 @@ else
 	CLI_OCAMLOPT   = $(OCAMLOPT) $(call COMPUTE_OFLAGS,$1,$2)
 endif
 
-all: $(if $(LIBRARY), install-buildlib, $(OCAMLBEST))
-all: $(if $(ODOC), install-builddoc,)
+all: $(if $(NAME),$(if $(LIBRARY), install-buildlib,$(OCAMLBEST)))
+all: $(if $(NAME),$(if $(ODOC), install-builddoc,))
+doc: $(if $(NAME),$(if $(ODOC), install-builddoc,))
 
 CMX = $(CMO:.cmo=.cmx)
 
 GENERATED = version.ml
 
-byte:      $(if $(LIBRARY), $(NAME).cma, $(NAME).byte)
-opt:       $(if $(LIBRARY), $(NAME).cmxa, $(NAME).opt)
-install:   $(if $(LIBRARY), install-lib, install-exe)
-install:   $(if $(ODOC), install-doc,)
-uninstall: $(if $(LIBRARY), uninstall-lib, uninstall-exe)
-uninstall: $(if $(ODOC), uninstall-doc,)
+byte:      $(if $(NAME),$(if $(LIBRARY), $(NAME).cma, $(NAME).byte))
+opt:       $(if $(NAME),$(if $(LIBRARY), $(NAME).cmxa, $(NAME).opt))
+install:   $(if $(NAME),$(if $(LIBRARY), install-lib, install-exe))
+install:   $(if $(NAME),$(if $(ODOC), install-doc,))
+uninstall: $(if $(NAME),$(if $(LIBRARY), uninstall-lib, uninstall-exe))
+uninstall: $(if $(NAME),$(if $(ODOC), uninstall-doc,))
 
 # Build the lib
 
@@ -172,7 +173,7 @@ uninstall-lib:
 
 # Write the documentation
 
-$(NAME).odoc: $(CMO)
+$(NAME).odoc: $(ODOC)
 	$(OCAMLDOC) $(ODOC) -dump $@
 	
 install-builddoc: $(NAME).odoc
