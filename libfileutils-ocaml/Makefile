@@ -8,6 +8,8 @@ CMO = \
 	macOSPath_parser.cmo \
 	macOSPath_lexer.cmo \
 	macOSPath.cmo \
+	genericPath_parser.cmo \
+	genericPath_lexer.cmo \
 	sysPath.cmo \
 	sysUtil.cmo 
 REQUIRES = unix str 
@@ -29,6 +31,9 @@ unixPath_parser.cmx: unixPath_parser.cmi
 macOSPath_parser.cmo: macOSPath_parser.cmi
 macOSPath_parser.cmx: macOSPath_parser.cmi
 
+genericPath_parser.cmo: genericPath_parser.cmi
+genericPath_parser.cmx: genericPath_parser.cmi
+
 clean::
 	$(RM) unixPath_parser.ml 
 	$(RM) unixPath_parser.mli 
@@ -38,5 +43,9 @@ clean::
 	$(RM) macOSPath_parser.mli 
 	$(RM) macOSPath_parser.output
 	$(RM) macOSPath_lexer.ml
+	$(RM) genericPath_parser.ml 
+	$(RM) genericPath_parser.mli 
+	$(RM) genericPath_parser.output
+	$(RM) genericPath_lexer.ml
 	
 
