@@ -16,48 +16,7 @@ in
 let expect_equal_bool = expect_equal ~printer:(string_of_bool)
 in
 (* Test to be performed *)
-let test_implode (test,imp,exp) = 
-	expect_pass ~desc:("Implode " ^ test)
-	~body:(fun () ->
-		expect_equal_string imp (implode exp)
-	)
-in
-let test_explode (test,exp,imp) =
-	expect_pass ~desc:("Explode " ^ test)
-	~body:(fun () ->
-		expect_equal_list_filename_part exp (explode imp)
-	)
-in
-let test_reduce (test,exp) =
-	expect_pass ~desc:("Reduce " ^ test)
-	~body:( fun () ->
-		expect_equal_string "/a/b/c" (reduce exp)
-	)
-in
-let test_make_path (test,exp) =
-	expect_pass ~desc:("Make Path " ^ test)
-	~body:( fun () ->
-		expect_equal_string "/a:b:/c/d" (make_path_variable exp)
-	)
-in
-let test_explode_path (test,imp) =
-	expect_pass ~desc:("Explode Path " ^ test)
-	~body:( fun () ->
-		expect_equal_list_string ["/a";"b";"/c/d"] (read_path_variable imp)
-	)
-in
-let test_make_absolute (test,base,rela,res) =
-	expect_pass ~desc:("Make absolute " ^ test)
-	~body:( fun () ->
-		expect_equal_string res (make_absolute base rela)
-	)
-in
-let test_make_relative (test,base,abs,res) =
-	expect_pass ~desc:("Make absolute " ^ test)
-	~body:( fun () ->
-		expect_equal_string res (make_relative base abs)
-	)
-in
+
 let test_test (stest,expr,file,res) =
 	expect_pass ~desc:("Test "^stest^" on "^file) 
 	~body:( fun () ->
@@ -80,27 +39,17 @@ in
 let cur = CurrentDir
 in
 
-(****************)
-(* SysPath test *)
-(****************)
-
-(* Implode path *)
-List.iter test_implode 
-[
- ("absolute",            "/a/b/c",        [root "" ; c "a" ; c "b" ; c "c"]      );
- ("implicit v1",         "a/b/c",         [c "a"; c "b"; c "c"]                  );
- ("implicit v2",         "./a/b/c",       [cur; c "a"; c "b"; c "c"]             );
- ("implicit v3",         "../a/b/c",      [up; c "a"; c "b"; c "c"]              );
- ("int implicit v1",     "a/b/./c",       [c "a"; c "b"; cur ; c "c" ]           );
- ("int implicit v2",     "a/b/../c",      [c "a"; c "b"; up ; c "c" ]            );
- ("int implicit v3",     "a/b/.././c",    [c "a"; c "b"; up ; cur ; c "c" ]      );
- ("int implicit v4",     "a/b/./../c",    [c "a"; c "b"; cur ; up ; c "c" ]      );
- ("int implicit v5",     "a/../b/./c",    [c "a"; up ; c "b"; cur ; c "c" ]      );
- ("int implicit v6",     "a/../../b/./c", [c "a"; up ; up ; c "b"; cur ; c "c" ] );
- ("keep last /",         "/a/b/c/",       [root "" ; c "a"; c "b"; c "c"; c ""]  )
-];
+(*********************)
+(* Unix SysPath test *)
+(*********************)
 
 (* Reduce path *)
+let test_reduce (test,exp) =
+	expect_pass ~desc:("Reduce " ^ test)
+	~body:( fun () ->
+		expect_equal_string "/a/b/c" (UnixPath.reduce exp)
+	)
+in
 List.iter test_reduce
 [
  ("identity",                    "/a/b/c"          );
@@ -119,18 +68,36 @@ List.iter test_reduce
 ];
 
 (* Create path *)
+let test_make_path (test,exp) =
+	expect_pass ~desc:("Make Path " ^ test)
+	~body:( fun () ->
+		expect_equal_string "/a:b:/c/d" (UnixPath.make_path_variable exp)
+	)
+in
 List.iter test_make_path
 [
  ("identity", ["/a";"b";"/c/d"])
 ];
 
 (* Explode path *)
+let test_explode_path (test,imp) =
+	expect_pass ~desc:("Explode Path " ^ test)
+	~body:( fun () ->
+		expect_equal_list_string ["/a";"b";"/c/d"] (UnixPath.read_path_variable imp)
+	)
+in
 List.iter test_explode_path
 [
  ("identity", "/a:b:/c/d")
 ];
 
 (* Convert to absolute *)
+let test_make_absolute (test,base,rela,res) =
+	expect_pass ~desc:("Make absolute " ^ test)
+	~body:( fun () ->
+		expect_equal_string res (UnixPath.make_absolute base rela)
+	)
+in
 List.iter test_make_absolute
 [
  ("identity",  "/a/b/c", ".",    "/a/b/c");
@@ -139,191 +106,444 @@ List.iter test_make_absolute
 ];
 
 (* Convert to relative *)
+let test_make_relative (test,base,abs,res) =
+	expect_pass ~desc:("Make absolute " ^ test)
+	~body:( fun () ->
+		expect_equal_string res (UnixPath.make_relative base abs)
+	)
+in
 List.iter test_make_relative 
 [
  ("identity",  "/a/b/c", "/a/b/c", "");
  ("simple v1", "/a/b/c", "/a/b/d", "../d")
 ];
 
-Fort.mkdir dir_test 0o755;
-List.iter test_test
+(**********************)
+(* Win32 SysPath test *)
+(**********************)
+
+(* Reduce path *)
+let test_reduce (test,exp) =
+	expect_pass ~desc:("Reduce " ^ test)
+	~body:( fun () ->
+		expect_equal_string "/a/b/c" (Win32Path.reduce exp)
+	)
+in
+List.iter test_reduce
 [
- ("True",                         True,                dir_test,true );
- ("False",                        False,               dir_test,false);
- ("Is_dir",                       Is_dir,              dir_test,true );
- ("Not Is_dir",                   (Not Is_dir),        dir_test,false);
- ("Is_dev_block",                 Is_dev_block,        dir_test,false);
- ("Is_dev_char",                  Is_dev_char,         dir_test,false);
- ("Exists",                       Exists,              dir_test,true );
- ("Is_file",                      Is_file,             dir_test,false);
- ("Is_set_group_ID",              Is_set_group_ID,     dir_test,false);
- ("Has_sticky_bit",               Has_sticky_bit,      dir_test,false);
- ("Is_link",                      Is_link,             dir_test,false);
- ("Is_pipe",                      Is_pipe,             dir_test,false);
- ("Is_readable",                  Is_readable,         dir_test,true );
- ("Is_writeable",                 Is_writeable,        dir_test,true );
- ("Size_not_null",                Size_not_null,       dir_test,true );
- ("Is_socket",                    Is_socket,           dir_test,false);
- ("Has_set_user_ID",              Has_set_user_ID,     dir_test,false);
- ("Is_exec",                      Is_exec,             dir_test,true );
- ("And of test_file * test_file", And(True,False),     dir_test,false);
- ("Or of test_file * test_file",  Or(True,False),      dir_test,true );
- ("Match",                        Match(dir_test),     dir_test,true );
- ("Is_owned_by_user_ID",          Is_owned_by_user_ID, dir_test,true );
- ("Is_owned_by_group_ID",         Is_owned_by_group_ID,dir_test,true );
- ("Is_newer_than",                (Is_newer_than("test.ml","test.ml")),            dir_test,false);
- ("Is_older_than",                (Is_older_than("test.ml","test.ml")),            dir_test,false);
- ("Has_same_device_and_inode",    (Has_same_device_and_inode("test.ml","test.ml")),dir_test,true )
+ ("identity",                    "/a/b/c"          );
+ ("remove trailer",              "/a/b/c/"         );
+ ("remove last ..",              "/a/b/c/d/.."     );
+ ("remove last .",               "/a/b/c/."        );
+ ("remove inside ..",            "/a/d/../b/c"     );
+ ("remove inside .",             "/a/./b/c"        );
+ ("remove last . and ..",        "/a/b/c/d/./.."   );
+ ("remove last .. and .",        "/a/b/c/d/../."   );
+ ("remove following . and ..",   "/a/b/d/./../c"   );
+ ("remove following .. and .",   "/a/b/d/.././c"   );
+ ("remove multiple ..",          "/a/b/../d/../b/c");
+ ("remove multiple .",           "/a/./././b/./c"  );
+ ("remove multiple . and ..",    "/a/../a/./b/../c/../b/./c")
 ];
 
-Fort.test ~desc:"Touch in not existing subdir"
-~body:( fun () ->
-	try 
-		SysUtil.touch (implode_string [dir_test;"doesntexist";"essai0"]);
-		Pass
-	with _ ->
-		XFail
-);
+(* Create path *)
+let test_make_path (test,exp) =
+	expect_pass ~desc:("Make Path " ^ test)
+	~body:( fun () ->
+		expect_equal_string "/a:b:/c/d" (Win32Path.make_path_variable exp)
+	)
+in
+List.iter test_make_path
+[
+ ("identity", ["/a";"b";"/c/d"])
+];
 
-expect_pass ~desc:"Touch in existing dir v1"
-~body:( fun () ->
-	touch (implode_string [dir_test;"essai0"]);
-	expect_true (test Exists (implode_string [dir_test;"essai0"]))
-);
+(* Explode path *)
+let test_explode_path (test,imp) =
+	expect_pass ~desc:("Explode Path " ^ test)
+	~body:( fun () ->
+		expect_equal_list_string ["/a";"b";"/c/d"] (Win32Path.read_path_variable imp)
+	)
+in
+List.iter test_explode_path
+[
+ ("identity", "/a:b:/c/d")
+];
 
-expect_pass ~desc:"Touch in existing dir with no create"
-~body:( fun () ->
-	touch ~create:false (implode_string [dir_test;"essai2"]);
-	expect_true (not (test Exists (implode_string [dir_test;"essai2"])))
-);
+(* Convert to absolute *)
+let test_make_absolute (test,base,rela,res) =
+	expect_pass ~desc:("Make absolute " ^ test)
+	~body:( fun () ->
+		expect_equal_string res (UnixPath.make_absolute base rela)
+	)
+in
+List.iter test_make_absolute
+[
+ ("identity",  "/a/b/c", ".",    "/a/b/c");
+ ("simple v1", "/a/b/c", "./d",  "/a/b/c/d");
+ ("simple v2", "/a/b/c", "../d", "/a/b/d")
+];
 
-expect_pass ~desc:"Touch in existing dir v2"
-~body:( fun () ->
-	touch (implode_string [dir_test;"essai1"]);
-	expect_true (test Exists (implode_string [dir_test;"essai1"]))
-);
+(* Convert to relative *)
+let test_make_relative (test,base,abs,res) =
+	expect_pass ~desc:("Make absolute " ^ test)
+	~body:( fun () ->
+		expect_equal_string res (Win32Path.make_relative base abs)
+	)
+in
+List.iter test_make_relative 
+[
+ ("identity",  "/a/b/c", "/a/b/c", "");
+ ("simple v1", "/a/b/c", "/a/b/d", "../d")
+];
 
-(* Too fast 
-expect_pass ~desc:"Touch precedence"
-~body:( fun () ->
-	expect_true (test (Is_newer_than(concat dir_test "essai0",concat dir_test "essai1")) dir_test )
-);
-*)
+(**********************)
+(* MacOS SysPath test *)
+(**********************)
 
-expect_pass ~desc:"Mkdir simple v1"
-~body:( fun () ->
-	mkdir (implode_string [dir_test;"essai2"]);
-	expect_true (test Is_dir (implode_string [ dir_test ; "essai2" ]))
-);
+(* Reduce path *)
+let test_reduce (test,exp) =
+	expect_pass ~desc:("Reduce " ^ test)
+	~body:( fun () ->
+		expect_equal_string "/a/b/c" (MacOSPath.reduce exp)
+	)
+in
+List.iter test_reduce
+[
+ ("identity",                    "/a/b/c"          );
+ ("remove trailer",              "/a/b/c/"         );
+ ("remove last ..",              "/a/b/c/d/.."     );
+ ("remove last .",               "/a/b/c/."        );
+ ("remove inside ..",            "/a/d/../b/c"     );
+ ("remove inside .",             "/a/./b/c"        );
+ ("remove last . and ..",        "/a/b/c/d/./.."   );
+ ("remove last .. and .",        "/a/b/c/d/../."   );
+ ("remove following . and ..",   "/a/b/d/./../c"   );
+ ("remove following .. and .",   "/a/b/d/.././c"   );
+ ("remove multiple ..",          "/a/b/../d/../b/c");
+ ("remove multiple .",           "/a/./././b/./c"  );
+ ("remove multiple . and ..",    "/a/../a/./b/../c/../b/./c")
+];
 
-expect_pass ~desc:"Mkdir simple && mode 700"
-~body:( fun () ->
-	mkdir ~mode:0o0700 (implode_string [ dir_test ; "essai3" ]);
-	expect_true (test Is_dir (implode_string [ dir_test ; "essai3" ]))
-);
+(* Create path *)
+let test_make_path (test,exp) =
+	expect_pass ~desc:("Make Path " ^ test)
+	~body:( fun () ->
+		expect_equal_string "/a:b:/c/d" (MacOSPath.make_path_variable exp)
+	)
+in
+List.iter test_make_path
+[
+ ("identity", ["/a";"b";"/c/d"])
+];
 
-Fort.test ~desc:"Mkdir recurse v1"
-~body:(fun () ->
-	try
-		mkdir (implode_string [dir_test; "essai4"; "essai5"]);
-		Pass
-	with MkdirMissingComponentPath ->
-		XFail
-);
+(* Explode path *)
+let test_explode_path (test,imp) =
+	expect_pass ~desc:("Explode Path " ^ test)
+	~body:( fun () ->
+		expect_equal_list_string ["/a";"b";"/c/d"] (MacOSPath.read_path_variable imp)
+	)
+in
+List.iter test_explode_path
+[
+ ("identity", "/a:b:/c/d")
+];
 
-Fort.test ~desc:"Mkdir && already exist v1"
-~body:(fun () ->
-	try
-		mkdir (implode_string [dir_test; "essai0"]);
-		Pass
-	with MkdirDirnameAlreadyUsed ->
-		XFail
-);
+(* Convert to absolute *)
+let test_make_absolute (test,base,rela,res) =
+	expect_pass ~desc:("Make absolute " ^ test)
+	~body:( fun () ->
+		expect_equal_string res (MacOSPath.make_absolute base rela)
+	)
+in
+List.iter test_make_absolute
+[
+ ("identity",  "/a/b/c", ".",    "/a/b/c");
+ ("simple v1", "/a/b/c", "./d",  "/a/b/c/d");
+ ("simple v2", "/a/b/c", "../d", "/a/b/d")
+];
 
-expect_pass ~desc:"Mkdir recurse v2"
-~body:(fun () ->
-	mkdir ~parent:true (implode_string [dir_test; "essai4"; "essai5"]);
-	expect_true (test Is_dir (implode_string [dir_test; "essai4"; "essai5"]))
-);
+(* Convert to relative *)
+let test_make_relative (test,base,abs,res) =
+	expect_pass ~desc:("Make absolute " ^ test)
+	~body:( fun () ->
+		expect_equal_string res (MacOSPath.make_relative base abs)
+	)
+in
+List.iter test_make_relative 
+[
+ ("identity",  "/a/b/c", "/a/b/c", "");
+ ("simple v1", "/a/b/c", "/a/b/d", "../d")
+];
 
-expect_pass ~desc:"Find v1"
-~body:(fun () ->
-	let lst = find True dir_test 
-	in
-	expect_equal_list_string 		
-		(
-			(implode_string [ dir_test ; "essai4" ; "essai5" ]) :: 
-			(List.map (fun x -> implode_string [ dir_test ; x ] ) [
-				"essai4";
-				"essai3";
-				"essai2";
-				"essai1";
-				"essai0"
-			])
-		)
-		lst 
+(***********************)
+(* Cygwin SysPath test *)
+(***********************)
 
-);
+(* Reduce path *)
+let test_reduce (test,exp) =
+	expect_pass ~desc:("Reduce " ^ test)
+	~body:( fun () ->
+		expect_equal_string "/a/b/c" (CygwinPath.reduce exp)
+	)
+in
+List.iter test_reduce
+[
+ ("identity",                    "/a/b/c"          );
+ ("remove trailer",              "/a/b/c/"         );
+ ("remove last ..",              "/a/b/c/d/.."     );
+ ("remove last .",               "/a/b/c/."        );
+ ("remove inside ..",            "/a/d/../b/c"     );
+ ("remove inside .",             "/a/./b/c"        );
+ ("remove last . and ..",        "/a/b/c/d/./.."   );
+ ("remove last .. and .",        "/a/b/c/d/../."   );
+ ("remove following . and ..",   "/a/b/d/./../c"   );
+ ("remove following .. and .",   "/a/b/d/.././c"   );
+ ("remove multiple ..",          "/a/b/../d/../b/c");
+ ("remove multiple .",           "/a/./././b/./c"  );
+ ("remove multiple . and ..",    "/a/../a/./b/../c/../b/./c")
+];
 
-expect_pass ~desc:"Find v2"
-~body:(fun () ->
-	let lst = find Is_dir dir_test
-	in
-	expect_equal_list_string 
-		(
-		(implode_string [ dir_test ; "essai4" ; "essai5" ]) ::
-			(List.map (fun x -> implode_string [ dir_test ; x ]) [
-				"essai4";
-				"essai3";
-				"essai2"
-			])
-		)
-		lst
-);
-			
-expect_pass ~desc:"Find v3"
-~body:(fun () ->
-	let lst = find Is_file dir_test
-	in
-	expect_equal_list_string 
-		(List.map (fun x -> implode_string [ dir_test ; x ]) [
-			"essai1";
-			"essai0"
-		])
-		lst
-);
+(* Create path *)
+let test_make_path (test,exp) =
+	expect_pass ~desc:("Make Path " ^ test)
+	~body:( fun () ->
+		expect_equal_string "/a:b:/c/d" (CygwinPath.make_path_variable exp)
+	)
+in
+List.iter test_make_path
+[
+ ("identity", ["/a";"b";"/c/d"])
+];
 
-expect_pass ~desc:"Cp v1"
-~body:(fun () ->
-	cp (implode_string [dir_test ; "essai0"]) (implode_string [ dir_test ; "essai6" ]);
-	expect_true (test (Exists) (implode_string [ dir_test ; "essai6" ]))
-);
+(* Explode path *)
+let test_explode_path (test,imp) =
+	expect_pass ~desc:("Explode Path " ^ test)
+	~body:( fun () ->
+		expect_equal_list_string ["/a";"b";"/c/d"] (CygwinPath.read_path_variable imp)
+	)
+in
+List.iter test_explode_path
+[
+ ("identity", "/a:b:/c/d")
+];
 
-expect_pass ~desc:"Cp v2"
-~body:(fun () ->
-	cp (implode_string [dir_test ; "essai0"]) (implode_string [ dir_test ; "essai4" ]);
-	expect_true (test (Exists) (implode_string [ dir_test ; "essai4" ; "essai0" ]))
-);
+(* Convert to absolute *)
+let test_make_absolute (test,base,rela,res) =
+	expect_pass ~desc:("Make absolute " ^ test)
+	~body:( fun () ->
+		expect_equal_string res (CygwinPath.make_absolute base rela)
+	)
+in
+List.iter test_make_absolute
+[
+ ("identity",  "/a/b/c", ".",    "/a/b/c");
+ ("simple v1", "/a/b/c", "./d",  "/a/b/c/d");
+ ("simple v2", "/a/b/c", "../d", "/a/b/d")
+];
 
-expect_pass ~desc:"Rm v1"
-~body:(fun () ->
-	rm ~force:(Ask ask_user) (implode_string [dir_test  ; "essai2"]);
-	expect_true (test (Not Exists) (implode_string [ dir_test ; "essai2" ]))
-);
+(* Convert to relative *)
+let test_make_relative (test,base,abs,res) =
+	expect_pass ~desc:("Make absolute " ^ test)
+	~body:( fun () ->
+		expect_equal_string res (CygwinPath.make_relative base abs)
+	)
+in
+List.iter test_make_relative 
+[
+ ("identity",  "/a/b/c", "/a/b/c", "");
+ ("simple v1", "/a/b/c", "/a/b/d", "../d")
+];
 
-Fort.test ~desc:"Rm v2"
-~body:(fun () ->
-	try 
-		rm ~force:(Ask ask_user) (implode_string [ dir_test ; "essai4" ]);
-		Pass
-	with RmDirNotEmpty ->
-		XFail
-);
+(****************)
+(* SysUtil test *)
+(****************)
 
-expect_pass ~desc:"Rm v3"
-~body:(fun () ->
-	rm ~force:(Ask ask_user) ~recurse:true dir_test;
-	expect_true (test (Not Exists) dir_test)
-);
+if !error_syspath then
+  raise CannotContinueTest
+else
+  begin
+  Fort.mkdir dir_test 0o755;
+  List.iter test_test
+  [
+   ("True",                         True,                dir_test,true );
+   ("False",                        False,               dir_test,false);
+   ("Is_dir",                       Is_dir,              dir_test,true );
+   ("Not Is_dir",                   (Not Is_dir),        dir_test,false);
+   ("Is_dev_block",                 Is_dev_block,        dir_test,false);
+   ("Is_dev_char",                  Is_dev_char,         dir_test,false);
+   ("Exists",                       Exists,              dir_test,true );
+   ("Is_file",                      Is_file,             dir_test,false);
+   ("Is_set_group_ID",              Is_set_group_ID,     dir_test,false);
+   ("Has_sticky_bit",               Has_sticky_bit,      dir_test,false);
+   ("Is_link",                      Is_link,             dir_test,false);
+   ("Is_pipe",                      Is_pipe,             dir_test,false);
+   ("Is_readable",                  Is_readable,         dir_test,true );
+   ("Is_writeable",                 Is_writeable,        dir_test,true );
+   ("Size_not_null",                Size_not_null,       dir_test,true );
+   ("Is_socket",                    Is_socket,           dir_test,false);
+   ("Has_set_user_ID",              Has_set_user_ID,     dir_test,false);
+   ("Is_exec",                      Is_exec,             dir_test,true );
+   ("And of test_file * test_file", And(True,False),     dir_test,false);
+   ("Or of test_file * test_file",  Or(True,False),      dir_test,true );
+   ("Match",                        Match(dir_test),     dir_test,true );
+   ("Is_owned_by_user_ID",          Is_owned_by_user_ID, dir_test,true );
+   ("Is_owned_by_group_ID",         Is_owned_by_group_ID,dir_test,true );
+   ("Is_newer_than",                (Is_newer_than("test.ml","test.ml")),            dir_test,false);
+   ("Is_older_than",                (Is_older_than("test.ml","test.ml")),            dir_test,false);
+   ("Has_same_device_and_inode",    (Has_same_device_and_inode("test.ml","test.ml")),dir_test,true )
+  ];
+  
+  Fort.test ~desc:"Touch in not existing subdir"
+  ~body:( fun () ->
+  	try 
+  		SysUtil.touch (implode_string [dir_test;"doesntexist";"essai0"]);
+  		Pass
+  	with _ ->
+  		XFail
+  );
+  
+  expect_pass ~desc:"Touch in existing dir v1"
+  ~body:( fun () ->
+  	touch (implode_string [dir_test;"essai0"]);
+  	expect_true (test Exists (implode_string [dir_test;"essai0"]))
+  );
+  
+  expect_pass ~desc:"Touch in existing dir with no create"
+  ~body:( fun () ->
+  	touch ~create:false (implode_string [dir_test;"essai2"]);
+  	expect_true (not (test Exists (implode_string [dir_test;"essai2"])))
+  );
+  
+  expect_pass ~desc:"Touch in existing dir v2"
+  ~body:( fun () ->
+  	touch (implode_string [dir_test;"essai1"]);
+  	expect_true (test Exists (implode_string [dir_test;"essai1"]))
+  );
+  
+  (* Too fast 
+  expect_pass ~desc:"Touch precedence"
+  ~body:( fun () ->
+  	expect_true (test (Is_newer_than(concat dir_test "essai0",concat dir_test "essai1")) dir_test )
+  );
+  *)
+  
+  expect_pass ~desc:"Mkdir simple v1"
+  ~body:( fun () ->
+  	mkdir (implode_string [dir_test;"essai2"]);
+  	expect_true (test Is_dir (implode_string [ dir_test ; "essai2" ]))
+  );
+  
+  expect_pass ~desc:"Mkdir simple && mode 700"
+  ~body:( fun () ->
+  	mkdir ~mode:0o0700 (implode_string [ dir_test ; "essai3" ]);
+  	expect_true (test Is_dir (implode_string [ dir_test ; "essai3" ]))
+  );
+  
+  Fort.test ~desc:"Mkdir recurse v1"
+  ~body:(fun () ->
+  	try
+  		mkdir (implode_string [dir_test; "essai4"; "essai5"]);
+  		Pass
+  	with MkdirMissingComponentPath ->
+  		XFail
+  );
+  
+  Fort.test ~desc:"Mkdir && already exist v1"
+  ~body:(fun () ->
+  	try
+  		mkdir (implode_string [dir_test; "essai0"]);
+  		Pass
+  	with MkdirDirnameAlreadyUsed ->
+  		XFail
+  );
+  
+  expect_pass ~desc:"Mkdir recurse v2"
+  ~body:(fun () ->
+  	mkdir ~parent:true (implode_string [dir_test; "essai4"; "essai5"]);
+  	expect_true (test Is_dir (implode_string [dir_test; "essai4"; "essai5"]))
+  );
+  
+  expect_pass ~desc:"Find v1"
+  ~body:(fun () ->
+  	let lst = find True dir_test 
+  	in
+  	expect_equal_list_string 		
+  		(
+  			(implode_string [ dir_test ; "essai4" ; "essai5" ]) :: 
+  			(List.map (fun x -> implode_string [ dir_test ; x ] ) [
+  				"essai4";
+  				"essai3";
+  				"essai2";
+  				"essai1";
+  				"essai0"
+  			])
+  		)
+  		lst 
+  
+  );
+  
+  expect_pass ~desc:"Find v2"
+  ~body:(fun () ->
+  	let lst = find Is_dir dir_test
+  	in
+  	expect_equal_list_string 
+  		(
+  		(implode_string [ dir_test ; "essai4" ; "essai5" ]) ::
+  			(List.map (fun x -> implode_string [ dir_test ; x ]) [
+  				"essai4";
+  				"essai3";
+  				"essai2"
+  			])
+  		)
+  		lst
+  );
+  			
+  expect_pass ~desc:"Find v3"
+  ~body:(fun () ->
+  	let lst = find Is_file dir_test
+  	in
+  	expect_equal_list_string 
+  		(List.map (fun x -> implode_string [ dir_test ; x ]) [
+  			"essai1";
+  			"essai0"
+  		])
+  		lst
+  );
+  
+  expect_pass ~desc:"Cp v1"
+  ~body:(fun () ->
+  	cp (implode_string [dir_test ; "essai0"]) (implode_string [ dir_test ; "essai6" ]);
+  	expect_true (test (Exists) (implode_string [ dir_test ; "essai6" ]))
+  );
+  
+  expect_pass ~desc:"Cp v2"
+  ~body:(fun () ->
+  	cp (implode_string [dir_test ; "essai0"]) (implode_string [ dir_test ; "essai4" ]);
+  	expect_true (test (Exists) (implode_string [ dir_test ; "essai4" ; "essai0" ]))
+  );
+  
+  expect_pass ~desc:"Rm v1"
+  ~body:(fun () ->
+  	rm ~force:(Ask ask_user) (implode_string [dir_test  ; "essai2"]);
+  	expect_true (test (Not Exists) (implode_string [ dir_test ; "essai2" ]))
+  );
+  
+  Fort.test ~desc:"Rm v2"
+  ~body:(fun () ->
+  	try 
+  		rm ~force:(Ask ask_user) (implode_string [ dir_test ; "essai4" ]);
+  		Pass
+  	with RmDirNotEmpty ->
+  		XFail
+  );
+  
+  expect_pass ~desc:"Rm v3"
+  ~body:(fun () ->
+  	rm ~force:(Ask ask_user) ~recurse:true dir_test;
+  	expect_true (test (Not Exists) dir_test)
+  )
+  end
+;
 
 ();;

@@ -155,7 +155,7 @@ struct
 
 	let concat fln fln_part = 
 		(* We use a lot of time to concatenate because of the @ 
-		   we shoudl try to avoid this kind of behavior *)
+		   we should try to avoid this kind of behavior *)
 		implode  ((explode fln) @ [fln_part])
 
 	let is_relative fln  = 
@@ -166,8 +166,9 @@ struct
 	let is_implicit fln  = 
 		match explode fln with
 		  ParentDir :: _ 
-		| CurrentDir :: _ -> true
-		| _               -> false
+		| CurrentDir :: _ 
+		| Component _ :: _ -> true
+		| _                -> false
 
 	let is_valid fln =
 		try
@@ -241,7 +242,14 @@ struct
 		in
 		let walk_path itm =
 			match itm with
-			  ParentDir    -> ignore ( Stack.pop stack_dir )
+			  ParentDir    -> 
+			  	begin
+				let last_cmp = Stack.pop stack_dir
+				in
+				match last_cmp with
+				  Root s -> Stack.push stack_dir (Root s)
+				| _ -> ()
+				end
 			| CurrentDir   -> ()
 			| Component "" -> ()
 			| Component _ 
