@@ -14,8 +14,10 @@ type fs_type =
 	| Socket
 ;;	
 
-exception File_doesnt_exist
-;;
+exception File_doesnt_exist ;;
+exception RmDirNotEmpty;;
+exception MkdirMissingComponentPath;;
+exception MkdirDirnameAlreadyUsed;;
 
 let stat_type filename =
 	try
@@ -298,4 +300,82 @@ let which ?(path) fln =
 		List.find ctst real_path
 	in
 	concat which_path fln
+;;
+
+let mkdir ?(parent=false) ?mode fln =
+	let real_mode = 
+		match mode with
+		  Some x -> x
+		| None -> 0o0755
+	in
+	let mkdir_simple fln =
+		if test Exists fln then
+			if test Is_dir fln then
+				()
+			else
+				raise MkdirDirnameAlreadyUsed 
+		else
+			try 
+				Unix.mkdir fln real_mode 
+			with Unix.Unix_error(Unix.ENOENT,_,_) | Unix.Unix_error(Unix.ENOTDIR,_,_) ->
+				raise MkdirMissingComponentPath
+	in
+	if parent then
+		let exploded_path = explode fln
+		in
+		let _ = List.fold_left (fun x y -> 
+			match x with 
+			  Some s -> let next = concat s y in
+			  	mkdir_simple next; Some next
+			| None ->
+				mkdir_simple y; Some y
+			) None exploded_path
+		in
+		()
+	else
+		mkdir_simple fln
+;;		
+
+let touch ?(create=true) fln =
+	if (test (And(Exists,Is_file)) fln) || create then
+		close_out (open_out fln)
+	else 
+		()
+;;
+
+let find tst fln =
+	let ctest = compile_filter (And(tst,Not(Or(Match("\\.\\."),Match("\\.")))))
+	in
+	let cdir  = compile_filter (And(Is_dir,Not(Or(Match("\\.\\."),Match("\\.")))))
+	in
+	let rec find_simple fln =
+		let dir_content = list_dir fln
+		in
+		List.fold_left 
+			(fun x y -> List.rev_append (find_simple y) x)
+			(List.filter ctest dir_content)
+			(List.filter cdir dir_content)
+	in
+	if test Is_dir fln then
+		find_simple fln
+	else if ctest fln then
+		[fln]
+	else
+		[]
+;;
+
+let rm ?(recurse=false) fln =
+	let rm_simple fln =
+		if test Is_dir fln then
+			try 
+				Unix.rmdir fln
+			with Unix.Unix_error(Unix.ENOTEMPTY,_,_) ->
+				raise RmDirNotEmpty
+		else
+			Unix.unlink fln
+	in
+	if recurse then
+		List.iter rm_simple (find True fln)
+	else
+		rm_simple fln
 ;;

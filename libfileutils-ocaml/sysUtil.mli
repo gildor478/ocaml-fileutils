@@ -1,4 +1,5 @@
 
+
 (** Pattern you can use to test file *)
 type test_file =
     Is_dev_block
@@ -39,3 +40,24 @@ val test : test_file -> string -> bool
 (** Try to find the executable in the PATH. Use environement variable
 PATH if none is provided *)
 val which : ?path:string list -> string -> string
+
+exception MkdirMissingComponentPath;;
+exception MkdirDirnameAlreadyUsed;;
+(** Create the directory which name is provided. Turn parent to true
+if you also want to create every topdir of the path. Use mode to 
+provide some specific right ( default 755 ). *)
+val mkdir : ?parent:bool -> ?mode:int -> string -> unit
+
+(** Modify the time stamp of the given filename. Turn create to false
+if you don't want to create the file *)
+val touch : ?create:bool -> string -> unit
+
+(** Descend the directory tree starting from the given filename and using
+the test provided to find what is looking for. You cannot match current_dir
+and parent_dir.*)
+val find : test_file -> string -> string list
+
+(** Remove the filename provided. Turn recurse to true in order to 
+completely delete a directory *)
+exception RmDirNotEmpty;;
+val rm : ?recurse:bool -> string -> unit
