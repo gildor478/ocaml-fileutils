@@ -20,8 +20,8 @@ end
 module type PATH_SPECIFICATION =
 sig
 
-type filename
-type extension
+type filename  
+type extension 
 
 val string_of_filename : filename -> string
 val filename_of_string : string -> filename

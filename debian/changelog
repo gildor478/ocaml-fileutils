@@ -1,3 +1,10 @@
+ocaml-fileutils (0.2) unstable; urgency=low
+
+  * New upstream version
+  * Use filename instead of string
+
+ -- Sylvain LE GALL <sylvain.le-gall@polytechnique.org>  Sat, 13 Mar 2004 00:07:08 +0100
+
 ocaml-fileutils (0.1.1) unstable; urgency=low
 
   * New upstream version

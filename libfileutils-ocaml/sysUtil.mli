@@ -12,7 +12,7 @@ exception RmDirNotEmpty
 exception MvNoSourceFile
 
 (** The base type of the module *)
-type filename = SysPath.DefaultPath.filename
+type filename = string
 
 (** {1 Testing file} *)
 
@@ -89,7 +89,7 @@ type test_file =
 (** {1 Common operation on file }*)
 
 (** List the content of a directory *)
-val list_dir : filename -> filename list
+val ls : filename -> filename list
 
 (** Apply a filtering pattern to a filename *)
 val filter : test_file -> filename list -> filename list

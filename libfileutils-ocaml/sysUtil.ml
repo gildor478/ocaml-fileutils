@@ -6,9 +6,15 @@ module P = SysPath.DefaultPath
 
 open P
 
+let f2s = string_of_filename 
+
+let s2f = filename_of_string
+
+type filename = string
+
 type interactive =
 	  Force
-	| Ask of (filename -> bool)
+	| Ask of (string -> bool)
 
 type fs_type = 
 	Dir  
@@ -219,31 +225,23 @@ let rec compile_filter flt =
 			fun x -> Str.string_match reg x 0
 			end
 		| Has_extension(ext) ->
-			fun x -> check_extension (filename_of_string x) (extension_of_string ext)
+			fun x -> check_extension (s2f x) (extension_of_string ext)
 		| Is_current_dir ->
-			fun x -> (is_current (basename (filename_of_string x)))
+			fun x -> (is_current (basename (s2f x)))
 		| Is_parent_dir ->
-			fun x -> (is_parent  (basename (filename_of_string x)))
+			fun x -> (is_parent  (basename (s2f x)))
 	in
 	fun x -> ( try res_filter x with File_doesnt_exist -> false )
 ;;
 
-let list_dir dirname =
-	let hdir = Unix.opendir dirname
+let ls dirname =
+	let abs_dirname = s2f dirname
 	in
-	let rec list_dir_aux lst =
-		try
-			let filename = Unix.readdir hdir
-			in
-			let complete_path = 
-				concat dirname (filename_of_string filename)
-			in
-			list_dir_aux (complete_path :: lst)
-		with End_of_file ->
-			Unix.closedir hdir;
-			lst
+	let array_dir = Sys.readdir dirname
 	in
-	list_dir_aux []
+	let list_dir  = Array.to_list array_dir
+	in
+	List.map (fun x -> f2s (concat abs_dirname ( s2f x )))  list_dir
 ;;	
 
 
@@ -263,17 +261,18 @@ let which ?(path) fln =
 	let real_path =
 		match path with
 		  None ->
-			read_path_variable (Sys.getenv "PATH")
+			path_of_string (Sys.getenv "PATH")
 		| Some x ->
-			x
+			List.map s2f x
 	in
 	let ctst x = 
-		test (And(Is_exec,Not(Is_dir))) (concat x fln)
+		test (And(Is_exec,Not(Is_dir))) 
+			(f2s (concat x (s2f fln)))
 	in
 	let which_path =
 		List.find ctst real_path
 	in
-	concat which_path fln
+	f2s (concat which_path (s2f fln))
 ;;
 
 let mkdir ?(parent=false) ?mode fln =
@@ -300,7 +299,7 @@ let mkdir ?(parent=false) ?mode fln =
 				if test Exists parent then
 					()
 				else
-					create_parent (up_dir parent)
+					create_parent (f2s (dirname (s2f parent)))
 			in
 			mkdir_simple parent
 		in
@@ -323,12 +322,12 @@ let find tst fln =
 	in
 	let rec find_simple fln =
 		let dir_content = 
-			list_dir fln
+			ls fln
 		in
 		List.fold_left 
 			(fun x y -> List.rev_append (find_simple y) x)
 			(List.filter ctest dir_content)
-			(List.filter cdir dir_content)
+			(List.filter cdir  dir_content)
 	in
 	if test Is_dir fln then
 		find_simple fln
@@ -373,20 +372,24 @@ let cp ?(force=Force) ?(recurse=false) fln_src fln_dst =
 			(* We do not accept to copy a file over himself *)
 			(* Use reduce to get rid of trick like ./a to a *)
 			(
-				( reduce fln_src ) <> ( reduce fln_dst )
+				reduce fln_src <> reduce fln_dst
 			)
 			&&
 			(
-				if test Exists fln_dst then
+				let fln_dst_str = f2s fln_dst 
+				in
+				if test Exists fln_dst_str then
 					match force with
 					  Force -> true
-					| Ask ask -> ask fln_dst
+					| Ask ask -> ask fln_dst_str
 				else
 					true
 			)
 		in
 		if doit then
-			match stat_type fln_src with
+			let fln_src_str = f2s fln_src
+			in
+			match stat_type fln_src_str with
 			  File -> 
 				begin
 					let buffer_len = 1024
@@ -395,9 +398,9 @@ let cp ?(force=Force) ?(recurse=false) fln_src fln_dst =
 					in
 					let read_len = ref 0
 					in
-					let ch_in = open_in_bin fln_src
+					let ch_in = open_in_bin fln_src_str
 					in
-					let ch_out = open_out_bin fln_dst
+					let ch_out = open_out_bin (f2s fln_dst)
 					in
 					while (read_len := input ch_in buffer 0 buffer_len; !read_len <> 0 ) do
 						output ch_out buffer 0 !read_len
@@ -406,7 +409,7 @@ let cp ?(force=Force) ?(recurse=false) fln_src fln_dst =
 					close_out ch_out
 				end
 			| Dir ->
-				mkdir fln_dst
+				mkdir (f2s fln_dst)
 			(* We do not accept to copy this kind of files *)
 			(* It is too POSIX specific, should not be     *)
 			(* implemented on other platform               *)
@@ -420,11 +423,13 @@ let cp ?(force=Force) ?(recurse=false) fln_src fln_dst =
 			()
 	in
 	let cp_dir () = 
-		let fln_src_abs = make_absolute cwd fln_src
+		let fln_src_abs = (make_absolute (s2f cwd) (s2f fln_src))
 		in
-		let fln_dst_abs = make_absolute cwd fln_dst
+		let fln_dst_abs = (make_absolute (s2f cwd) (s2f fln_dst))
 		in
-		let fln_src_lst = find True fln_src_abs
+		let fln_src_lst = List.map 
+			(fun x -> s2f x)
+			(find True (f2s fln_src_abs))
 		in
 		let fln_dst_lst = List.map 
 			(fun x -> make_absolute fln_dst_abs (make_relative fln_src_abs x))
@@ -447,9 +452,9 @@ let cp ?(force=Force) ?(recurse=false) fln_src fln_dst =
 	| (false, true, true) 
 	| (false, true,false) ->
 		if test Exists fln_src then
-			let fln_src_abs = make_absolute cwd fln_src
+			let fln_src_abs = make_absolute (s2f cwd) (s2f fln_src)
 			in
-			let fln_dst_abs = make_absolute cwd fln_dst
+			let fln_dst_abs = make_absolute (s2f cwd) (s2f fln_dst)
 			in
 			cp_simple 
 				fln_src_abs 
@@ -458,8 +463,8 @@ let cp ?(force=Force) ?(recurse=false) fln_src fln_dst =
 	| (false,false,false) ->
 		if (test Exists fln_src) then
 			cp_simple 
-				(make_absolute cwd fln_src) 
-				(make_absolute cwd fln_dst)
+				(make_absolute (s2f cwd) (s2f fln_src)) 
+				(make_absolute (s2f cwd) (s2f fln_dst))
 		else 
 			raise CpNoSourceFile
 ;;
@@ -467,13 +472,13 @@ let cp ?(force=Force) ?(recurse=false) fln_src fln_dst =
 let rec mv ?(force=Force) fln_src fln_dst =
 	let cwd = Sys.getcwd ()
 	in
-	let fln_src_abs =  make_absolute cwd fln_src 
+	let fln_src_abs =  make_absolute (s2f cwd) (s2f fln_src)
 	in
-	let fln_dst_abs =  make_absolute cwd fln_dst
+	let fln_dst_abs =  make_absolute (s2f cwd) (s2f fln_dst)
 	in
 	if fln_src_abs <> fln_dst_abs then
 	begin
-		if test Exists fln_dst_abs then
+		if test Exists (f2s fln_dst_abs) then
 		begin
 			let doit = 
 				match force with
@@ -482,18 +487,18 @@ let rec mv ?(force=Force) fln_src fln_dst =
 			in
 			if doit then
 			begin
-				rm fln_dst_abs;
-				mv fln_src_abs fln_dst_abs
+				rm (f2s fln_dst_abs);
+				mv (f2s fln_src_abs) (f2s fln_dst_abs)
 			end
 			else
 				()
 		end
-		else if test Is_dir fln_dst_abs then
+		else if test Is_dir (f2s fln_dst_abs) then
 			mv ~force:force 
-				fln_src_abs 
-				( make_absolute fln_dst_abs (basename fln_src_abs) )
-		else if test Exists fln_src_abs then
-			Unix.rename fln_src_abs fln_src_abs
+				(f2s fln_src_abs)
+				(f2s (make_absolute fln_dst_abs (basename fln_src_abs)))
+		else if test Exists (f2s fln_src_abs) then
+			Sys.rename (f2s fln_src_abs) (f2s fln_src_abs)
 		else
 			raise MvNoSourceFile
 	end
