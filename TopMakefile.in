@@ -35,13 +35,15 @@ OCAMLFIND = @OCAMLFIND@
 OCAMLP4 = @OCAMLP4@
 EXE = @EXE@
 TEMPBUILDLIB=$(TOP_SRCDIR)/.libs
-BUILDLIB=@LIBDIR@
-OCAMLPATH=$(OCAMLPATH);$(TEMPBUILDLIB)/
+BUILDLIB=@libdir@
+OCAMLPATH=`echo $OCAMLPATH`:$(TEMPBUILDLIB)/
 export OCAMLPATH
 
 all: $(if $(LIBRARY), install-buildlib, $(OCAMLBEST))
 
 install: $(if $(LIBRARY), install-lib, install-exe)
+
+uninstall: $(if $(LIBRARY), uninstall-lib, uninstall-exe)
 
 CMX = $(CMO:.cmo=.cmx)
 
@@ -68,7 +70,10 @@ install-buildlib: $(TEMPBUILDLIB) byte opt META
 	$(OCAMLFIND) install -destdir $(TEMPBUILDLIB) $(NAME) $(INSTALLIB)
 
 install-lib: byte opt META
-	$(OCAMLFIND) install -destdir $(BUILDLIB) $(NAME) $(INSTALLLIB)
+	$(OCAMLFIND) install $(NAME) $(INSTALLIB)
+
+uninstall-lib: 
+	$(OCAMLFIND) remove $(NAME)
 
 # Build the executable
 
