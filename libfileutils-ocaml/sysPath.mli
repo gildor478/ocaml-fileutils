@@ -1,44 +1,61 @@
+
+type filename  = string
+type extension = string
+type filename_part = SysPath_type.filename_part
+(*	  SysPath_type.CurrentDir
+	| SysPath_type.ParentDir 
+	| SysPath_type.Root of string
+	| SysPath_type.Component of string
+*)
 (** You cannot pass a base path which is relative *)
-exception Base_path_relative
+exception SysPathBasePathRelative
 (** One of the path you have passed is relative and cannot be reduce *)
-exception Path_relative_unreducable
+exception SysPathRelativeUnreducable
+(** We do not have recognized any OS, please contact upstream *)
+exception SysPathUnrecognizedOS of string
 
 (** All operation as defined in module Filename *)
-val current_dir_name : string
-val parent_dir_name : string
-val concat : string -> string -> string
-val is_relative : string -> bool
-val is_implicit : string -> bool
-val check_suffix : string -> string -> bool
-val chop_suffix : string -> string -> string
-val chop_extension : string -> string
-val basename : string -> string
-val dirname : string -> string
-val temp_file : string -> string -> string
-val open_temp_file :
-  ?mode:open_flag list -> string -> string -> string * out_channel
-val quote : string -> string
+val concat          : filename -> filename_part -> string
+
+val is_relative     : filename -> bool
+val is_implicit     : filename -> bool
+
+val chop_extension  : filename -> filename
+val check_extension : filename -> extension -> bool
+
+val basename        : filename -> filename_part
+val dirname         : filename -> filename
+val quote           : filename -> string
+
+val filename_of_filename_part : filename_part -> filename
+val filename_part_of_filename : filename -> filename_part
+
+val current_dir : filename_part
+val parent_dir  : filename_part
 
 (** Take a list of path component and return the string 
 corresponding to this path *)
-val implode : string list -> string
+val implode : filename_part list -> filename
 
 (** Take a string corresponding to a path a return the component 
 of this path *)
-val explode : string -> string list
+val explode : filename -> filename_part list
 
 (** Remove all path component which are relative inside the path
 For example : /a/../b -> /b/. Path must not be relative *)
-val reduce : string -> string
+val reduce : filename -> filename
 
 (** Create an absolute path from a path relative to the base path *)
-val make_absolute : string -> string -> string
+val make_absolute : filename -> filename -> filename
 
 (** Create a path which is relative to the base path *)
-val make_relative : string -> string -> string
+val make_relative : filename -> filename -> filename
 
 (** Create an environnement PATH like string from different path *)
-val make_path : string list -> string
+val make_path_variable : filename list -> string
 
 (** Return the different component of an environnement PATH like string *)
-val explode_path : string -> string list
+val read_path_variable : string -> filename list
+
+(** Do the same as implode but transform each sting in the list in filename_part *)
+val implode_string : string list -> filename 

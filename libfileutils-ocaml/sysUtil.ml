@@ -47,6 +47,9 @@ type test_file =
 	| Match of string
 	| True
 	| False
+	| Has_extension of string
+	| Is_parent_dir
+	| Is_current_dir
 ;;
 
 exception File_doesnt_exist ;;
@@ -211,6 +214,12 @@ let rec compile_filter flt =
 			in
 			fun x -> Str.string_match reg x 0
 			end
+		| Has_extension(ext) ->
+			fun x -> check_extension x ext
+		| Is_current_dir ->
+			fun x -> (basename x) = SysPath_type.CurrentDir
+		| Is_parent_dir ->
+			fun x -> (basename x) = SysPath_type.ParentDir
 	in
 	fun x -> ( try res_filter x with File_doesnt_exist -> false )
 ;;
@@ -220,7 +229,7 @@ let list_dir dirname =
 	in
 	let rec list_dir_aux lst =
 		try
-			let filename = Unix.readdir hdir
+			let filename = filename_part_of_filename (Unix.readdir hdir)
 			in
 			let complete_path = 
 				concat dirname filename
@@ -250,17 +259,17 @@ let which ?(path) fln =
 	let real_path =
 		match path with
 		  None ->
-			explode_path (Sys.getenv "PATH")
+			read_path_variable (Sys.getenv "PATH")
 		| Some x ->
 			x
 	in
 	let ctst x = 
-		test (And(Is_exec,Not(Is_dir))) (concat x fln)
+		test (And(Is_exec,Not(Is_dir))) (concat x (filename_part_of_filename fln))
 	in
 	let which_path =
 		List.find ctst real_path
 	in
-	concat which_path fln
+	concat which_path (filename_part_of_filename fln)
 ;;
 
 let mkdir ?(parent=false) ?mode fln =
@@ -289,7 +298,9 @@ let mkdir ?(parent=false) ?mode fln =
 			  Some s -> let next = concat s y in
 			  	mkdir_simple next; Some next
 			| None ->
-				mkdir_simple y; Some y
+				let current = filename_of_filename_part y 
+				in
+				mkdir_simple current; Some current
 			) None exploded_path
 		in
 		()
@@ -305,9 +316,9 @@ let touch ?(create=true) fln =
 ;;
 
 let find tst fln =
-	let ctest = compile_filter (And(tst,Not(Or(Match(".*/\\.\\.$"),Match(".*/\\.$")))))
+	let ctest = compile_filter (And(tst,Not(Or(Is_parent_dir,Is_current_dir))))
 	in
-	let cdir  = compile_filter (And(Is_dir,Not(Or(Match(".*/\\.\\.$"),Match(".*/\\.$")))))
+	let cdir  = compile_filter (And(Is_dir,Not(Or(Is_parent_dir,Is_current_dir))))
 	in
 	let rec find_simple fln =
 		let dir_content = 
@@ -439,11 +450,18 @@ let cp ?(force=Force) ?(recurse=false) fln_src fln_dst =
 			in
 			let fln_dst_abs = make_absolute cwd fln_dst
 			in
-			cp_simple fln_src_abs (make_absolute fln_dst_abs (basename fln_src_abs))
+			cp_simple 
+				fln_src_abs 
+				( make_absolute 
+					fln_dst_abs 
+					(filename_of_filename_part (basename fln_src_abs))
+				)
 	| (false,false, true) 
 	| (false,false,false) ->
 		if (test Exists fln_src) then
-			cp_simple (make_absolute cwd fln_src) (make_absolute cwd fln_dst)
+			cp_simple 
+				(make_absolute cwd fln_src) 
+				(make_absolute cwd fln_dst)
 		else 
 			raise CpNoSourceFile
 ;;
@@ -473,7 +491,12 @@ let rec mv ?(force=Force) fln_src fln_dst =
 				()
 		end
 		else if test Is_dir fln_dst_abs then
-			mv ~force:force fln_src_abs (make_absolute fln_dst_abs (basename fln_src_abs))
+			mv ~force:force 
+				fln_src_abs 
+				( make_absolute 
+					fln_dst_abs 
+					(filename_of_filename_part (basename fln_src_abs))
+				)
 		else if test Exists fln_src_abs then
 			Unix.rename fln_src_abs fln_src_abs
 		else

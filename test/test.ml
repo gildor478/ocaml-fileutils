@@ -1,5 +1,6 @@
 open Fort;;
 open SysPath;;
+open SysPath_type;;
 open SysUtil;;
 
 let dir_test = "test-util"
@@ -8,6 +9,9 @@ let expect_equal_string = expect_equal ~printer:(fun x -> x)
 in
 let expect_equal_list_string = expect_equal ~printer:(fun lst -> 
 	List.fold_left (fun x y -> x^";"^y ) "" lst)
+in
+let expect_equal_list_filename_part = expect_equal ~printer:(fun lst -> 
+	List.fold_left (fun x y -> x^";"^y ) "" (List.map filename_of_filename_part lst))
 in
 let expect_equal_bool = expect_equal ~printer:(string_of_bool)
 in
@@ -21,7 +25,7 @@ in
 let test_explode (test,exp,imp) =
 	expect_pass ~desc:("Explode " ^ test)
 	~body:(fun () ->
-		expect_equal_list_string exp (explode imp)
+		expect_equal_list_filename_part exp (explode imp)
 	)
 in
 let test_reduce (test,exp) =
@@ -33,13 +37,13 @@ in
 let test_make_path (test,exp) =
 	expect_pass ~desc:("Make Path " ^ test)
 	~body:( fun () ->
-		expect_equal_string "/a:b:/c/d" (make_path exp)
+		expect_equal_string "/a:b:/c/d" (make_path_variable exp)
 	)
 in
 let test_explode_path (test,imp) =
 	expect_pass ~desc:("Explode Path " ^ test)
 	~body:( fun () ->
-		expect_equal_list_string ["/a";"b";"/c/d"] (explode_path imp)
+		expect_equal_list_string ["/a";"b";"/c/d"] (read_path_variable imp)
 	)
 in
 let test_make_absolute (test,base,rela,res) =
@@ -60,6 +64,14 @@ let test_test (stest,expr,file,res) =
 		expect_equal_bool res (test expr file)
 	)
 in
+let root x = Root x
+in
+let c x = Component x
+in
+let up = ParentDir
+in
+let cur = CurrentDir
+in
 
 (****************)
 (* SysPath test *)
@@ -68,17 +80,17 @@ in
 (* Implode path *)
 List.iter test_implode 
 [
- ("absolute",            "/a/b/c",        ["" ; "a" ; "b" ; "c"]           );
- ("implicit v1",         "a/b/c",         ["a"; "b"; "c"]                  );
- ("implicit v2",         "./a/b/c",       ["."; "a"; "b"; "c"]             );
- ("implicit v3",         "../a/b/c",      [".."; "a"; "b"; "c"]            );
- ("int implicit v1",     "a/b/./c",       ["a"; "b"; "."; "c" ]            );
- ("int implicit v2",     "a/b/../c",      ["a"; "b"; ".."; "c" ]           );
- ("int implicit v3",     "a/b/.././c",    ["a"; "b"; ".."; "."; "c" ]      );
- ("int implicit v4",     "a/b/./../c",    ["a"; "b"; "."; ".."; "c" ]      );
- ("int implicit v5",     "a/../b/./c",    ["a"; ".."; "b"; "."; "c" ]      );
- ("int implicit v6",     "a/../../b/./c", ["a"; ".."; ".."; "b"; "."; "c" ]);
- ("keep last /",         "/a/b/c/",       [ ""; "a"; "b"; "c"; ""]         )
+ ("absolute",            "/a/b/c",        [root "" ; c "a" ; c "b" ; c "c"]      );
+ ("implicit v1",         "a/b/c",         [c "a"; c "b"; c "c"]                  );
+ ("implicit v2",         "./a/b/c",       [cur; c "a"; c "b"; c "c"]             );
+ ("implicit v3",         "../a/b/c",      [up; c "a"; c "b"; c "c"]              );
+ ("int implicit v1",     "a/b/./c",       [c "a"; c "b"; cur ; c "c" ]           );
+ ("int implicit v2",     "a/b/../c",      [c "a"; c "b"; up ; c "c" ]            );
+ ("int implicit v3",     "a/b/.././c",    [c "a"; c "b"; up ; cur ; c "c" ]      );
+ ("int implicit v4",     "a/b/./../c",    [c "a"; c "b"; cur ; up ; c "c" ]      );
+ ("int implicit v5",     "a/../b/./c",    [c "a"; up ; c "b"; cur ; c "c" ]      );
+ ("int implicit v6",     "a/../../b/./c", [c "a"; up ; up ; c "b"; cur ; c "c" ] );
+ ("keep last /",         "/a/b/c/",       [root "" ; c "a"; c "b"; c "c"; c ""]  )
 ];
 
 (* Reduce path *)
@@ -160,7 +172,7 @@ List.iter test_test
 Fort.test ~desc:"Touch in not existing subdir"
 ~body:( fun () ->
 	try 
-		SysUtil.touch (implode [dir_test;"doesntexist";"essai0"]);
+		SysUtil.touch (implode_string [dir_test;"doesntexist";"essai0"]);
 		Pass
 	with _ ->
 		XFail
@@ -168,20 +180,20 @@ Fort.test ~desc:"Touch in not existing subdir"
 
 expect_pass ~desc:"Touch in existing dir v1"
 ~body:( fun () ->
-	touch (implode [dir_test;"essai0"]);
-	expect_true (test Exists (implode [dir_test;"essai0"]))
+	touch (implode_string [dir_test;"essai0"]);
+	expect_true (test Exists (implode_string [dir_test;"essai0"]))
 );
 
 expect_pass ~desc:"Touch in existing dir with no create"
 ~body:( fun () ->
-	touch ~create:false (implode [dir_test;"essai2"]);
-	expect_true (not (test Exists (implode [dir_test;"essai2"])))
+	touch ~create:false (implode_string [dir_test;"essai2"]);
+	expect_true (not (test Exists (implode_string [dir_test;"essai2"])))
 );
 
 expect_pass ~desc:"Touch in existing dir v2"
 ~body:( fun () ->
-	touch (implode [dir_test;"essai1"]);
-	expect_true (test Exists (implode [dir_test;"essai1"]))
+	touch (implode_string [dir_test;"essai1"]);
+	expect_true (test Exists (implode_string [dir_test;"essai1"]))
 );
 
 (* Too fast 
@@ -193,20 +205,20 @@ expect_pass ~desc:"Touch precedence"
 
 expect_pass ~desc:"Mkdir simple v1"
 ~body:( fun () ->
-	mkdir (implode [dir_test;"essai2"]);
-	expect_true (test Is_dir (concat dir_test "essai2"))
+	mkdir (implode_string [dir_test;"essai2"]);
+	expect_true (test Is_dir (implode_string [ dir_test ; "essai2" ]))
 );
 
 expect_pass ~desc:"Mkdir simple && mode 700"
 ~body:( fun () ->
-	mkdir ~mode:0o0700 (concat dir_test "essai3");
-	expect_true (test Is_dir (concat dir_test "essai3"))
+	mkdir ~mode:0o0700 (implode_string [ dir_test ; "essai3" ]);
+	expect_true (test Is_dir (implode_string [ dir_test ; "essai3" ]))
 );
 
 Fort.test ~desc:"Mkdir recurse v1"
 ~body:(fun () ->
 	try
-		mkdir (implode [dir_test; "essai4"; "essai5"]);
+		mkdir (implode_string [dir_test; "essai4"; "essai5"]);
 		Pass
 	with MkdirMissingComponentPath ->
 		XFail
@@ -215,7 +227,7 @@ Fort.test ~desc:"Mkdir recurse v1"
 Fort.test ~desc:"Mkdir && already exist v1"
 ~body:(fun () ->
 	try
-		mkdir (concat dir_test "essai0");
+		mkdir (implode_string [dir_test; "essai0"]);
 		Pass
 	with MkdirDirnameAlreadyUsed ->
 		XFail
@@ -223,8 +235,8 @@ Fort.test ~desc:"Mkdir && already exist v1"
 
 expect_pass ~desc:"Mkdir recurse v2"
 ~body:(fun () ->
-	mkdir ~parent:true (implode [dir_test; "essai4"; "essai5"]);
-	expect_true (test Is_dir (implode [dir_test; "essai4"; "essai5"]))
+	mkdir ~parent:true (implode_string [dir_test; "essai4"; "essai5"]);
+	expect_true (test Is_dir (implode_string [dir_test; "essai4"; "essai5"]))
 );
 
 expect_pass ~desc:"Find v1"
@@ -232,14 +244,16 @@ expect_pass ~desc:"Find v1"
 	let lst = find True dir_test 
 	in
 	expect_equal_list_string 		
-		(List.map (concat dir_test) [
-			concat "essai4" "essai5";
-			"essai4";
-			"essai3";
-			"essai2";
-			"essai1";
-			"essai0"
-		])
+		(
+			(implode_string [ dir_test ; "essai4" ; "essai5" ]) :: 
+			(List.map (fun x -> implode_string [ dir_test ; x ] ) [
+				"essai4";
+				"essai3";
+				"essai2";
+				"essai1";
+				"essai0"
+			])
+		)
 		lst 
 
 );
@@ -249,12 +263,14 @@ expect_pass ~desc:"Find v2"
 	let lst = find Is_dir dir_test
 	in
 	expect_equal_list_string 
-		(List.map (concat dir_test) [
-			concat "essai4" "essai5";
-			"essai4";
-			"essai3";
-			"essai2"
-		])
+		(
+		(implode_string [ dir_test ; "essai4" ; "essai5" ]) ::
+			(List.map (fun x -> implode_string [ dir_test ; x ]) [
+				"essai4";
+				"essai3";
+				"essai2"
+			])
+		)
 		lst
 );
 			
@@ -263,23 +279,35 @@ expect_pass ~desc:"Find v3"
 	let lst = find Is_file dir_test
 	in
 	expect_equal_list_string 
-		(List.map (concat dir_test) [
+		(List.map (fun x -> implode_string [ dir_test ; x ]) [
 			"essai1";
 			"essai0"
 		])
 		lst
 );
 
+expect_pass ~desc:"Cp v1"
+~body:(fun () ->
+	cp (implode_string [dir_test ; "essai0"]) (implode_string [ dir_test ; "essai6" ]);
+	expect_true (test (Exists) (implode_string [ dir_test ; "essai6" ]))
+);
+
+expect_pass ~desc:"Cp v2"
+~body:(fun () ->
+	cp (implode_string [dir_test ; "essai0"]) (implode_string [ dir_test ; "essai4" ]);
+	expect_true (test (Exists) (implode_string [ dir_test ; "essai4" ; "essai0" ]))
+);
+
 expect_pass ~desc:"Rm v1"
 ~body:(fun () ->
-	rm (concat dir_test "essai2");
-	expect_true (test (Not Exists) (concat dir_test "essai2"))
+	rm (implode_string [dir_test  ; "essai2"]);
+	expect_true (test (Not Exists) (implode_string [ dir_test ; "essai2" ]))
 );
 
 Fort.test ~desc:"Rm v2"
 ~body:(fun () ->
 	try 
-		rm (concat dir_test "essai4");
+		rm (implode_string [ dir_test ; "essai4" ]);
 		Pass
 	with RmDirNotEmpty ->
 		XFail

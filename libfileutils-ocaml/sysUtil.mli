@@ -1,6 +1,6 @@
 (** The base type of the module *)
 
-type filename = string
+type filename = SysPath.filename
 
 
 (** For certain command, you should need to ask the user wether
@@ -66,6 +66,12 @@ type test_file =
 	| True
 	(** Always false *)
 	| False
+	(** Check extension *)
+	| Has_extension of string
+	(** Is it the parent dir *)
+	| Is_parent_dir 
+	(** Is it the current dir *)
+	| Is_current_dir
 
 val list_dir : filename -> filename list
 
@@ -101,9 +107,15 @@ exception RmDirNotEmpty;;
 val rm : ?force:interactive -> ?recurse:bool -> filename -> unit
 
 (** Copy the hierarchy of files/directory to another destination *)
+exception CpCannotCopyDirToDir;;
+exception CpCannotCopyDirToFile;;
 exception CpCannotCopy;;
+exception CpNoSourceFile;;
+
 val cp : ?force:interactive -> ?recurse:bool -> filename -> filename -> unit
 
 (** Move files/directory to another destination *)
+exception MvNoSourceFile;;
+
 val mv : ?force:interactive -> filename -> filename -> unit
 
