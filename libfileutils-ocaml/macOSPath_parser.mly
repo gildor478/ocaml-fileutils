@@ -11,7 +11,7 @@ open SysPath_type;;
 %start main_filename
 %type <SysPath_type.filename_part list> main_filename
 %start main_path_variable
-%type <string list> main_path_variable
+%type <SysPath_type.filename list> main_path_variable
 
 %%
 no_separator:

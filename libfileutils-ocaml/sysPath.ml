@@ -6,11 +6,16 @@ exception SysPathBasePathRelative;;
 exception SysPathRelativeUnreducable;;
 (** We do not have recognized any OS, please contact upstream *)
 exception SysPathUnrecognizedOS of string;;
+(** An expansion of filename_part_of_filename generate more than one component *)
 exception SysPathFilenameMultiple;;
-(** The path use was empty *)
+(** The filename use was empty *)
 exception SysPathEmpty;;
 (** The last component of the filename does not support extension ( Root, ParentDir... ) *)
 exception SysPathNoExtension;;
+(** The filename used is invalid *)
+exception SysPathInvalidFilename;;
+(** The path used is invalid *)
+exception SysPathInvalidPath;;
 
 type filename = SysPath_type.filename
 ;;
@@ -34,26 +39,6 @@ end
 module type PATH_SPECIFICATION =
 functor ( OsOperation : OS_SPECIFICATION ) ->
 sig
-(*****************************************************)
-(** Standard operation as defined in module Filename *)
-(*****************************************************)
-
-val concat      : filename -> filename_part -> filename
-val is_relative : filename -> bool
-val is_implicit : filename -> bool
-
-(*****************************)
-(** Manipulate the extension *)
-(*****************************)
-
-(** Remove extension *)
-val chop_extension  : filename -> filename
-
-(** Extract the extension *)
-val get_extension   : filename -> extension 
-
-(** Check the extension *)
-val check_extension : filename -> extension -> bool
 
 (********************************)
 (** Manipulating/Splitting path *)
@@ -68,6 +53,9 @@ val dirname         : filename -> filename
 (** Move to the upper directory *)
 val up_dir          : filename -> filename 
 
+(** Append a filename_part to the filename *)
+val concat      : filename -> filename_part -> filename
+
 (** Remove all path component which are relative inside the path
 For example : /a/../b -> /b/. Path must not be relative *)
 val reduce : filename -> filename
@@ -77,6 +65,31 @@ val make_absolute : filename -> filename -> filename
 
 (** Create a path which is relative to the base path *)
 val make_relative : filename -> filename -> filename
+
+(** Identity : for testing the stability of implode/explode *)
+val identity : filename -> filename
+
+(** Test if the filename is a valid one *)
+val is_valid : filename -> bool
+
+(** Check if the path is relative to a dir or not ( ie beginning with Component, ParentDir, CurrentDir ) *)
+val is_relative : filename -> bool
+
+(** Check if the path is an absolute one or not ( ie beginning by a Root reference )*)
+val is_implicit : filename -> bool
+
+(*****************************)
+(** Manipulate the extension *)
+(*****************************)
+
+(** Remove extension *)
+val chop_extension  : filename -> filename
+
+(** Extract the extension *)
+val get_extension   : filename -> extension 
+
+(** Check the extension *)
+val check_extension : filename -> extension -> bool
 
 (*****************************************)
 (** Transformation of PATH like variable *)
@@ -122,9 +135,12 @@ struct
 		OsOperation.filename_of_filename_part
 
 	let explode str = 
-		let lexbuf = Lexing.from_string str
-		in
-		OsOperation.dir_spec lexbuf
+		try 
+			let lexbuf = Lexing.from_string str
+			in
+			OsOperation.dir_spec lexbuf
+		with Parsing.Parse_error ->
+			raise SysPathInvalidFilename
 
 	let filename_part_of_filename x =
 		match explode x with
@@ -152,6 +168,14 @@ struct
 		  ParentDir :: _ 
 		| CurrentDir :: _ -> true
 		| _               -> false
+
+	let is_valid fln =
+		try
+			let _ = explode fln
+			in
+			true
+		with SysPathInvalidFilename ->
+			false
 
 	let basename fln = 
 		try
@@ -277,6 +301,9 @@ struct
 			implode list_relative
 			end
 
+	let identity fln =
+		implode (explode fln)
+
 	let parent_dir  = ParentDir
 
 	let current_dir = CurrentDir
@@ -291,9 +318,12 @@ struct
 		String.concat OsOperation.path_separator lst
 
 	let read_path_variable str = 
-		let lexbuf = Lexing.from_string str
-		in
-		OsOperation.path_spec lexbuf
+		try
+			let lexbuf = Lexing.from_string str
+			in
+			OsOperation.path_spec lexbuf
+		with Parsing.Parse_error ->
+			raise SysPathInvalidPath
 end 
 ;;
 
@@ -315,7 +345,7 @@ module MacOSPath = GenericPath(struct
 	let path_spec                 = MacOSPath.path_spec
 end)
 ;;
-(*
+
 module Win32Path = GenericPath(struct 
 	let filename_of_filename_part = Win32Path.filename_of_filename_part
 	let dir_separator             = Win32Path.dir_separator
@@ -324,13 +354,13 @@ module Win32Path = GenericPath(struct
 	let path_spec                 = Win32Path.path_spec
 end)
 ;;
-
-module MingwPath = GenericPath(struct
-	let filename_of_filename_part = MingwPath.filename_of_filename_part
-	let dir_separator             = MingwPath.dir_separator
-	let dir_spec                  = MingwPath.dir_spec
-	let path_separator            = MingwPath.path_separator
-	let path_spec                 = MingwPath.path_spec
+(*
+module CygwinPath = GenericPath(struct
+	let filename_of_filename_part = CygwinPath.filename_of_filename_part
+	let dir_separator             = CygwinPath.dir_separator
+	let dir_spec                  = CygwinPath.dir_spec
+	let path_separator            = CygwinPath.path_separator
+	let path_spec                 = CygwinPath.path_spec
 end)
 ;;
 *)
@@ -409,7 +439,7 @@ let (
                    MacOSPath.implode,
                    MacOSPath.explode
 		)
-(*	| "Win32" ->
+	| "Win32" ->
 		(
                    Win32Path.concat,
                    Win32Path.is_relative,
@@ -432,9 +462,9 @@ let (
                    Win32Path.root,
                    Win32Path.component,
                    Win32Path.implode,
-                   Win32Path.explode,
+                   Win32Path.explode
 		)
-	| "Cygwin" ->
+(*	| "Cygwin" ->
 	  	(
                    CygwinPath.concat,
                    CygwinPath.is_relative,

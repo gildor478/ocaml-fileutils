@@ -8,6 +8,9 @@ CMO = \
 	macOSPath_parser.cmo \
 	macOSPath_lexer.cmo \
 	macOSPath.cmo \
+	win32Path_parser.cmo \
+	win32Path_lexer.cmo \
+	win32Path.cmo \
 	genericPath_parser.cmo \
 	genericPath_lexer.cmo \
 	sysPath.cmo \
@@ -30,6 +33,9 @@ unixPath_parser.cmx: unixPath_parser.cmi
 
 macOSPath_parser.cmo: macOSPath_parser.cmi
 macOSPath_parser.cmx: macOSPath_parser.cmi
+
+win32Path_parser.cmo: win32Path_parser.cmi
+win32Path_parser.cmx: win32Path_parser.cmi
 
 genericPath_parser.cmo: genericPath_parser.cmi
 genericPath_parser.cmx: genericPath_parser.cmi
