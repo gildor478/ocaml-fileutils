@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="ISO-8859-15"?>
 <tocentry page="ocaml-fileutils.xml" filename="ocaml-fileutils.html">
 	<tocentry id="ocaml-fileutils-download"
-		href="../download/ocaml-fileutils-latest.tar.gz">
+		href="download/ocaml-fileutils-latest.tar.gz">
 		<title>Download</title>
 	</tocentry>
 	<tocentry id="ocaml-fileutils-bugs" 
