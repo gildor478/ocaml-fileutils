@@ -28,7 +28,7 @@ INSTALLIB = \
 	sysPath.cmi \
 	sysUtil.cmi \
 	META
-OCAMLDOC = \
+ODOC = \
 	sysPath.ml \
 	sysUtil.mli 
 

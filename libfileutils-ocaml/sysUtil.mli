@@ -1,78 +1,94 @@
-(** The base type of the module *)
+(** Module to manipulate real file *)
 
+(** {1 Types and exception }*)
+
+exception MkdirMissingComponentPath
+exception MkdirDirnameAlreadyUsed
+exception CpCannotCopyDirToDir
+exception CpCannotCopyDirToFile
+exception CpCannotCopy
+exception CpNoSourceFile
+exception RmDirNotEmpty
+exception MvNoSourceFile
+
+(** The base type of the module *)
 type filename = SysPath.filename
 
+(** {1 Testing file} *)
 
 (** For certain command, you should need to ask the user wether
     or not he does want to do some action. Provide the function 
     to Ask or Force the action *)
 type interactive =
-	(** Do it anyway *)
 	  Force
-	(** Promp the user *)
+	(** Do it anyway *)
 	| Ask of (filename -> bool)
+	(** Promp the user *)
 
 (** Pattern you can use to test file *)
 type test_file =
-	(** FILE exists and is block special *)
 	Is_dev_block
-	(** FILE exists and is character special *)
+	(** FILE exists and is block special *)
 	| Is_dev_char
-	(** FILE exists and is a directory *)
+	(** FILE exists and is character special *)
 	| Is_dir
-	(** FILE exists *)
+	(** FILE exists and is a directory *)
 	| Exists
-	(** FILE exists and is a regular file *)
+	(** FILE exists *)
 	| Is_file
-	(** FILE exists and is set-group-ID *)
+	(** FILE exists and is a regular file *)
 	| Is_set_group_ID
-	(** FILE exists and has its sticky bit set *)
+	(** FILE exists and is set-group-ID *)
 	| Has_sticky_bit
-	(** FILE exists and is a symbolic link *)
+	(** FILE exists and has its sticky bit set *)
 	| Is_link
-	(** FILE exists and is a named pipe *)
+	(** FILE exists and is a symbolic link *)
 	| Is_pipe
-	(** FILE exists and is readable *)
+	(** FILE exists and is a named pipe *)
 	| Is_readable
-	(** FILE exists and is writeable *)
+	(** FILE exists and is readable *)
 	| Is_writeable
-	(** FILE exists and has a size greater than zero *)
+	(** FILE exists and is writeable *)
 	| Size_not_null
-	(** FILE exists and is a socket *)
+	(** FILE exists and has a size greater than zero *)
 	| Is_socket
-	(** FILE exists and its set-user-ID bit is set *)
+	(** FILE exists and is a socket *)
 	| Has_set_user_ID
-	(** FILE exists and is executable *)
+	(** FILE exists and its set-user-ID bit is set *)
 	| Is_exec
-	(** FILE exists and is owned by the effective user ID *)
+	(** FILE exists and is executable *)
 	| Is_owned_by_user_ID
-	(** FILE exists and is owned by the effective group ID *)
+	(** FILE exists and is owned by the effective user ID *)
 	| Is_owned_by_group_ID
-	(** FILE1 is newer (modification date) than FILE2 *)
+	(** FILE exists and is owned by the effective group ID *)
 	| Is_newer_than of filename * filename
-	(** FILE1 is older than FILE2 *)
+	(** FILE1 is newer (modification date) than FILE2 *)
 	| Is_older_than of filename * filename
-	(** FILE1 and FILE2 have the same device and inode numbers *)
+	(** FILE1 is older than FILE2 *)
 	| Has_same_device_and_inode of filename * filename
-	(** Result of TEST1 and TEST2 *)
+	(** FILE1 and FILE2 have the same device and inode numbers *)
 	| And of test_file * test_file
-	(** Result of TEST1 or TEST2 *)
+	(** Result of TEST1 and TEST2 *)
 	| Or of test_file * test_file
-	(** Result of not TEST *)
+	(** Result of TEST1 or TEST2 *)
 	| Not of test_file
-	(** Match Str regex *)
+	(** Result of not TEST *)
 	| Match of string
-	(** Always true *)
+	(** Match Str regex *)
 	| True
-	(** Always false *)
+	(** Always true *)
 	| False
-	(** Check extension *)
+	(** Always false *)
 	| Has_extension of string
-	(** Is it the parent dir *)
+	(** Check extension *)
 	| Is_parent_dir 
-	(** Is it the current dir *)
+	(** Is it the parent dir *)
 	| Is_current_dir
+	(** Is it the current dir *)
 
+(** {1 Common operation on file }*)
+
+(** List the content of a directory *)
 val list_dir : filename -> filename list
 
 (** Apply a filtering pattern to a filename *)
@@ -85,8 +101,6 @@ val test : test_file -> filename -> bool
 PATH if none is provided *)
 val which : ?path:filename list -> filename -> filename
 
-exception MkdirMissingComponentPath;;
-exception MkdirDirnameAlreadyUsed;;
 (** Create the directory which name is provided. Turn parent to true
 if you also want to create every topdir of the path. Use mode to 
 provide some specific right ( default 755 ). *)
@@ -103,19 +117,10 @@ val find : test_file -> filename -> filename list
 
 (** Remove the filename provided. Turn recurse to true in order to 
 completely delete a directory *)
-exception RmDirNotEmpty;;
 val rm : ?force:interactive -> ?recurse:bool -> filename -> unit
 
 (** Copy the hierarchy of files/directory to another destination *)
-exception CpCannotCopyDirToDir;;
-exception CpCannotCopyDirToFile;;
-exception CpCannotCopy;;
-exception CpNoSourceFile;;
-
 val cp : ?force:interactive -> ?recurse:bool -> filename -> filename -> unit
 
 (** Move files/directory to another destination *)
-exception MvNoSourceFile;;
-
 val mv : ?force:interactive -> filename -> filename -> unit
-

@@ -10,9 +10,10 @@ In order to install you will need :
 - make
 
 Optionnaly you can use :
-- ocamlfind ( <= 0.8 ) 
+- ocamlfind ( >= 0.8 ) 
 	http://www.ocaml-programming.de/packages/
 - fort regression test suite 
+	http://prdownloads.sourceforge.net/fort/fort-0.4.2.tar.gz
 
 Installing :
 1) Go in the untared source directory
@@ -33,3 +34,5 @@ Before doing the step 4) of the install procedure
 go in the test directory and type "make test"...
 
 You should have all test going fine...
+
+Sylvain LE GALL

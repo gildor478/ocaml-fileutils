@@ -1,23 +1,24 @@
---------------
-libexif-ocaml.
---------------
+----------------
+ocaml-fileutils.
+----------------
 
-This library is a wrapper around libexif ( http://libexif.sourceforge.net ).
-It uses a different set of functions to correctly handle the type of each
-exif entry. 
+This library is intended to provide a basic interface to the most
+common file and filename operation. It provides different filename
+function : reduce, make_absolute, make_relative... It also enables
+to manipulate real file : cp, mv, rm, touch...
 
-The type are separated in : string, byte, short, long, rational, srational,
-undefined.
+It is separated in two modules : SysUtil and SysPath. The first 
+one manipulate files ( real one ), the second one is made for 
+manipulating abstract filename.
 
-Please take a look at the documentation to see the different functions you
-can use to extract the exif tag from a file.
-
-Please report me any typing problem ( incoherent type for an entry ).
+This library is still under developpement. I intend to make it as 
+portable as possible. In other one, i welcome any bug report from
+windows user, mac os user...
 
 Send bug report at submit@bugs.gallu.homelinux.org beginning with
 
-Package: fileutils
-Version: 0.2
+Package: ocaml-fileutils
+Version: 0.1.1
 Severity: { choose wishlist,normal,important }
 
 and tell me your problem.

@@ -7,9 +7,10 @@ install:
 uninstall:
 	cd libfileutils-ocaml && $(MAKE) uninstall
 
-clean: mkdir-temp-clean
+clean:: mkdir-temp-clean
 	cd libfileutils-ocaml && $(MAKE) clean
 
+doc-html:
 
 mkdir-temp: mkdir-temp-stamp
 mkdir-temp-stamp: 

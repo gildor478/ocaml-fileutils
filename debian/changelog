@@ -1,28 +1,7 @@
 ocaml-fileutils (0.1.1) unstable; urgency=low
 
-  * Fix some weird comportement with reduce ( especially
-    when trying to reduce filename which try to .. a root )
-    and add the possibility to reduce relative filename
-  * Rework on the way everything is made :
-    * Support 4 different scheme of filename ( Unix ( the 
-      native way ), MacOS, Win32, Cygwin )
-    * Each scheme use a parser/lexer to decompose his 
-      filename and a .ml to handle the whole discriminant 
-      element of a specific scheme ( ie the way filename are
-      decomposed and the way path like variable are decomposed )
-    * All the operation are defined relatively to the 
-      discriminant operation in a functorized module 
-    * Each scheme produces a module from his discriminant element
-      and from the generic operation. These modules are defined in
-      SysPath.{UnixPath|Win32Path|CygwinPath|MacOSPath}.
-    * Depending on the current environement one of the module above
-      is the default binding for all the operation.
-  * Add SysUtil which try to create some portable file operation :
-    mv, cp, touch, mkdir, test, find. This module abandon any non
-    cross platform operation and will never support it ( ie links for 
-    example, won't be supported ).
-  * This release is an alpha release. 0.2 will be the stable one.
-
+  * New upstream version
+ 
  -- Sylvain LE GALL <sylvain.le-gall@polytechnique.org>  Thu, 25 Dec 2003 21:52:00 +0200
 
 ocaml-fileutils (0.1) unstable; urgency=low
