@@ -2,9 +2,9 @@
 manipulate file and directory. All function nearly match
 common unix utilities ( but try to be more portable )*)
 
-open SysPath;;
+module P = SysPath.DefaultPath
 
-type filename = string
+open P
 
 type interactive =
 	  Force
@@ -67,7 +67,7 @@ let stat_type filename =
 		let stats = Unix.stat filename
 		in
 		match stats.Unix.st_kind with
-		 Unix.S_REG -> File 
+		  Unix.S_REG -> File 
 		| Unix.S_DIR -> Dir 
 		| Unix.S_CHR -> Dev_char 
 		| Unix.S_BLK -> Dev_block
@@ -219,11 +219,11 @@ let rec compile_filter flt =
 			fun x -> Str.string_match reg x 0
 			end
 		| Has_extension(ext) ->
-			fun x -> check_extension x ext
+			fun x -> check_extension (filename_of_string x) (extension_of_string ext)
 		| Is_current_dir ->
-			fun x -> (basename x) = current_dir
+			fun x -> (is_current (basename (filename_of_string x)))
 		| Is_parent_dir ->
-			fun x -> (basename x) = parent_dir
+			fun x -> (is_parent  (basename (filename_of_string x)))
 	in
 	fun x -> ( try res_filter x with File_doesnt_exist -> false )
 ;;
@@ -236,7 +236,7 @@ let list_dir dirname =
 			let filename = Unix.readdir hdir
 			in
 			let complete_path = 
-				concat dirname filename
+				concat dirname (filename_of_string filename)
 			in
 			list_dir_aux (complete_path :: lst)
 		with End_of_file ->

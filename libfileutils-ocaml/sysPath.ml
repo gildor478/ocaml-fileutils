@@ -42,11 +42,15 @@ val identity        : filename -> filename
 val is_valid        : filename -> bool
 val is_relative     : filename -> bool
 val is_implicit     : filename -> bool
+val is_current      : filename -> bool
+val is_parent       : filename -> bool
 
-val chop_extension  : filename -> filename
-val get_extension   : filename -> extension 
-val check_extension : filename -> extension -> bool
-val add_extension   : filename -> extension -> filename
+val chop_extension      : filename -> filename
+val get_extension       : filename -> extension 
+val check_extension     : filename -> extension -> bool
+val add_extension       : filename -> extension -> filename
+val extension_of_string : string -> extension
+val string_of_extension : extension -> string
 
 val string_of_path : filename list -> string
 val path_of_string : string -> filename list
@@ -130,7 +134,9 @@ struct
 	let relation_of_filename path1 path2 =
 		let rec relation_of_filename_aux path1 path2 =
 			match (path1,path2) with
-			  (hd1 :: tl1, hd2 :: tl2) ->
+			  ([], []) ->
+				Equal
+			| (hd1 :: tl1, hd2 :: tl2) ->
 				if hd1 = hd2 then
 					relation_of_filename_aux tl1 tl2
 				else
@@ -144,8 +150,6 @@ struct
 				SubDir
 			| ([], updir) ->
 				UpDir
-			| ([], []) ->
-				Equal
 		in
 		relation_of_filename_aux (reduce path1) (reduce path2)
 		
@@ -206,6 +210,16 @@ struct
 		   sure that all is correct *)
 		true
 
+	let is_current path = 
+		match path with
+		  [ CurrentDir ] -> true
+		| _ -> false
+
+	let is_parent path =
+		match path with
+		  [ ParentDir ] -> true
+		| _ -> false
+
 	(* Basename *)
 
 	let basename path = 
@@ -261,6 +275,10 @@ struct
 		| _ ->
 			raise SysPathNoExtension
 
+
+	let extension_of_string x = x
+
+	let string_of_extension x = x 
 		
 	(* Make_asbolute *)
 
@@ -397,6 +415,12 @@ struct
 	let is_implicit path =
 		PathOperation.is_implicit ( s2f path )
 
+	let is_current path =
+		PathOperation.is_current ( s2f path )
+
+	let is_parent path =
+		PathOperation.is_parent ( s2f path )
+
 	let chop_extension path =
 		f2s (PathOperation.chop_extension (s2f path))
 
@@ -409,6 +433,12 @@ struct
 	let add_extension path ext =
 		f2s (PathOperation.add_extension (s2f path) ext)
 
+	let string_of_extension ext = 
+		PathOperation.string_of_extension ext 
+
+	let extension_of_string str =
+		PathOperation.extension_of_string str
+
 	let string_of_path path_lst =
 		PathOperation.string_of_path (List.map s2f path_lst)
 
@@ -417,52 +447,7 @@ struct
 end
 ;;
 	
-
-module AbstractUnix : PATH_SPECIFICATION =  GenericPath(struct
-	let dir_writer                = UnixPath.dir_writer
-	let dir_reader                = UnixPath.dir_reader
-	let path_writer               = UnixPath.path_writer
-	let path_reader               = UnixPath.path_reader
-end)
-;;
-		
-module Unix : PATH_SPECIFICATION = GenericStringPath(AbstractUnix)
-;;
-
-module AbstractMacOS : PATH_SPECIFICATION = GenericPath(struct
-	let dir_writer                = MacOSPath.dir_writer
-	let dir_reader                = MacOSPath.dir_reader
-	let path_writer               = MacOSPath.path_writer
-	let path_reader               = MacOSPath.path_reader
-end)
-;;
-
-module MacOS : PATH_SPECIFICATION = GenericStringPath(AbstractMacOS)
-;;
-
-module AbstractWin32 : PATH_SPECIFICATION = GenericPath(struct 
-	let dir_writer                = Win32Path.dir_writer
-	let dir_reader                = Win32Path.dir_reader
-	let path_writer               = Win32Path.path_writer
-	let path_reader               = Win32Path.path_reader
-end)
-;;
-
-module Win32 : PATH_SPECIFICATION = GenericStringPath(AbstractWin32)
-;;
-
-module AbstractCygwin : PATH_SPECIFICATION = GenericPath(struct
-	let dir_writer                = CygwinPath.dir_writer
-	let dir_reader                = CygwinPath.dir_reader
-	let path_writer               = CygwinPath.path_writer
-	let path_reader               = CygwinPath.path_reader
-end)
-;;
-
-module Cygwin : PATH_SPECIFICATION = GenericStringPath(AbstractCygwin)
-;;
-
-module AbstractDefault : PATH_SPECIFICATION = GenericPath(struct
+module AbstractDefaultPath : PATH_SPECIFICATION = GenericPath(struct
 
 	let os_depend unix macos win32 cygwin =
 		match Sys.os_type with
@@ -472,15 +457,56 @@ module AbstractDefault : PATH_SPECIFICATION = GenericPath(struct
 		| "Cygwin" -> cygwin
 		| s        -> raise (SysPathUnrecognizedOS s)
 		
-	let dir_writer  = os_depend UnixPath.dir_writer  MacOSPath.dir_writer   Win32Path.dir_writer  CygwinPath.dir_writer
-	let dir_reader  = os_depend UnixPath.dir_reader  MacOSPath.dir_reader   Win32Path.dir_reader  CygwinPath.dir_reader
+	let dir_writer  = os_depend UnixPath.dir_writer  MacOSPath.dir_writer  Win32Path.dir_writer  CygwinPath.dir_writer
+	let dir_reader  = os_depend UnixPath.dir_reader  MacOSPath.dir_reader  Win32Path.dir_reader  CygwinPath.dir_reader
 	let path_writer = os_depend UnixPath.path_writer MacOSPath.path_writer Win32Path.path_writer CygwinPath.path_writer
 	let path_reader = os_depend UnixPath.path_reader MacOSPath.path_reader Win32Path.path_reader CygwinPath.path_reader
 end)
 ;;
 
-module Default : PATH_SPECIFICATION = GenericStringPath(AbstractDefault)
+module DefaultPath : PATH_SPECIFICATION = GenericStringPath(AbstractDefaultPath)
 ;;
 
-open Default
+module AbstractUnixPath : PATH_SPECIFICATION =  GenericPath(struct
+	let dir_writer                = UnixPath.dir_writer
+	let dir_reader                = UnixPath.dir_reader
+	let path_writer               = UnixPath.path_writer
+	let path_reader               = UnixPath.path_reader
+end)
+;;
+		
+module UnixPath : PATH_SPECIFICATION = GenericStringPath(AbstractUnixPath)
+;;
+
+module AbstractMacOSPath : PATH_SPECIFICATION = GenericPath(struct
+	let dir_writer                = MacOSPath.dir_writer
+	let dir_reader                = MacOSPath.dir_reader
+	let path_writer               = MacOSPath.path_writer
+	let path_reader               = MacOSPath.path_reader
+end)
+;;
+
+module MacOSPath : PATH_SPECIFICATION = GenericStringPath(AbstractMacOSPath)
+;;
+
+module AbstractWin32Path : PATH_SPECIFICATION = GenericPath(struct 
+	let dir_writer                = Win32Path.dir_writer
+	let dir_reader                = Win32Path.dir_reader
+	let path_writer               = Win32Path.path_writer
+	let path_reader               = Win32Path.path_reader
+end)
+;;
+
+module Win32Path : PATH_SPECIFICATION = GenericStringPath(AbstractWin32Path)
+;;
+
+module AbstractCygwinPath : PATH_SPECIFICATION = GenericPath(struct
+	let dir_writer                = CygwinPath.dir_writer
+	let dir_reader                = CygwinPath.dir_reader
+	let path_writer               = CygwinPath.path_writer
+	let path_reader               = CygwinPath.path_reader
+end)
+;;
+
+module CygwinPath : PATH_SPECIFICATION = GenericStringPath(AbstractCygwinPath)
 ;;

@@ -12,7 +12,7 @@ exception RmDirNotEmpty
 exception MvNoSourceFile
 
 (** The base type of the module *)
-type filename = SysPath.filename
+type filename = SysPath.DefaultPath.filename
 
 (** {1 Testing file} *)
 
