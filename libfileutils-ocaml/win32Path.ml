@@ -9,7 +9,7 @@ let filename_of_filename_part cmp =
 	| Component s -> s
 ;;
 
-let dir_separator  = "\\"
+let dir_separator  = "/"
 ;;
 
 let dir_spec   = Win32Path_parser.main_filename Win32Path_lexer.token_filename

@@ -186,6 +186,8 @@ struct
 		implode  ((explode fln) @ [fln_part])
 
 	let is_relative fln  = 
+		print_string "Bonjour";
+		print_newline ();
 		match explode fln with
 		 (Root _) :: _ -> false
 		| _            -> true
