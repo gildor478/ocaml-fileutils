@@ -215,7 +215,7 @@ $(NAME).opt: $(CMX)
 
 # Extra files
 
-VERSION=0.1.1
+VERSION=0.2.2
 
 version.ml: 
 	echo "let version = \""$(VERSION)"\"" > version.ml
@@ -265,7 +265,7 @@ clean::
 	-$(RM) .depend
 
 dist-clean distclean:: clean
-	-$(RM) TopMakefile Makefile config.cache config.log config.status
+	-$(RM) TopMakefile config.cache config.log config.status
 
 .depend depend:: $(GENERATED)
 	-$(RM) .depend
