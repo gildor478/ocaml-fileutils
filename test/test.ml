@@ -16,7 +16,6 @@ struct
 		
 	let expect_equal_bool = expect_equal ~printer:(string_of_bool)
 
-
 	let reduce (exp,res) =
 		expect_pass ~desc:((!os_string)^" : reduce " ^ exp )
 		~body:( fun () ->
@@ -51,6 +50,41 @@ struct
 		expect_pass ~desc:((!os_string)^" : identity "^exp)
 		~body:( fun () ->
 			expect_equal_string exp (OsPath.identity exp)
+		)
+
+end
+;;
+
+module TestFilename = 
+struct
+	let is_relative (exp) =
+		expect_pass ~desc:("Test default : is_relative "^exp)
+		~body:( fun () ->
+			expect_true ((is_relative exp) = (Filename.is_relative exp))
+		)
+
+	let is_implicit (exp) =
+		expect_pass ~desc:("Test default : is_implicit "^exp)
+		~body:( fun () ->
+			expect_true ((is_implicit exp) = (Filename.is_implicit exp))
+		)
+	
+	let concat (exp1,exp2) =
+		expect_pass ~desc:("Test default : concat "^exp1^" "^exp2)
+		~body:( fun () ->
+			expect_true ((concat exp1 exp2) = (Filename.concat exp1 exp2))
+		)
+
+	let basename (exp) =
+		expect_pass ~desc:("Test default : basename "^exp)
+		~body:( fun () ->
+			expect_true ((basename exp) = (Filename.basename exp))
+		)
+
+	let dirname (exp) =
+		expect_pass ~desc:("Test default : dirname "^exp)
+		~body:( fun () ->
+			expect_true ((dirname exp) = (Filename.dirname exp))
 		)
 end
 ;;

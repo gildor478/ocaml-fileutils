@@ -405,7 +405,7 @@ module Win32Path : PATH_SPECIFICATION = GenericPath(struct
 	let path_reader               = Win32Path.path_reader
 end)
 ;;
-(*
+
 module CygwinPath : PATH_SPECIFICATION = GenericPath(struct
 	let dir_writer                = CygwinPath.dir_writer
 	let dir_reader                = CygwinPath.dir_reader
@@ -413,124 +413,64 @@ module CygwinPath : PATH_SPECIFICATION = GenericPath(struct
 	let path_reader               = CygwinPath.path_reader
 end)
 ;;
-*)
-let (
- concat,
- is_relative,
- is_implicit,
- chop_extension,
- get_extension,
- check_extension,
- basename,
- dirname,
- up_dir,
- reduce,
- make_absolute,
- make_relative,
- make_path_variable,
- read_path_variable,
- current_dir,
- parent_dir,
- root,
- component,
- implode,
- explode
- ) =
+
+let
+(
+ basename,       dirname,            up_dir, 
+ concat,         reduce,             make_absolute, 
+ make_relative,  reparent,           identity,           
+ is_valid,       is_relative,        is_implicit,
+ chop_extension, get_extension,      check_extension, 
+ add_extension,  make_path_variable, read_path_variable, 
+ current_dir,    parent_dir,         root, 
+ component,      implode,            explode
+)
+=
 	match Sys.os_type with
 	  "Unix" ->
-	  	(
-                   UnixPath.concat,
-                   UnixPath.is_relative,
-                   UnixPath.is_implicit,
-                   UnixPath.chop_extension,
-                   UnixPath.get_extension,
-                   UnixPath.check_extension,
-                   UnixPath.basename,
-                   UnixPath.dirname,
-                   UnixPath.up_dir,
-                   UnixPath.reduce,
-                   UnixPath.make_absolute,
-                   UnixPath.make_relative,
-                   UnixPath.make_path_variable,
-                   UnixPath.read_path_variable,
-                   UnixPath.current_dir,
-                   UnixPath.parent_dir,
-                   UnixPath.root,
-                   UnixPath.component,
-                   UnixPath.implode,
-                   UnixPath.explode
-		)
+(
+ UnixPath.basename,       UnixPath.dirname,            UnixPath.up_dir, 
+ UnixPath.concat,         UnixPath.reduce,             UnixPath.make_absolute, 
+ UnixPath.make_relative,  UnixPath.reparent,           UnixPath.identity,           
+ UnixPath.is_valid,       UnixPath.is_relative,        UnixPath.is_implicit,
+ UnixPath.chop_extension, UnixPath.get_extension,      UnixPath.check_extension, 
+ UnixPath.add_extension,  UnixPath.make_path_variable, UnixPath.read_path_variable, 
+ UnixPath.current_dir,    UnixPath.parent_dir,         UnixPath.root, 
+ UnixPath.component,      UnixPath.implode,            UnixPath.explode
+)
 	| "MacOS" ->
-		(
-		   MacOSPath.concat,
-                   MacOSPath.is_relative,
-                   MacOSPath.is_implicit,
-                   MacOSPath.chop_extension,
-                   MacOSPath.get_extension,
-                   MacOSPath.check_extension,
-                   MacOSPath.basename,
-                   MacOSPath.dirname,
-                   MacOSPath.up_dir,
-                   MacOSPath.reduce,
-                   MacOSPath.make_absolute,
-                   MacOSPath.make_relative,
-                   MacOSPath.make_path_variable,
-                   MacOSPath.read_path_variable,
-                   MacOSPath.current_dir,
-                   MacOSPath.parent_dir,
-                   MacOSPath.root,
-                   MacOSPath.component,
-                   MacOSPath.implode,
-                   MacOSPath.explode
-		)
+(
+ MacOSPath.basename,       MacOSPath.dirname,            MacOSPath.up_dir, 
+ MacOSPath.concat,         MacOSPath.reduce,             MacOSPath.make_absolute, 
+ MacOSPath.make_relative,  MacOSPath.reparent,           MacOSPath.identity,           
+ MacOSPath.is_valid,       MacOSPath.is_relative,        MacOSPath.is_implicit,
+ MacOSPath.chop_extension, MacOSPath.get_extension,      MacOSPath.check_extension, 
+ MacOSPath.add_extension,  MacOSPath.make_path_variable, MacOSPath.read_path_variable, 
+ MacOSPath.current_dir,    MacOSPath.parent_dir,         MacOSPath.root, 
+ MacOSPath.component,      MacOSPath.implode,            MacOSPath.explode
+)
 	| "Win32" ->
-		(
-                   Win32Path.concat,
-                   Win32Path.is_relative,
-                   Win32Path.is_implicit,
-                   Win32Path.chop_extension,
-                   Win32Path.get_extension,
-                   Win32Path.check_extension,
-                   Win32Path.basename,
-                   Win32Path.dirname,
-                   Win32Path.up_dir,
-                   Win32Path.reduce,
-                   Win32Path.make_absolute,
-                   Win32Path.make_relative,
-                   Win32Path.make_path_variable,
-                   Win32Path.read_path_variable,
-                   Win32Path.current_dir,
-                   Win32Path.parent_dir,
-                   Win32Path.root,
-                   Win32Path.component,
-                   Win32Path.implode,
-                   Win32Path.explode
-		)
-(*	| "Cygwin" ->
-	  	(
-                   CygwinPath.concat,
-                   CygwinPath.is_relative,
-                   CygwinPath.is_implicit,
-                   CygwinPath.chop_extension,
-                   CygwinPath.get_extension,
-                   CygwinPath.check_extension,
-                   CygwinPath.basename,
-                   CygwinPath.dirname,
-                   CygwinPath.up_dir,
-                   CygwinPath.reduce,
-                   CygwinPath.make_absolute,
-                   CygwinPath.make_relative,
-                   CygwinPath.make_path_variable,
-                   CygwinPath.read_path_variable,
-                   CygwinPath.filename_of_filename_part,
-                   CygwinPath.filename_part_of_filename,
-                   CygwinPath.current_dir,
-                   CygwinPath.parent_dir,
-                   CygwinPath.root,
-                   CygwinPath.component,
-                   CygwinPath.implode,
-                   CygwinPath.explode,
-		)
-*)	| s ->
+(
+ Win32Path.basename,       Win32Path.dirname,            Win32Path.up_dir, 
+ Win32Path.concat,         Win32Path.reduce,             Win32Path.make_absolute, 
+ Win32Path.make_relative,  Win32Path.reparent,           Win32Path.identity,           
+ Win32Path.is_valid,       Win32Path.is_relative,        Win32Path.is_implicit,
+ Win32Path.chop_extension, Win32Path.get_extension,      Win32Path.check_extension, 
+ Win32Path.add_extension,  Win32Path.make_path_variable, Win32Path.read_path_variable, 
+ Win32Path.current_dir,    Win32Path.parent_dir,         Win32Path.root, 
+ Win32Path.component,      Win32Path.implode,            Win32Path.explode
+)
+	| "Cygwin" ->
+(
+ CygwinPath.basename,       CygwinPath.dirname,            CygwinPath.up_dir, 
+ CygwinPath.concat,         CygwinPath.reduce,             CygwinPath.make_absolute, 
+ CygwinPath.make_relative,  CygwinPath.reparent,           CygwinPath.identity,           
+ CygwinPath.is_valid,       CygwinPath.is_relative,        CygwinPath.is_implicit,
+ CygwinPath.chop_extension, CygwinPath.get_extension,      CygwinPath.check_extension, 
+ CygwinPath.add_extension,  CygwinPath.make_path_variable, CygwinPath.read_path_variable, 
+ CygwinPath.current_dir,    CygwinPath.parent_dir,         CygwinPath.root, 
+ CygwinPath.component,      CygwinPath.implode,            CygwinPath.explode
+)
+	| s ->
 		raise (SysPathUnrecognizedOS s)
 ;;

@@ -11,6 +11,9 @@ CMO = \
 	win32Path_parser.cmo \
 	win32Path_lexer.cmo \
 	win32Path.cmo \
+	cygwinPath_parser.cmo \
+	cygwinPath_lexer.cmo \
+	cygwinPath.cmo \
 	genericPath_parser.cmo \
 	genericPath_lexer.cmo \
 	sysPath.cmo \
@@ -37,6 +40,9 @@ macOSPath_parser.cmx: macOSPath_parser.cmi
 win32Path_parser.cmo: win32Path_parser.cmi
 win32Path_parser.cmx: win32Path_parser.cmi
 
+cygwinPath_parser.cmo: cygwinPath_parser.cmi
+cygwinPath_parser.cmx: cygwinPath_parser.cmi
+
 genericPath_parser.cmo: genericPath_parser.cmi
 genericPath_parser.cmx: genericPath_parser.cmi
 
@@ -49,9 +55,15 @@ clean::
 	$(RM) macOSPath_parser.mli 
 	$(RM) macOSPath_parser.output
 	$(RM) macOSPath_lexer.ml
+	$(RM) win32Path_parser.ml 
+	$(RM) win32Path_parser.mli 
+	$(RM) win32Path_parser.output
+	$(RM) win32Path_lexer.ml
+	$(RM) cygwinPath_parser.ml 
+	$(RM) cygwinPath_parser.mli 
+	$(RM) cygwinPath_parser.output
+	$(RM) cygwinPath_lexer.ml
 	$(RM) genericPath_parser.ml 
 	$(RM) genericPath_parser.mli 
 	$(RM) genericPath_parser.output
 	$(RM) genericPath_lexer.ml
-	
-
