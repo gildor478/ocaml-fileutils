@@ -8,15 +8,6 @@ exception SysPathEmpty;;
 exception SysPathNoExtension;;
 exception SysPathInvalidFilename;;
 
-type filename = SysPath_type.filename
-;;
-
-type filename_part = SysPath_type.filename_part
-;;
-
-type extension = SysPath_type.extension
-;;
-
 module type OS_SPECIFICATION =
 sig
 	val dir_writer                : (filename_part list) -> string
@@ -28,31 +19,37 @@ end
 
 module type PATH_SPECIFICATION =
 sig
+
+type filename
+type extension
+
+val string_from_filename : filename -> string
+val filename_from_string : string -> filename
+
+val is_subdir            : filename -> filename -> bool
+val is_updir             : filename -> filename -> bool
+val compare              : filename -> filename -> int
+
 val basename        : filename -> filename
 val dirname         : filename -> filename
-val up_dir          : filename -> filename 
-val concat      : filename -> filename -> filename
-val make_filename : filename list -> filename 
-val reduce : filename -> filename
-val make_absolute : filename -> filename -> filename
-val make_relative : filename -> filename -> filename
-val reparent : filename -> filename -> filename -> filename 
-val identity : filename -> filename
-val is_valid : filename -> bool
-val is_relative : filename -> bool
-val is_implicit : filename -> bool
+val concat          : filename -> filename -> filename
+val make_filename   : filename list -> filename 
+val reduce          : filename -> filename
+val make_absolute   : filename -> filename -> filename
+val make_relative   : filename -> filename -> filename
+val reparent        : filename -> filename -> filename -> filename 
+val identity        : filename -> filename
+val is_valid        : filename -> bool
+val is_relative     : filename -> bool
+val is_implicit     : filename -> bool
+
 val chop_extension  : filename -> filename
 val get_extension   : filename -> extension 
 val check_extension : filename -> extension -> bool
 val add_extension   : filename -> extension -> filename
-val make_path_variable : filename list -> string
-val read_path_variable : string -> filename list
-val current_dir : filename
-val parent_dir  : filename
-val root        : string -> filename
-val component   : string -> filename
-val implode : filename_part list -> filename
-val explode : filename -> filename_part list   
+
+val string_from_path : filename list -> string
+val path_from_string : string -> filename list
 end
 ;;
 
@@ -64,6 +61,10 @@ PATH_SPECIFICATION
 module GenericPath : META_PATH_SPECIFICATION = 
 functor ( OsOperation : OS_SPECIFICATION ) ->
 struct
+	type filename = SysPath_type.filename
+
+	type extension = SysPath_type.extension
+
 	(* Debug function *)
 
 	let debug_print_component lst=
@@ -77,9 +78,9 @@ struct
 		List.iter print_string (List.map (fun x -> (debug_print_one_component x)^" ;") lst);
 		print_newline ()
 
-	(* Explode *)
+	(* Filename_from_string *)
 
-	let explode str = 
+	let filename_from_string str = 
 		try 
 			let lexbuf = Lexing.from_string str
 			in
@@ -87,74 +88,100 @@ struct
 		with Parsing.Parse_error ->
 			raise SysPathInvalidFilename
 
-	(* Implode *)
+	(* String_from_filename *)
 
-	let implode lst = 
-		OsOperation.dir_writer lst 
+	let string_from_filename path = 
+		OsOperation.dir_writer path
+
+
+	(* Compare, subdir, updir *)
+
+	type filename_relation = SubDir | UpDir | Equal | NoRelation of int
+
+	let relation_of_filename path1 path2 =
+		let rec relation_of_filename_aux path1 path2 =
+			match (path1,path2) with
+			  (hd1 :: tl1, hd2 :: tl2) ->
+				if hd1 = hd2 then
+					relation_of_filename_aux tl1 tl2
+				else
+					NoRelation (String.compare hd1 hd2)
+			| (subdir, []) ->
+				SubDir
+			| ([], updir) ->
+				UpDir
+			| ([], []) ->
+				Equal
+		in
+		relation_of_filename_aux (reduce path1) (reduce path2)
+		
+	let is_subdir path1 path2 =
+		match relation_of_filename path1 path2 with
+		  SubDir ->
+		  	true
+		| _ ->
+			false
+
+	let is_updir path1 path2 =
+		match relation_of_filename path1 path2 with
+		  UpDir ->
+		  	true
+		| _ ->
+			false
+
 
 	(* Concat *)
 
-	let concat_list lst_fln1 lst_fln2 =
-		implode (lst_fln1 @ lst_fln2)
-	
-	let concat fln1 fln2 = 
-		concat_list  (explode fln1) (explode fln2)
+	let concat lst_path1 lst_path2 =
+		lst_path1 @ lst_path2	
+
 
 	(* Is_relative *)
 
-	let is_relative_list lst_fln =
-		match lst_fln with
+	let is_relative_list lst_path =
+		match lst_path with
 		 (Root _) :: _ -> false
 		| _            -> true
 
-	let is_relative fln  = 
-		is_relative_list ( explode fln )
 	
 	(* Is_implicit *)
 	
-	let is_implicit_list lst_fln  = 
-		match lst_fln with
+	let is_implicit_list lst_path  = 
+		match lst_path with
 		  ParentDir :: _ 
 		| CurrentDir :: _ 
 		| Component _ :: _ -> true
 		| _                -> false
 
-	let is_implicit fln =
-		is_implicit_list ( explode fln )
-
-	
 	(* Is_valid *)
 	
-	let is_valid fln =
-		try
-			let _ = explode fln
-			in
-			true
-		with SysPathInvalidFilename ->
-			false
+	let is_valid path = 
+		(* As we are manipulating abstract filename, and that it has been parsed, we are
+		   sure that all is correct *)
+		true
 
 	(* Basename *)
 
-	let basename fln = 
-		match List.rev ( explode fln ) with	
+	let basename path = 
+		match List.rev path with	
 		  hd :: tl ->
-			implode ( [hd] )
+			[hd]
 		| [] ->
 			raise SysPathEmpty
 
 	(* Dirname *)
 
-	let dirname fln = 
-		match List.rev ( explode fln ) with
+	let dirname path = 
+		match List.rev path with
 		  hd :: tl ->
-			implode (List.rev tl)
+			List.rev tl
 		| [] ->
 			raise SysPathEmpty
 
 	(* Extension manipulation *)
 
-	let split_extension fln = 
-		match explode (basename fln) with
+	let split_extension path = 
+		match basename path with
 		  (Component str) :: []->
 			let lexbuf = Lexing.from_string str
 			in
@@ -162,94 +189,71 @@ struct
 				GenericPath_lexer.token_extension
 				lexbuf
 			in
-			(concat (dirname fln) base, ext)
+			((dirname path) @ [base], ext)
 		| _ ->
 			raise SysPathNoExtension
 
-	let check_extension fln ext = 
-		let (real_fln, real_ext) = split_extension fln
+	let check_extension path ext = 
+		let (real_path, real_ext) = split_extension path
 		in
 		ext = real_ext 
 
-	let get_extension fln = 
-		let (real_fln, real_ext) = split_extension fln
+	let get_extension path = 
+		let (real_path, real_ext) = split_extension path
 		in
 		real_ext
 
-	let chop_extension  fln =
-		let (real_fln, real_ext) = split_extension fln
+	let chop_extension  path =
+		let (real_path, real_ext) = split_extension path
 		in
-		real_fln
+		real_path
 
-	let add_extension fln ext =
-		fln^"."^ext
+	let add_extension path ext =
+		path^"."^ext
 
 	(* Reduce *)
 
-	let rec reduce_list path_lst =
-		let stack_dir = Stack.create ()
-		in
-		let to_list () =
-			let tmp_arr = Array.make (Stack.length stack_dir) CurrentDir 
-			in
-			for i = (Stack.length stack_dir) - 1 downto 0 do 
-				Array.set tmp_arr i (Stack.pop stack_dir) 
-			done;
-			Array.to_list tmp_arr
-		in
-		let walk_path itm =
-			match itm with
-			  ParentDir    -> 
-			  	begin
-			  	try
-					begin
-					match Stack.pop stack_dir with
-					  Root s    -> 
-					  	Stack.push (Root s) stack_dir
-					| ParentDir -> 
-						Stack.push ParentDir stack_dir;
-						Stack.push ParentDir stack_dir
-					| _         -> 
-						()
-					end
-				with Stack.Empty ->
-					Stack.push ParentDir stack_dir
-				end
-			| CurrentDir   -> 
-				()
-			| Component "" -> 
-				()
-			| Component _ 
-			| Root _       -> 
-				Stack.push itm stack_dir
-		in
-		let lst = 
-			List.iter walk_path path_lst;
-			to_list ()
-		in
-		lst
-
 	let reduce path =
-		implode (reduce_list (explode path))
-
+		let rec reduce_aux lst = 
+			match lst with 
+			  ParentDir :: tl ->
+			  	begin
+				match reduce_list_aux tl with
+			  	  Root s :: tl ->
+				  	Root s :: tl 
+				| ParentDir :: tl ->
+					ParentDir :: ParentDir :: tl
+				| [] ->
+					ParentDir :: tl 
+				| _ :: tl ->
+					tl
+				end
+			| CurrentDir :: tl 
+			| Component "" :: tl ->
+				(reduce_list_aux tl)
+			| Component s :: tl ->
+				Component s :: (reduce_list_aux tl)
+			| Root s :: tl ->
+				Root s :: (reduce_list_aux tl)
+			| [] ->
+				[]
+		in
+		List.rev (reduce_aux (List.rev path))
+		
 	(* Make_asbolute *)
 
-	let make_absolute_list lst_base lst_path =
-		if is_relative_list lst_base then
+	let make_absolute path_base path_path =
+		if is_relative_list path_base then
 			raise SysPathBaseFilenameRelative
-		else if is_relative_list lst_path then
-			reduce_list (lst_base @ lst_path)
+		else if is_relative_list path_path then
+			reduce (path_base @ path_path)
 		else
-			reduce_list (lst_path)
-
-
-	let make_absolute base_path path =
-		implode (make_absolute_list (explode base_path) (explode path))
+			reduce (path_path)
 
 	(* Make_relative *)
 
-	let make_relative_list lst_base lst_path =
-		let rec make_relative_list_aux lst_base lst_path =
+	let make_relative path_base path_path =
+		let rec make_relative_aux lst_base lst_path =
 			match  (lst_base, lst_path) with
 			x :: tl_base, a :: tl_path when x = a ->
 				make_relative_list_aux tl_base tl_path
@@ -260,60 +264,37 @@ struct
 				in
 				back_to_base @ lst_path
 		in
-		if is_relative_list lst_base then
+		if is_relative path_base then
 			raise SysPathBaseFilenameRelative
-		else if is_relative_list lst_path then
-			(reduce_list lst_path)
+		else if is_relative path_path then
+			reduce path_path
 		else
-			make_relative_list_aux (reduce_list lst_base) (reduce_list lst_path)
+			make_relative_aux (reduce path_base) (reduce path_path)
 
-
-	let make_relative base_path path =
-		implode (make_relative_list (explode base_path) (explode path))
 
 	(* Make_filename *)
 
-	let make_filename_list lst_lst =
-		List.flatten lst_lst
+	let make_filename lst_path =
+		List.flatten lst_path
 		
-	let make_filename lst =
-		implode ( make_filename_list ( List.map explode lst ) )
-
 	(* Reparent *)
 
-	let reparent_list lst_src lst_dst lst_fln =
-		let lst_relative =
-			make_relative_list lst_src lst_fln
+	let reparent path_src path_dst path =
+		let path_relative =
+			make_relative_list path_src path
 		in
-		make_absolute_list lst_dst lst_relative
-
-	let reparent fln_src fln_dst fln =
-		implode (reparent_list (explode fln_src) (explode fln_dst) (explode fln))
+		make_absolute path_dst path_relative
 
 	(* Identity *)
 	
-	let identity fln =
-		implode (explode fln)
-
+	let identity path = path
 	
-	(* Dangerous functions *)
-
-	let parent_dir  = implode [ParentDir]
-
-	let current_dir = implode [CurrentDir]
-
-	let root s      = implode [Root s]
-
-	let component s = implode [Component s]
-
-	let up_dir fln  = reduce ( concat fln parent_dir )
-
 	(* Manipulate path like variable *)
 
-	let make_path_variable lst = 
+	let string_from_path lst = 
 		OsOperation.path_writer lst
 
-	let read_path_variable str = 
+	let path_from_string str = 
 		try
 			let lexbuf = Lexing.from_string str
 			in
@@ -323,7 +304,99 @@ struct
 end 
 ;;
 
+module type META_PATH_STRING_SPECIFICATION =
+functor ( PathOperation : PATH_SPECIFICATION ) ->
+PATH_SPECIFICATION
+;;
 
+
+module GenericStringPath : META_PATH_STRING_SPECIFICATION =
+functor ( PathOperation : PATH_SPECIFICATION ) ->
+struct
+
+	type filename = string
+	type extension = PathOperation.extension
+
+	let string_from_filename path = 
+		path
+
+	let filename_from_string path = 
+		path
+
+	let f2s = PathOperation.filename_of_string
+
+	let s2f = PathOperation.string_of_filename
+
+	let is_subdir path1 path2 = 
+		PathOperation.is_subdir (s2f path1) (s2f path2)
+
+	let is_updir path1 path2 =
+		PathOperation.is_updir  (s2f path1) (s2f path2)
+
+	let compare path1 path2 =
+		PathOperation.compare   (s2f path1) (s2f path2)
+
+	let basename path =
+		f2s (PathOperation.basename (s2f path))
+
+	let dirname path = 
+		f2s (PathOperation.dirname  (s2f path))
+
+	let concat path1 path2 = 
+		f2s (PathOperation.concat   (s2f path1) (s2f path2))
+		
+	let make_filename path_lst =
+		f2s (PathOperation.make_filename (List.map s2f path_lst))
+
+	let reduce path =
+		f2S (PathOperation.reduce (s2f path))
+
+	let make_absolute base_path path =
+		f2s (PathOperation.make_absolute (s2f base_path) (s2f path))
+
+	let make_relative base_path path =
+		f2s (PathOperation.make_relative (s2f base_path) (s2f path))
+
+	let reparent path_src path_dst path =
+		f2s (PathOperation.reparent      (s2f path_src)  (s2f path_dst) (s2f path))
+
+	let identity path =
+		f2s (PathOperation.identity      (s2f path))
+
+	let is_valid path =
+		try
+			f2s (PathOperation.identity      (s2f path))
+		with SysPathInvalidFilename ->
+			false
+
+	let is_relative path  = 
+		PathOperation.is_relative ( s2f path )
+
+	let is_implicit path =
+		PathOperation.is_implicit ( s2f path )
+
+	let chop_extension path =
+		f2s (PathOperation.chop_extension (s2f path))
+
+	let get_extension path =
+		PathOperation.get_extension (s2f path)
+
+	let check_extension path ext =
+		PathOperation.check_extension (s2f path) ext
+
+	let add_extension path ext =
+		f2s (PathOperation.add_extension (s2f path) ext)
+
+	let string_from_path path_lst =
+		PathOperation.string_from_path (List.map s2f path_lst)
+
+	let path_from_string str =
+		List.map f2s (PathOperation.path_from_string str)
+end
+;;
+	
+
+		
 module UnixPath : PATH_SPECIFICATION = GenericPath(struct
 	let dir_writer                = UnixPath.dir_writer
 	let dir_reader                = UnixPath.dir_reader
