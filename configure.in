@@ -2,6 +2,10 @@ AC_INIT()
 
 # Check for Ocaml compilers
 
+AC_ARG_ENABLE(ocamlfind, 
+	AC_HELP_STRING([--enable-ocamlfind], [Use ocamlfind ( default is NO )]),
+	USE_OCAMLFIND=yes, USE_OCAMLFIND=no)
+
 # we first look for ocamlc in the path; if not present, we fail
 AC_CHECK_PROG(OCAMLC,ocamlc,ocamlc,no)
 if test "$OCAMLC" = no ; then
@@ -123,6 +127,7 @@ AC_SUBST(OCAMLLIB)
 AC_SUBST(OCAMLWEB)
 AC_SUBST(OCAMLWIN32)
 AC_SUBST(OCAMLFIND)
+AC_SUBST(USE_OCAMLFIND)
 AC_SUBST(OCAMLP4)
 AC_SUBST(EXE)
 

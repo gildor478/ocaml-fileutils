@@ -37,9 +37,3 @@ let read_path_variable str =
 		lexbuf
 ;;
 
-let split_basename_extension fln_part =
-	match fln_part with
-	  Component str ->
-	  	let lexbuf 
-
-	
