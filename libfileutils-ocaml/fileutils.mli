@@ -49,6 +49,9 @@ type test_file =
   | And of test_file * test_file
   | Or of test_file * test_file
   | Not of test_file
+  | Match of string
+  | True
+  | False
 
 (** Apply a filtering pattern to a directory listing *)
 val filter_dir : test_file -> string list -> string list

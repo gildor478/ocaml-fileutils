@@ -59,6 +59,9 @@ type test_file =
 	| And of test_file * test_file
 	| Or of test_file * test_file
 	| Not of test_file
+	| Match of string
+	| True
+	| False
 ;;
 
 let rec compile_filter flt =
@@ -106,6 +109,17 @@ let rec compile_filter flt =
 			in
 			not (cflt1 x)
 		end	
+	| Match(r) ->
+		begin
+		let reg = Str.regexp r
+		in
+		fun x -> Str.string_match reg x 0
+		end
+	| True ->
+		fun x -> true
+	| False ->
+		fun x -> false
+			
 ;;
 
 exception Base_path_relative;;
