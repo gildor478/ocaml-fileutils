@@ -1,3 +1,10 @@
+v0.2.2 : 
+  * Changes the version to 0.2.2 in TopMakefile.in ( closes: #33 )
+  * Stop removing Makefile in distclean target ( closes: #31 )
+  * Change --enable-docdir --enable-builddir to --withXX ( closes: #32 )
+  * Configure now test that ocamlfind is not detected and that we want to
+    use ocamlfind ( closes: #34 )
+
 v0.2.1 :
   * Minor bug fixes to correct website aspect
 
