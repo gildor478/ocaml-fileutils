@@ -44,9 +44,6 @@ TEMPBUILDLIB = @TEMPLIB@
 #CLI_OCAMLOPT  (requires,predicates) : compile ( ocamlopt )
 
 ifeq "$(USE_OCAMLFIND)" "yes"
-	OCAMLFIND_COMMANDS = "ocamlc=@OCAMLC@ \
-		ocamlopt=@OCAMLOPT@ \
-		ocamldep=@OCAMLDEP@"
 	OCAMLC     = @OCAMLFIND@ ocamlc 
 	OCAMLOPT   = @OCAMLFIND@ ocamlopt
 	OCAMLDEP   = @OCAMLFIND@ ocamldep
@@ -62,7 +59,6 @@ ifeq "$(USE_OCAMLFIND)" "yes"
 	CLI_OCAMLC     = $(OCAMLC)   -package "$1" -predicates "$2"
 	CLI_OCAMLOPT   = $(OCAMLOPT) -package "$1" -predicates "$2"
 	
-	export OCAMLFIND_COMMANDS
 	export OCAMLPATH
 	
 else

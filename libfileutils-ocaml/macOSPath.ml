@@ -11,29 +11,14 @@ let filename_of_filename_part cmp =
 	| Component s -> s
 ;;
 
-let implode lst =
-	String.concat ":" (List.map 
-		filename_of_filename_part
-		lst )
+let dir_separator  = ":"
 ;;
 
-let explode str =
-	let lexbuf = Lexing.from_string str
-	in
-	MacOSPath_parser.main_filename
-		MacOSPath_lexer.token_filename
-		lexbuf
+let dir_spec       = (MacOSPath_parser.main_filename,MacOSPath_lexer.token_filename)
 ;;
 
-let make_path_variable lst =
-	String.concat ";" lst
+let path_separator = ";" 
 ;;
 
-let read_path_variable str =
-	let lexbuf = Lexing.from_string str
-	in
-	MacOSPath_parser.main_path_variable
-		MacOSPath_lexer.token_path_variable
-		lexbuf
+let path_spec      = (MacOSPath_parser.main_path_variable,MacOSPath_lexer.token_path_variable)
 ;;
-
