@@ -34,6 +34,8 @@ OCAMLVERSION = @OCAMLVERSION@
 OCAMLWIN32 = @OCAMLWIN32@
 OCAMLFIND = @OCAMLFIND@
 OCAMLP4 = @OCAMLP4@
+OCAMLYACC = @OCAMLYACC@
+OCAMLLEX = @OCAMLLEX@
 EXE = @EXE@
 TEMPBUILDLIB=@TEMPLIB@
 OCAMLPATH:=$(OCAMLPATH):$(TEMPBUILDLIB)/
@@ -106,28 +108,25 @@ META:
 
 .SUFFIXES: .mli .ml .cmi .cmo .cmx .mll .mly .zog
 
-.mli.cmi:
+%.cmi: %.mli
 	$(OCAMLC) $(INCLUDES) -package "$(REQUIRES)" -predicates "$(PREDICATES)" -c $<
 
-.ml.cmo:
+%.cmo: %.ml
 	$(OCAMLC) $(INCLUDES) -package "$(REQUIRES)" -predicates "$(PREDICATES)" -c $<
 
-.ml.o:
+%.o: %.ml
 	$(OCAMLOPT) $(INCLUDES) -package "$(REQUIRES)" -predicates "$(PREDICATES)" -c $<
 	
-.ml.cmx:
+%.cmx: %.ml
 	$(OCAMLOPT) $(INCLUDES) -package "$(REQUIRES)" -predicates "$(PREDICATES)" -c $<
 	
-.mll.ml:
+%.ml:%.mll
 	$(OCAMLLEX) $<
 
-.mly.ml:
+%.mli %.ml: %.mly
 	$(OCAMLYACC) -v $<
 
-.mly.mli:
-	$(OCAMLYACC) -v $<
-	
-.zog.ml:
+%.ml: %.zog
 	$(OCAMLP4) pa_o.cmo pa_zog.cma  pr_o.cmo -impl $< > $@
 	
 clean::
