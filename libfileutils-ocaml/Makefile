@@ -58,6 +58,8 @@ ODOC = \
 
 include ../TopMakefile
 
+$(NAME).odoc: $(CMO)
+
 unixPath_parser.cmo: unixPath_parser.cmi
 unixPath_parser.cmx: unixPath_parser.cmi
 
