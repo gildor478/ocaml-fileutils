@@ -119,14 +119,18 @@ let check_base_path path =
 ;; 
 
 let implode path =
-	try
+	match path with 
+	"" :: tl_lst ->
 		List.fold_left 
 			(concat) 
-			(List.hd path) 
-			(List.tl path)
-	with Failure("hd")
-	| Failure("tl") ->
-		concat "" ""
+			"/"
+			tl_lst	
+	| _ ->
+		List.fold_left 
+			(concat) 
+			""
+			path
+	
 ;;
 
 let rec explode path =
@@ -151,15 +155,14 @@ let rec explode path =
 
 let rec reduce_list path_lst =
 	match path_lst with
-	fst :: snd :: tl_lst ->
-		if snd = parent_dir_name then
-			reduce_list tl_lst
-		else if snd = current_dir_name then
-			fst :: (reduce_list tl_lst)
-		else
-			fst :: (reduce_list (snd :: tl_lst))
-	| fst :: [] ->
-		[ fst ]
+	fst :: snd :: thd :: tl_lst 
+		when thd = parent_dir_name ->
+			reduce_list (fst :: tl_lst)
+	| fst :: snd :: tl_lst 
+		when snd = current_dir_name ->
+			reduce_list (fst :: tl_lst)
+	| fst :: tl_lst ->
+		fst :: (reduce_list tl_lst)
 	| [] ->
 		[]
 ;;
