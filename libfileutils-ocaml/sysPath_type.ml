@@ -23,4 +23,6 @@ let end_string (str,lst) =
 	(Component str) :: lst
 ;;
 
-
+(* Definition of the caracteristic length of a path *)
+let path_length = 80
+;;

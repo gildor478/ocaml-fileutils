@@ -17,38 +17,38 @@ struct
 	let expect_equal_bool = expect_equal ~printer:(string_of_bool)
 
 
-	let reduce (test,exp,res) =
-		expect_pass ~desc:((!os_string)^" : reduce " ^ test)
+	let reduce (exp,res) =
+		expect_pass ~desc:((!os_string)^" : reduce " ^ exp )
 		~body:( fun () ->
 			expect_equal_string res (OsPath.reduce exp)
 		)
 		
-	let make_path (test,exp,res) =
-		expect_pass ~desc:((!os_string)^" : make Path " ^ test)
+	let make_path (exp,res) =
+		expect_pass ~desc:((!os_string)^" : make_path [ " ^ (String.concat " ; " exp) ^ " ]" )
 		~body:( fun () ->
 			expect_equal_string res (OsPath.make_path_variable exp)
 		)
 		
-	let make_absolute (test,base,rela,res) =
-		expect_pass ~desc:((!os_string)^" : make absolute " ^ test)
+	let make_absolute (base,rela,res) =
+		expect_pass ~desc:((!os_string)^" : make_absolute " ^ base ^ " " ^ rela )
 		~body:( fun () ->
 			expect_equal_string res (OsPath.make_absolute base rela)
 		)
 		
-	let make_relative (test,base,abs,res) =
-		expect_pass ~desc:((!os_string)^" : make relative " ^ test)
+	let make_relative (base,abs,res) =
+		expect_pass ~desc:((!os_string)^" : make_relative " ^ base ^ " " ^ abs )
 		~body:( fun () ->
 			expect_equal_string res (OsPath.make_relative base abs)
 		)
 		
-	let valid (test,exp) =
-		expect_pass ~desc:((!os_string)^" : valid "^test )
+	let valid (exp) =
+		expect_pass ~desc:((!os_string)^" : is_valid " ^ exp )
 		~body:( fun () ->
 			expect_true (OsPath.is_valid exp)
 		)
 		
-	let identity (test,exp) = 
-		expect_pass ~desc:((!os_string)^" : identity "^test)
+	let identity (exp) = 
+		expect_pass ~desc:((!os_string)^" : identity "^exp)
 		~body:( fun () ->
 			expect_equal_string exp (OsPath.identity exp)
 		)
@@ -79,40 +79,40 @@ TestCygwin.os_string := "Cygwin"
 (* Reduce path *)
 List.iter TestUnix.reduce
 [
- ("identity",                    "/a/b/c",                   "/a/b/c");
- ("remove trailer",              "/a/b/c/",                  "/a/b/c");
- ("remove last ..",              "/a/b/c/d/..",              "/a/b/c");
- ("remove last .",               "/a/b/c/.",                 "/a/b/c");
- ("remove inside ..",            "/a/d/../b/c",              "/a/b/c");
- ("remove inside .",             "/a/./b/c",                 "/a/b/c");
- ("remove last . and ..",        "/a/b/c/d/./..",            "/a/b/c");
- ("remove last .. and .",        "/a/b/c/d/../.",            "/a/b/c");
- ("remove following . and ..",   "/a/b/d/./../c",            "/a/b/c");
- ("remove following .. and .",   "/a/b/d/.././c",            "/a/b/c");
- ("remove multiple ..",          "/a/b/../d/../b/c",         "/a/b/c");
- ("remove multiple .",           "/a/./././b/./c",           "/a/b/c");
- ("remove multiple . and ..",    "/a/../a/./b/../c/../b/./c","/a/b/c")
+ ("/a/b/c",                   "/a/b/c");
+ ("/a/b/c/",                  "/a/b/c");
+ ("/a/b/c/d/..",              "/a/b/c");
+ ("/a/b/c/.",                 "/a/b/c");
+ ("/a/d/../b/c",              "/a/b/c");
+ ("/a/./b/c",                 "/a/b/c");
+ ("/a/b/c/d/./..",            "/a/b/c");
+ ("/a/b/c/d/../.",            "/a/b/c");
+ ("/a/b/d/./../c",            "/a/b/c");
+ ("/a/b/d/.././c",            "/a/b/c");
+ ("/a/b/../d/../b/c",         "/a/b/c");
+ ("/a/./././b/./c",           "/a/b/c");
+ ("/a/../a/./b/../c/../b/./c","/a/b/c")
 ];
 
 (* Create path *)
 List.iter TestUnix.make_path
 [
- ("identity", ["/a";"b";"/c/d"], "/a:b:/c/d")
+ (["/a";"b";"/c/d"], "/a:b:/c/d")
 ];
 
 (* Convert to absolute *)
 List.iter TestUnix.make_absolute
 [
- ("identity",  "/a/b/c", ".",    "/a/b/c");
- ("simple v1", "/a/b/c", "./d",  "/a/b/c/d");
- ("simple v2", "/a/b/c", "../d", "/a/b/d")
+ ("/a/b/c", ".",    "/a/b/c");
+ ("/a/b/c", "./d",  "/a/b/c/d");
+ ("/a/b/c", "../d", "/a/b/d")
 ];
 
 (* Convert to relative *)
 List.iter TestUnix.make_relative 
 [
- ("identity",  "/a/b/c", "/a/b/c", "");
- ("simple v1", "/a/b/c", "/a/b/d", "../d")
+ ("/a/b/c", "/a/b/c", "");
+ ("/a/b/c", "/a/b/d", "../d")
 ];
 
 (**********************)
@@ -121,11 +121,11 @@ List.iter TestUnix.make_relative
 
 let test_path = 
 [
- ("Root",   "c:/");
- ("Simple v1", "c:/a/b");
- ("Simple v2", "c:/a/b/c/");
- ("Simple ..", "c:/a/../b/c");
- ("Multiple ..", "c:/a/../b/../c")
+ ("c:/");
+ ("c:/a/b");
+ ("c:/a/b/c/");
+ ("c:/a/../b/c");
+ ("c:/a/../b/../c")
 ]
 in
 (* Is_valid *)
@@ -139,40 +139,40 @@ List.iter TestWin32.identity test_path
 (* Reduce path *)
 List.iter TestWin32.reduce
 [
- ("identity",                    "c:/a/b/c",                   "c:/a/b/c");
- ("remove trailer",              "c:/a/b/c/",                  "c:/a/b/c");
- ("remove last ..",              "c:/a/b/c/d/..",              "c:/a/b/c");
- ("remove last .",               "c:/a/b/c/.",                 "c:/a/b/c");
- ("remove inside ..",            "c:/a/d/../b/c",              "c:/a/b/c");
- ("remove inside .",             "c:/a/./b/c",                 "c:/a/b/c");
- ("remove last . and ..",        "c:/a/b/c/d/./..",            "c:/a/b/c");
- ("remove last .. and .",        "c:/a/b/c/d/../.",            "c:/a/b/c");
- ("remove following . and ..",   "c:/a/b/d/./../c",            "c:/a/b/c");
- ("remove following .. and .",   "c:/a/b/d/.././c",            "c:/a/b/c");
- ("remove multiple ..",          "c:/a/b/../d/../b/c",         "c:/a/b/c");
- ("remove multiple .",           "c:/a/./././b/./c",           "c:/a/b/c");
- ("remove multiple . and ..",    "c:/a/../a/./b/../c/../b/./c","c:/a/b/c")
+ ("c:/a\\b\\c",                           "c:/a\\b\\c");
+ ("c:/a\\b\\c\\",                         "c:/a\\b\\c");
+ ("c:/a\\b\\c\\d\\..",                    "c:/a\\b\\c");
+ ("c:/a\\b\\c\\.",                        "c:/a\\b\\c");
+ ("c:/a\\d\\..\\b\\c",                    "c:/a\\b\\c");
+ ("c:/a\\.\\b\\c",                        "c:/a\\b\\c");
+ ("c:/a\\b\\c\\d\\.\\..",                 "c:/a\\b\\c");
+ ("c:/a\\b\\c\\d\\..\\.",                 "c:/a\\b\\c");
+ ("c:/a\\b\\d\\.\\..\\c",                 "c:/a\\b\\c");
+ ("c:/a\\b\\d\\..\\.\\c",                 "c:/a\\b\\c");
+ ("c:/a\\b\\..\\d\\..\\b\\c",             "c:/a\\b\\c");
+ ("c:/a\\.\\.\\.\\b\\.\\c",               "c:/a\\b\\c");
+ ("c:/a\\..\\a\\.\\b\\..\\c\\..\\b\\.\\c","c:/a\\b\\c")
 ];
 
 (* Create path *)
 List.iter TestWin32.make_path
 [
- ("identity", ["c:/a";"b";"c:/c\\d"], "c:/a:b:c:/c\\d")
+ (["c:/a";"b";"c:/c\\d"], "c:/a:b:c:/c\\d")
 ];
 
 (* Convert to absolute *)
 List.iter TestWin32.make_absolute
 [
- ("identity",  "c:/a\\b\\c", ".",     "c:/a\\b\\c");
- ("simple v1", "c:/a\\b\\c", ".\\d",  "c:/a\\b\\c\\d");
- ("simple v2", "c:/a\\b\\c", "..\\d", "c:/a\\b\\d")
+ ("c:/a\\b\\c", ".",     "c:/a\\b\\c");
+ ("c:/a\\b\\c", ".\\d",  "c:/a\\b\\c\\d");
+ ("c:/a\\b\\c", "..\\d", "c:/a\\b\\d")
 ];
 
 (* Convert to relative *)
 List.iter TestWin32.make_relative 
 [
- ("identity",  "c:/a\\b\\c", "c:/a\\b\\c", "");
- ("simple v1", "c:/a\\b\\c", "c:/a\\b\\d", "..\\d")
+ ("c:/a\\b\\c", "c:/a\\b\\c", "");
+ ("c:/a\\b\\c", "c:/a\\b\\d", "..\\d")
 ];
 
 (**********************)
@@ -182,46 +182,46 @@ List.iter TestWin32.make_relative
 (* Is_valid *)
 List.iter TestMacOS.valid
 [
- ("Root", "a:");
+ ("a:");
 ];
 
 (* Identity *)
 List.iter TestMacOS.identity
 [
- ("Root", "a:");
+ ("a:");
 ];
 
 (* Reduce path *)
 List.iter TestMacOS.reduce
 [
- ("identity",           "root:a:b:c",      "root:a:b:c");
- ("remove trailer",     "root:a:b:c:",     "root:a:b:c");
- ("remove last ..",     "root:a:b:c:d::",  "root:a:b:c");
- ("remove inside ..",   "root:a:d::b:c",   "root:a:b:c");
- ("remove last ..",     "root:a:b:c:d::",  "root:a:b:c");
- ("remove following ..","root:a:b:d::c",   "root:a:b:c");
- ("remove multiple ..", "root:a:b::d::b:c","root:a:b:c");
+ ("root:a:b:c",      "root:a:b:c");
+ ("root:a:b:c:",     "root:a:b:c");
+ ("root:a:b:c:d::",  "root:a:b:c");
+ ("root:a:d::b:c",   "root:a:b:c");
+ ("root:a:b:c:d::",  "root:a:b:c");
+ ("root:a:b:d::c",   "root:a:b:c");
+ ("root:a:b::d::b:c","root:a:b:c");
 ];
 
 (* Create path *)
 List.iter TestMacOS.make_path
 [
- ("identity", [":a";"b";":c:d"],":a;b;:c:d")
+ ([":a";"b";":c:d"],":a;b;:c:d")
 ];
 
 (* Convert to absolute *)
 List.iter TestMacOS.make_absolute
 [
- ("identity",  "root:a:b:c", ":",   "root:a:b:c");
- ("simple v1", "root:a:b:c", ":d",  "root:a:b:c:d");
- ("simple v2", "root:a:b:c", "::d", "root:a:b:d")
+ ("root:a:b:c", ":",   "root:a:b:c");
+ ("root:a:b:c", ":d",  "root:a:b:c:d");
+ ("root:a:b:c", "::d", "root:a:b:d")
 ];
 
 (* Convert to relative *)
 List.iter TestMacOS.make_relative 
 [
- ("identity",  "root:a:b:c", "root:a:b:c", "");
- ("simple v1", "root:a:b:c", "root:a:b:d", "::d")
+ ("root:a:b:c", "root:a:b:c", "");
+ ("root:a:b:c", "root:a:b:d", "::d")
 ];
 
 (*
@@ -232,40 +232,40 @@ List.iter TestMacOS.make_relative
 (* Reduce path *)
 List.iter TestCygwin.reduce
 [
- ("identity",                    "/a/b/c",                   "/a/b/c");
- ("remove trailer",              "/a/b/c/",                  "/a/b/c");
- ("remove last ..",              "/a/b/c/d/..",              "/a/b/c");
- ("remove last .",               "/a/b/c/.",                 "/a/b/c");
- ("remove inside ..",            "/a/d/../b/c",              "/a/b/c");
- ("remove inside .",             "/a/./b/c",                 "/a/b/c");
- ("remove last . and ..",        "/a/b/c/d/./..",            "/a/b/c");
- ("remove last .. and .",        "/a/b/c/d/../.",            "/a/b/c");
- ("remove following . and ..",   "/a/b/d/./../c",            "/a/b/c");
- ("remove following .. and .",   "/a/b/d/.././c",            "/a/b/c");
- ("remove multiple ..",          "/a/b/../d/../b/c",         "/a/b/c");
- ("remove multiple .",           "/a/./././b/./c",           "/a/b/c");
- ("remove multiple . and ..",    "/a/../a/./b/../c/../b/./c","/a/b/c")
+ ("/a/b/c",                   "/a/b/c");
+ ("/a/b/c/",                  "/a/b/c");
+ ("/a/b/c/d/..",              "/a/b/c");
+ ("/a/b/c/.",                 "/a/b/c");
+ ("/a/d/../b/c",              "/a/b/c");
+ ("/a/./b/c",                 "/a/b/c");
+ ("/a/b/c/d/./..",            "/a/b/c");
+ ("/a/b/c/d/../.",            "/a/b/c");
+ ("/a/b/d/./../c",            "/a/b/c");
+ ("/a/b/d/.././c",            "/a/b/c");
+ ("/a/b/../d/../b/c",         "/a/b/c");
+ ("/a/./././b/./c",           "/a/b/c");
+ ("/a/../a/./b/../c/../b/./c","/a/b/c")
 ];
 
 (* Create path *)
 List.iter TestCygwin.make_path
 [
- ("identity", ["/a";"b";"/c/d"])
+ (["/a";"b";"/c/d"])
 ];
 
 (* Convert to absolute *)
 List.iter TestCygwin.make_absolute
 [
- ("identity",  "/a/b/c", ".",    "/a/b/c");
- ("simple v1", "/a/b/c", "./d",  "/a/b/c/d");
- ("simple v2", "/a/b/c", "../d", "/a/b/d")
+ ("/a/b/c", ".",    "/a/b/c");
+ ("/a/b/c", "./d",  "/a/b/c/d");
+ ("/a/b/c", "../d", "/a/b/d")
 ];
 
 (* Convert to relative *)
 List.iter TestCygwin.make_relative 
 [
- ("identity",  "/a/b/c", "/a/b/c", "");
- ("simple v1", "/a/b/c", "/a/b/d", "../d")
+ ("/a/b/c", "/a/b/c", "");
+ ("/a/b/c", "/a/b/d", "../d")
 ];
 *)
 (****************)

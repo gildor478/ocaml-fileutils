@@ -3,21 +3,36 @@ open SysPath_type;;
 
 let filename_of_filename_part cmp =
 	match cmp with
-	  Root s -> s^":/"
+	  Root s -> s^":"
 	| ParentDir -> ".."
 	| CurrentDir -> "."
 	| Component s -> s
 ;;
 
-let dir_separator  = "/"
+let rec dir_writer lst = 
+	match lst with 
+	  Root s :: tl ->
+	  	(s^":/")^(dir_writer tl)
+	| lst ->
+		let dir_writer_aux cmp =
+			match cmp with
+			  (* We should raise an exception here *)
+			  Root s -> s
+			| ParentDir -> ".."
+			| CurrentDir -> "."
+			| Component s -> s
+		in
+		String.concat "\\" (List.map dir_writer_aux lst)
 ;;
 
-let dir_spec   = Win32Path_parser.main_filename Win32Path_lexer.token_filename
+let dir_reader  = Win32Path_parser.main_filename 
+	Win32Path_lexer.token_filename
 ;;
 
-let path_separator = ":" 
+let path_writer lst = String.concat ":" lst
 ;;
 
-let path_spec      = Win32Path_parser.main_path_variable Win32Path_lexer.token_path_variable
+let path_reader     = Win32Path_parser.main_path_variable 
+	Win32Path_lexer.token_path_variable
 ;;
 

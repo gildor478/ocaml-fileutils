@@ -29,41 +29,12 @@ type extension = SysPath_type.extension
 module type OS_SPECIFICATION =
 sig
 	val filename_of_filename_part : filename_part -> filename
-	val dir_separator             : string
-	val dir_spec                  : Lexing.lexbuf -> (filename_part list)
-	val path_separator            : string
-	val path_spec                 : Lexing.lexbuf -> (filename list)
+	val dir_writer                : (filename_part list) -> string
+	val dir_reader                : Lexing.lexbuf -> (filename_part list)
+	val path_writer               : (filename list) -> string
+	val path_reader               : Lexing.lexbuf -> (filename list)
 end
 ;;
-
-module type META_PATH_SPECIFICATION =
-functor ( OsOperation : OS_SPECIFICATION ) ->
-sig
-val basename        : filename -> filename_part
-val dirname         : filename -> filename
-val up_dir          : filename -> filename 
-val concat      : filename -> filename_part -> filename
-val reduce : filename -> filename
-val make_absolute : filename -> filename -> filename
-val make_relative : filename -> filename -> filename
-val identity : filename -> filename
-val is_valid : filename -> bool
-val is_relative : filename -> bool
-val is_implicit : filename -> bool
-val chop_extension  : filename -> filename
-val get_extension   : filename -> extension 
-val check_extension : filename -> extension -> bool
-val make_path_variable : filename list -> string
-val read_path_variable : string -> filename list
-val filename_of_filename_part : filename_part -> filename
-val filename_part_of_filename : filename -> filename_part
-val current_dir : filename_part
-val parent_dir  : filename_part
-val root        : string -> filename_part
-val component   : string -> filename_part
-val implode : filename_part list -> filename
-val explode : filename -> filename_part list   
-end
 
 module type PATH_SPECIFICATION =
 sig
@@ -72,7 +43,7 @@ sig
 (********************************)
 
 (** Extract the filename of a complete path *)
-val basename        : filename -> filename_part
+val basename        : filename -> filename
 
 (** Extract the directory name of a complete path *)
 val dirname         : filename -> filename
@@ -81,7 +52,7 @@ val dirname         : filename -> filename
 val up_dir          : filename -> filename 
 
 (** Append a filename_part to the filename *)
-val concat      : filename -> filename_part -> filename
+val concat      : filename -> filename -> filename
 
 (** Remove all path component which are relative inside the path
 For example : /a/../b -> /b/. Path must not be relative *)
@@ -140,10 +111,10 @@ val read_path_variable : string -> filename list
 val filename_of_filename_part : filename_part -> filename
 val filename_part_of_filename : filename -> filename_part
 
-val current_dir : filename_part
-val parent_dir  : filename_part
-val root        : string -> filename_part
-val component   : string -> filename_part
+val current_dir : filename
+val parent_dir  : filename
+val root        : string -> filename
+val component   : string -> filename
 
 (** Take a list of path component and return the string 
 corresponding to this path *)
@@ -153,6 +124,36 @@ val implode : filename_part list -> filename
 of this path *)
 val explode : filename -> filename_part list   
 end
+;;
+
+module type META_PATH_SPECIFICATION =
+functor ( OsOperation : OS_SPECIFICATION ) -> PATH_SPECIFICATION
+(*sig
+val basename        : filename -> filename_part
+val dirname         : filename -> filename
+val up_dir          : filename -> filename 
+val concat      : filename -> filename_part -> filename
+val reduce : filename -> filename
+val make_absolute : filename -> filename -> filename
+val make_relative : filename -> filename -> filename
+val identity : filename -> filename
+val is_valid : filename -> bool
+val is_relative : filename -> bool
+val is_implicit : filename -> bool
+val chop_extension  : filename -> filename
+val get_extension   : filename -> extension 
+val check_extension : filename -> extension -> bool
+val make_path_variable : filename list -> string
+val read_path_variable : string -> filename list
+val filename_of_filename_part : filename_part -> filename
+val filename_part_of_filename : filename -> filename_part
+val current_dir : filename_part
+val parent_dir  : filename_part
+val root        : string -> filename_part
+val component   : string -> filename_part
+val implode : filename_part list -> filename
+val explode : filename -> filename_part list   
+end*)
 ;;
 
 module GenericPath : META_PATH_SPECIFICATION = 
@@ -165,7 +166,7 @@ struct
 		try 
 			let lexbuf = Lexing.from_string str
 			in
-			OsOperation.dir_spec lexbuf
+			OsOperation.dir_reader lexbuf
 		with Parsing.Parse_error ->
 			raise SysPathInvalidFilename
 
@@ -177,17 +178,14 @@ struct
 
 
 	let implode lst = 
-		String.concat OsOperation.dir_separator 
-		( List.map filename_of_filename_part lst )
+		OsOperation.dir_writer lst 
 
-	let concat fln fln_part = 
+	let concat fln1 fln2 = 
 		(* We use a lot of time to concatenate because of the @ 
 		   we should try to avoid this kind of behavior *)
-		implode  ((explode fln) @ [fln_part])
+		implode  ((explode fln1) @ (explode fln2))
 
 	let is_relative fln  = 
-		print_string "Bonjour";
-		print_newline ();
 		match explode fln with
 		 (Root _) :: _ -> false
 		| _            -> true
@@ -208,11 +206,10 @@ struct
 			false
 
 	let basename fln = 
-		try
-			let lst = explode fln
-			in
-			List.nth lst ((List.length lst)-1) 
-		with (Failure "nth") ->
+		match List.rev ( explode fln ) with	
+		  hd :: tl ->
+			implode ( [hd] )
+		| [] ->
 			raise SysPathEmpty
 
 	let dirname fln = 
@@ -223,18 +220,16 @@ struct
 			raise SysPathEmpty
 
 	let split_extension fln = 
-		match basename fln with
-		  Component str ->
+		match explode (basename fln) with
+		  (Component str) :: []->
 			let lexbuf = Lexing.from_string str
 			in
 			let (base,ext) = GenericPath_parser.main_extension
 				GenericPath_lexer.token_extension
 				lexbuf
 			in
-			(concat (dirname fln) (Component base), ext)
-		| ParentDir 
-		| CurrentDir 
-		| Root _ ->
+			(concat (dirname fln) base, ext)
+		| _ ->
 			raise SysPathNoExtension
 
 	let check_extension fln ext = 
@@ -341,24 +336,24 @@ struct
 	let identity fln =
 		implode (explode fln)
 
-	let parent_dir  = ParentDir
+	let parent_dir  = implode [ParentDir]
 
-	let current_dir = CurrentDir
+	let current_dir = implode [CurrentDir]
 
-	let root s      = Root s
+	let root s      = implode [Root s]
 
-	let component s = Component s
+	let component s = implode [Component s]
 
-	let up_dir fln  = reduce ( concat fln ParentDir )
+	let up_dir fln  = reduce ( concat fln parent_dir )
 
 	let make_path_variable lst = 
-		String.concat OsOperation.path_separator lst
+		OsOperation.path_writer lst
 
 	let read_path_variable str = 
 		try
 			let lexbuf = Lexing.from_string str
 			in
-			OsOperation.path_spec lexbuf
+			OsOperation.path_reader lexbuf
 		with Parsing.Parse_error ->
 			raise SysPathInvalidPath
 end 
@@ -367,37 +362,37 @@ end
 
 module UnixPath : PATH_SPECIFICATION = GenericPath(struct
 	let filename_of_filename_part = UnixPath.filename_of_filename_part
-	let dir_separator             = UnixPath.dir_separator
-	let dir_spec                  = UnixPath.dir_spec
-	let path_separator            = UnixPath.path_separator
-	let path_spec                 = UnixPath.path_spec
+	let dir_writer                = UnixPath.dir_writer
+	let dir_reader                = UnixPath.dir_reader
+	let path_writer               = UnixPath.path_writer
+	let path_reader               = UnixPath.path_reader
 end)
 ;;
 
 module MacOSPath : PATH_SPECIFICATION = GenericPath(struct
 	let filename_of_filename_part = MacOSPath.filename_of_filename_part
-	let dir_separator             = MacOSPath.dir_separator
-	let dir_spec                  = MacOSPath.dir_spec
-	let path_separator            = MacOSPath.path_separator
-	let path_spec                 = MacOSPath.path_spec
+	let dir_writer                = MacOSPath.dir_writer
+	let dir_reader                = MacOSPath.dir_reader
+	let path_writer               = MacOSPath.path_writer
+	let path_reader               = MacOSPath.path_reader
 end)
 ;;
 
 module Win32Path : PATH_SPECIFICATION = GenericPath(struct 
 	let filename_of_filename_part = Win32Path.filename_of_filename_part
-	let dir_separator             = Win32Path.dir_separator
-	let dir_spec                  = Win32Path.dir_spec
-	let path_separator            = Win32Path.path_separator
-	let path_spec                 = Win32Path.path_spec
+	let dir_writer                = Win32Path.dir_writer
+	let dir_reader                = Win32Path.dir_reader
+	let path_writer               = Win32Path.path_writer
+	let path_reader               = Win32Path.path_reader
 end)
 ;;
 (*
 module CygwinPath : PATH_SPECIFICATION = GenericPath(struct
 	let filename_of_filename_part = CygwinPath.filename_of_filename_part
-	let dir_separator             = CygwinPath.dir_separator
-	let dir_spec                  = CygwinPath.dir_spec
-	let path_separator            = CygwinPath.path_separator
-	let path_spec                 = CygwinPath.path_spec
+	let dir_writer                = CygwinPath.dir_writer
+	let dir_reader                = CygwinPath.dir_reader
+	let path_writer               = CygwinPath.path_writer
+	let path_reader               = CygwinPath.path_reader
 end)
 ;;
 *)

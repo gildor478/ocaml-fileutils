@@ -21,6 +21,7 @@ no_separator:
 end_normal_filename:
   IDENT end_normal_filename       { add_string $1 $2 }
 | SEPARATOR begin_normal_filename { begin_string "" $2 }
+| EOF                             { begin_string "" [] }
 ;
 begin_normal_filename:
   IDENT end_normal_filename       { end_string(add_string $1 $2) }

@@ -229,7 +229,7 @@ let list_dir dirname =
 	in
 	let rec list_dir_aux lst =
 		try
-			let filename = filename_part_of_filename (Unix.readdir hdir)
+			let filename = Unix.readdir hdir
 			in
 			let complete_path = 
 				concat dirname filename
@@ -264,12 +264,12 @@ let which ?(path) fln =
 			x
 	in
 	let ctst x = 
-		test (And(Is_exec,Not(Is_dir))) (concat x (filename_part_of_filename fln))
+		test (And(Is_exec,Not(Is_dir))) (concat x fln)
 	in
 	let which_path =
 		List.find ctst real_path
 	in
-	concat which_path (filename_part_of_filename fln)
+	concat which_path fln
 ;;
 
 let mkdir ?(parent=false) ?mode fln =
@@ -291,19 +291,16 @@ let mkdir ?(parent=false) ?mode fln =
 				raise MkdirMissingComponentPath
 	in
 	if parent then
-		let exploded_path = explode fln
+		let rec create_parent parent =
+			let _ =
+				if test Exists parent then
+					()
+				else
+					create_parent (up_dir parent)
+			in
+			mkdir_simple parent
 		in
-		let _ = List.fold_left (fun x y -> 
-			match x with 
-			  Some s -> let next = concat s y in
-			  	mkdir_simple next; Some next
-			| None ->
-				let current = filename_of_filename_part y 
-				in
-				mkdir_simple current; Some current
-			) None exploded_path
-		in
-		()
+		create_parent fln
 	else
 		mkdir_simple fln
 ;;		
@@ -452,10 +449,7 @@ let cp ?(force=Force) ?(recurse=false) fln_src fln_dst =
 			in
 			cp_simple 
 				fln_src_abs 
-				( make_absolute 
-					fln_dst_abs 
-					(filename_of_filename_part (basename fln_src_abs))
-				)
+				( make_absolute fln_dst_abs (basename fln_src_abs) )
 	| (false,false, true) 
 	| (false,false,false) ->
 		if (test Exists fln_src) then
@@ -493,10 +487,7 @@ let rec mv ?(force=Force) fln_src fln_dst =
 		else if test Is_dir fln_dst_abs then
 			mv ~force:force 
 				fln_src_abs 
-				( make_absolute 
-					fln_dst_abs 
-					(filename_of_filename_part (basename fln_src_abs))
-				)
+				( make_absolute fln_dst_abs (basename fln_src_abs) )
 		else if test Exists fln_src_abs then
 			Unix.rename fln_src_abs fln_src_abs
 		else
