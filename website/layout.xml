@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="ISO-8859-15"?>
+<!DOCTYPE autolayout PUBLIC "-//Norman Walsh//DTD Website Autolayout V2.5.0//EN"
+               "http://docbook.sourceforge.net/release/website/2.5.0/autolayout.dtd" [
+   <!ENTITY exported-toc SYSTEM "ocaml-fileutils-toc.xml">
+]>
+<layout>
+
+<copyright>
+	<year>2003, 2004</year>
+	<holder>Sylvain LE GALL</holder>
+</copyright>
+
+<toc page="website.xml" filename="index.html">
+	&exported-toc;
+</toc>
+
+</layout>
