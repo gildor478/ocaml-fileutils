@@ -15,8 +15,6 @@ open SysPath_type;;
 %type <SysPath_type.filename_part list> main_filename
 %start main_path_variable
 %type <string list> main_path_variable
-%start main_extension
-%type <string * string> main_extension
 
 %%
 filename_part_separator:
@@ -60,9 +58,3 @@ main_path_variable:
 | EOF                      { [] }
 ;
 
-main_extension:
-  IDENT DOT IDENT EOF  { ($1,$3) }
-| IDENT DOT EOF        { ($1,"") }
-| IDENT main_extension { let (m,ext) = $2 in ( $1^m,ext) }
-| DOT main_extension   { let (m,ext) = $2 in ("."^m,ext) }
-;

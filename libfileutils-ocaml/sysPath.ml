@@ -15,11 +15,28 @@ type filename_part = SysPath_type.filename_part
 type extension = SysPath_type.extension
 ;;
 
+module type OS_SPECIFICATION =
+sig
+	val filename_of_filename_part : filename_part -> filename
+	val dir_separator             : string
+	val dir_spec                  : (( Lexing.lexbuf -> 'a ) -> Lexing.lexbuf -> filename_part list) * ( Lexing.lexbuf -> 'a )
+	val path_separator            : string
+	val path_spec                 : (( Lexing.lexbuf -> 'a ) -> Lexing.lexbuf -> filename list) * ( Lexing.lexbuf -> 'a )
+end
+;;
+
 module GenericPath = 
-functor ( OsOperation ) ->
+functor ( OsOperation : OS_SPECIFICATION ) ->
 struct
 	let filename_of_filename_part x =
 		OsOperation.filename_of_filename_part
+
+	let explode str = 
+		let (dir_parser,dir_lexer) = OsOperation.dir_spec
+		in
+		let lexbuf = Lexing.from_string str
+		in
+		dir_parser dir_lexer lexbuf
 
 	let filename_part_of_filename x =
 		match explode x with
@@ -27,13 +44,6 @@ struct
 		| [] -> raise SysPathEmpty
 		| _  -> raise SysPathFilenameMultiple
 
-
-	let explode str = 
-		let (path_lexer,path_parser) = OsOperation.explode_spec
-		in
-		let lexbuf = Lexing.from_string str
-		in
-		path_parser path_lexer lexbuf
 
 	let implode lst = 
 		String.concat OsOperation.dir_separator 
@@ -218,6 +228,7 @@ module MacOSPath = GenericPath(struct
 end)
 ;;
 
+(*
 module Win32Path = GenericPath(struct 
 	let filename_of_filename_part = Win32Path.filename_of_filename_part
 	let dir_separator             = Win32Path.dir_separator
@@ -235,7 +246,8 @@ module MingwPath = GenericPath(struct
 	let path_spec                 = MingwPath.path_spec
 end)
 ;;
-
+*)
+(*
 let (
  implode,
  explode,
@@ -260,3 +272,4 @@ let (
 	| s ->
 		raise (SysPathUnrecognizedOS s)
 ;;
+*)

@@ -12,8 +12,6 @@ open SysPath_type;;
 %type <SysPath_type.filename_part list> main_filename
 %start main_path_variable
 %type <string list> main_path_variable
-%start main_extension
-%type <string * string> main_extension
 
 %%
 no_separator:
@@ -22,11 +20,11 @@ no_separator:
 ;
 end_normal_filename:
   IDENT end_normal_filename       { add_string $1 $2 }
-| SEPARATOR begin_normal_filename { begin_string "" $1 }
+| SEPARATOR begin_normal_filename { begin_string "" $2 }
 ;
 begin_normal_filename:
-  IDENT end_normal_filename       { add_string $1 $2 }
-| SEPARATOR begin_normal_filename { ParentDir :: $1 }
+  IDENT end_normal_filename       { end_string(add_string $1 $2) }
+| SEPARATOR begin_normal_filename { ParentDir :: $2 }
 | EOF                             { [] }
 ;
 main_filename:
@@ -37,10 +35,4 @@ main_filename:
 main_path_variable:
   IDENT main_path_variable { $1 :: $2 }
 | EOF                      { [] }
-;
-main_extension:
-  IDENT DOT IDENT EOF   { ($1,$3) }
-| IDENT DOT EOF         { ($1,"") }
-| IDENT main_extension  { let (m,ext) = $2 in ( $1^m,ext) }
-| DOT main_extension    { let (m,ext) = $2 in ("."^m,ext) }
 ;
