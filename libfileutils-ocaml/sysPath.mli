@@ -2,11 +2,7 @@
 type filename  = string
 type extension = string
 type filename_part = SysPath_type.filename_part
-(*	  SysPath_type.CurrentDir
-	| SysPath_type.ParentDir 
-	| SysPath_type.Root of string
-	| SysPath_type.Component of string
-*)
+
 (** You cannot pass a base path which is relative *)
 exception SysPathBasePathRelative
 (** One of the path you have passed is relative and cannot be reduce *)

@@ -217,9 +217,9 @@ let rec compile_filter flt =
 		| Has_extension(ext) ->
 			fun x -> check_extension x ext
 		| Is_current_dir ->
-			fun x -> (basename x) = SysPath_type.CurrentDir
+			fun x -> (basename x) = current_dir
 		| Is_parent_dir ->
-			fun x -> (basename x) = SysPath_type.ParentDir
+			fun x -> (basename x) = parent_dir
 	in
 	fun x -> ( try res_filter x with File_doesnt_exist -> false )
 ;;

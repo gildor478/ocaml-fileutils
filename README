@@ -14,4 +14,22 @@ can use to extract the exif tag from a file.
 
 Please report me any typing problem ( incoherent type for an entry ).
 
+Send bug report at submit@bugs.gallu.homelinux.org beginning with
+
+Package: fileutils
+Version: 0.2
+Severity: { choose wishlist,normal,important }
+
+and tell me your problem.
+
+----------------------------
+Information about filesystem
+----------------------------
+
+Well, i am not very acquainted with all filesystem syntax. I get information
+about it here :
+http://www.hk8.org/old_web/perl/sysadmin/ch02_02.htm
+
+I also browse a bit the Anonymous CVS of ocaml.
+
 Sylvain LE GALL

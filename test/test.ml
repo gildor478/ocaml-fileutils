@@ -64,6 +64,13 @@ let test_test (stest,expr,file,res) =
 		expect_equal_bool res (test expr file)
 	)
 in
+let ask_user file = 
+	let answer =
+		print_string ("Delete file : "^file^" (y/n) ? ");
+		read_line ()
+	in
+	answer = "y"
+in
 let root x = Root x
 in
 let c x = Component x
@@ -300,14 +307,14 @@ expect_pass ~desc:"Cp v2"
 
 expect_pass ~desc:"Rm v1"
 ~body:(fun () ->
-	rm (implode_string [dir_test  ; "essai2"]);
+	rm ~force:(Ask ask_user) (implode_string [dir_test  ; "essai2"]);
 	expect_true (test (Not Exists) (implode_string [ dir_test ; "essai2" ]))
 );
 
 Fort.test ~desc:"Rm v2"
 ~body:(fun () ->
 	try 
-		rm (implode_string [ dir_test ; "essai4" ]);
+		rm ~force:(Ask ask_user) (implode_string [ dir_test ; "essai4" ]);
 		Pass
 	with RmDirNotEmpty ->
 		XFail
@@ -315,7 +322,7 @@ Fort.test ~desc:"Rm v2"
 
 expect_pass ~desc:"Rm v3"
 ~body:(fun () ->
-	rm ~recurse:true dir_test;
+	rm ~force:(Ask ask_user) ~recurse:true dir_test;
 	expect_true (test (Not Exists) dir_test)
 );
 

@@ -4,18 +4,6 @@
 
 open SysPath_type;;
 
-let begin_string str lst =
-	(str,lst)
-;;
-
-let add_string str1 (str2,lst) = 
-	(str1 ^ str2,lst)
-;;
-
-let end_string (str,lst) =
-	(Component str) :: lst
-;;
-
 %}
 
 %token SLASH
