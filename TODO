@@ -1,10 +1,12 @@
 
 Must :
 
-- use reparent in sysutil
 - add more test to the test.ml file ( should have
   at least 200 test - only 133 at the time i am writing
   this line )
+- create a URI parser, in order to be able to adress different
+  filesystem using the same string ( example file:/coucou/ to indicate 
+  the subdir coucou of the current dir )
 
 Wishlist :
 - Create a libtar-ocaml, to handle the tar format
