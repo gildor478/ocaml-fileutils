@@ -24,9 +24,6 @@ val quote : string -> string
 corresponding to this path *)
 val implode : string list -> string
 
-(** Concat two path component *)
-val concat : string -> string -> string
-
 (** Take a string corresponding to a path a return the component 
 of this path *)
 val explode : string -> string list

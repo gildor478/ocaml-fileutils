@@ -154,17 +154,32 @@ let rec explode path =
 ;;
 
 let rec reduce_list path_lst =
-	match path_lst with
-	fst :: snd :: thd :: tl_lst 
-		when thd = parent_dir_name ->
-			reduce_list (fst :: tl_lst)
-	| fst :: snd :: tl_lst 
-		when snd = current_dir_name ->
-			reduce_list (fst :: tl_lst)
-	| fst :: tl_lst ->
-		fst :: (reduce_list tl_lst)
-	| [] ->
-		[]
+	let stack_dir = Stack.create ()
+	in
+	let safe_push itm =
+		Stack.push itm stack_dir
+	in
+	let safe_pop () =
+		ignore ( Stack.pop stack_dir )
+	in 
+	let to_list () =
+		let tmp_arr = Array.make (Stack.length stack_dir) ""
+		in
+		for i = (Stack.length stack_dir) - 1 downto 0 do 
+			Array.set tmp_arr i (Stack.pop stack_dir) 
+		done;
+		Array.to_list tmp_arr
+	in
+	let walk_path itm =
+		if itm = parent_dir_name then
+			safe_pop ()
+		else if itm = current_dir_name then
+			()
+		else
+			safe_push itm
+	in
+	List.iter walk_path path_lst;
+	to_list ()
 ;;
 
 let reduce path =
