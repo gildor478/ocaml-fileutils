@@ -32,7 +32,7 @@ open Win32Path_parser;;
 rule 
 token_filename = parse  
   ":/"		 { ROOT_SEPARATOR }
-| "\\"            { SEPARATOR }
+| "\\"           { SEPARATOR }
 | ".."           { DOUBLE_DOT }
 | "."            { DOT }
 | ':'[^'/'] as cmp

@@ -505,6 +505,19 @@ struct
     else
       SetFilename.add fln fln_set
 
+(*  
+  let dbug_print x = 
+    print_string x;
+    print_newline ()
+
+  let dbug_print_list x lst =
+    dbug_print (x^" [ "^(String.concat ";" lst)^" ] ")
+*)
+
+  let dbug_print x = ()
+
+  let dbug_print_list x lst = ()
+  
   let stat filename =
     try
       let stats = Unix.stat filename
@@ -675,13 +688,24 @@ struct
       dirname
     
   let ls dirname =
+    let _ = dbug_print ("Listing directory : "^dirname)
+    in
     let real_dirname = solve_dirname dirname
+    in
+    let _ = dbug_print ("Real dirname directory : "^real_dirname)
     in
     let array_dir = Sys.readdir real_dirname
     in
+    let _ = dbug_print ("Directory listed")
+    in
     let list_dir  = Array.to_list array_dir
     in
-    List.map (fun x -> concat dirname x)  list_dir
+    let _ = dbug_print_list "Directory listing" list_dir
+    in
+    List.map (fun x -> 
+      dbug_print ("Concatening "^dirname^" with "^x);
+      concat dirname x
+      )  list_dir
 
   let test tst =
     let ctst = compile_filter tst
@@ -791,9 +815,15 @@ struct
         true    
     in
     let rec find_dir (already_read,accu) fln =
+      let _ = dbug_print ("Entering dir : "^(fln))
+      in
       let newly_read = prevent_recursion already_read (make_absolute (pwd ()) (readlink fln))
       in
+      let _ = dbug_print "Recursion test passed"
+      in
       let dir_content = ls fln
+      in
+      let _ = dbug_print_list "Directory listing" dir_content
       in
       let new_accu = List.fold_left exec accu (List.filter ctest dir_content)
       in
@@ -811,7 +841,7 @@ struct
         else
           accu
       in
-      if cdir fln then
+      if test Is_dir fln then
         find_dir (already_read,new_accu) fln
       else
         (already_read,new_accu)

@@ -37,6 +37,7 @@ token_filename = parse
 | "\\/" as cmp         
 | "\\." as cmp
 | "\\.\\." as cmp      
+| "\\" as cmp
 | [^'.''/''\\']* as cmp{ (IDENT cmp) }
 | eof                  { EOF }
 and 

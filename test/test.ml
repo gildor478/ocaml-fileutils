@@ -719,6 +719,14 @@ let test_fileutil =
       assert_bool "find" (SetFilename.equal set !files)
     );
 
+    "Find v4" >::
+    ( fun () ->
+      let set = find Is_file (Filename.concat dir_test "") ( fun set fln ->
+        SetFilename.add fln set) SetFilename.empty
+      in
+      assert_bool "find" (SetFilename.equal set !files)
+    );
+
     "Unix specific" >:::
     (
       let symlink = make_filename [ dir_test ; "recurse" ]
@@ -829,3 +837,4 @@ if was_successful count_filepath then
   ignore (run_test_tt_main test_fileutil)
 else
   print_endline "FileUtil module test skipped ( correct FilePath error first )"
+

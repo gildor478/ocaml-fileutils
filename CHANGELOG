@@ -1,6 +1,10 @@
 v0.3 : 
   * Change the version to 0.3 ( lot of changes for a minor version )
   * Update webpages
+  * Correct a bug that prevent sr\@Ltn to be parsed ( which comes from the
+    lexer of UnixPath, there is [^'.''/''\\']* which can produce empty token )
+  * Correct a bug that prevent to parse the initial current dir ( ie produce nothing 
+    when use find "." or find "/a/" )
 
 v0.2.2 : 
   * Changes the version to 0.2.2 in TopMakefile.in ( closes: #33 )
