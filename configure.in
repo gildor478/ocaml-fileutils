@@ -123,5 +123,5 @@ AC_SUBST(OCAMLP4)
 AC_SUBST(EXE)
 
 # Finally create the Makefile from Makefile.in
-AC_OUTPUT([TopMakefile libgallery-ocaml/Makefile ocaml-gallery/Makefile test/Makefile],
-	[chmod a-w TopMakefile libgallery-ocaml/Makefile ocaml-gallery/Makefile test/Makefile])
+AC_OUTPUT([TopMakefile libfileutils-ocaml/Makefile test/Makefile],
+	[chmod a-w TopMakefile libfileutils-ocaml/Makefile test/Makefile])

@@ -1,14 +1,9 @@
-NAME = gallery_gui
-CMO = fileutils.cmo translation.cmo gallery_gui.cmo \
-	gControl.cmo \
-	applicationState.cmo \
-	gGalleryViewer.cmo \
-	gFolderList.cmo \
-	gImageBrowser.cmo \
-	gTreeGallery.cmo \
-	gallery_main.cmo
-REQUIRES = unix gallery lablgtk 
+NAME = fileutils
+LIBRARY = true
+CMO = version.cmo fileutils.cmo 
+REQUIRES = unix  
 PREDICATES = 
 TOP_SRCDIR = @top_srcdir@
+INSTALLIB = fileutils.a fileutils.cmxa fileutils.cma fileutils.cmi META
 
 include ../TopMakefile

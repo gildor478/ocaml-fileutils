@@ -61,6 +61,7 @@ $(TEMPBUILDLIB):
 	mkdir $(TEMPBUILDLIB)
 
 install-buildlib: $(TEMPBUILDLIB) byte opt META
+	$(OCAMLFIND) remove -destdir $(TEMPBUILDLIB) $(NAME) 
 	$(OCAMLFIND) install -destdir $(TEMPBUILDLIB) $(NAME) $(INSTALLIB)
 
 
@@ -127,6 +128,7 @@ clean::
 	rm -f $(NAME).byte $(NAME).opt
 	rm -f $(NAME).cma $(NAME).cmxa
 	rm -f $(NAME).a META
+	$(OCAMLFIND) remove -destdir $(TEMPBUILDLIB) $(NAME)
 
 dist-clean distclean:: clean
 	rm -f TopMakefile Makefile config.cache config.log config.status
