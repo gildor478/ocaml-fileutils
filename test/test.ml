@@ -648,7 +648,35 @@ in
                 )
   		lst
   );
-  
+
+  begin
+  match Sys.os_type with
+    "Unix" ->
+      (
+        Unix.symlink current_dir (make_filename [ dir_test ; "recurse" ]);
+        expect_pass ~desc:"Find v4 ( link )"
+        ~body:(fun () ->
+          let lst = find ~follow:Follow Is_dir dir_test ( fun lst fln -> fln :: lst ) []
+          in
+          expect_equal_list_string
+          (
+            (
+              List.map ( fun x -> make_filename [ dir_test ; x ] )
+              [
+                make_filename [ "essai4"; "essai5" ];
+                "essai4";
+                "essai3";
+                "essai2";
+              ] 
+            ) @ [ dir_test ]
+          )
+          lst
+        )
+      )
+  | _ ->
+      ()
+  end;
+
   expect_pass ~desc:"Cp v1"
   ~body:(fun () ->
   	cp [(make_filename [dir_test ; "essai0"])] (make_filename [ dir_test ; "essai6" ]);

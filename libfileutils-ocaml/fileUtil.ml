@@ -499,9 +499,6 @@ struct
       Force -> true
     | Ask ask -> ask fln
 
-  let rec unique_sorted fln_set fln_lst =
-    List.fold_left (fun set fln -> SetFilename.add fln set) fln_set fln_lst
-
   let prevent_recursion fln_set fln = 
     if SetFilename.mem fln fln_set then
       raise (RecursiveLink fln)
