@@ -1,13 +1,36 @@
 open SysPath_type;;
 
+(** Module to manipulate abstract filename ( doesn't need to be real path ).*)
+
+(** {1 Exceptions } *)
+
+(** You cannot pass a base filename which is relative *)
 exception SysPathBaseFilenameRelative;;
+
+(** One of the filename passed is relative and cannot be reduce *)
 exception SysPathRelativeUnreducable;;
+
+(** We do not have recognized any OS, please contact upstream *)
 exception SysPathUnrecognizedOS of string;;
+
+(** An expansion of filename_part_of_filename generate more than one component *)
 exception SysPathFilenameMultiple;;
+
+(** The filename use was empty *)
 exception SysPathEmpty;;
+
+(** The last component of the filename does not support extension ( Root, ParentDir... ) *)
 exception SysPathNoExtension;;
+
+(** The filename used is invalid *)
 exception SysPathInvalidFilename;;
 
+(** {1 Filename utility specification} *)
+
+(** Signature needed to create a new        
+    filesystem... See the source code for   
+    more information                        
+  *)
 module type OS_SPECIFICATION =
 sig
 	val dir_writer                : (filename_part list) -> string
@@ -17,51 +40,134 @@ sig
 end
 ;;
 
+(** Generic operation on filename *)
 module type PATH_SPECIFICATION =
 sig
 
 type filename  
-type extension 
+type extension
 
+(** {2 Converting from/to string } *)
+
+(** Create a filename from a string *)
 val string_of_filename : filename -> string
+
+(** Create a string from a filename *)
 val filename_of_string : string -> filename
 
+(** Make a filename from set of strings *)
+val make_filename      : string list -> filename 
+
+(** {2 Ordering filename } *)
+
+(** is_subdir fl1 fl2 : Is fl2 a sub directory of fl1 *)
 val is_subdir            : filename -> filename -> bool
+
+(** is_updir fl1 fl2 : Is fl1 a sub directory of fl2 *)
 val is_updir             : filename -> filename -> bool
+
+(** Give an order between the two filename. The classification is done by sub directory relation 
+    ( fl1 < subdir(fl1) ) and lexicographical order of each part of the reduce filename when fl1 and fl2
+    has no hierarchical relation 
+  *)
 val compare              : filename -> filename -> int
 
+(** {2 Manipulating/Splitting path } *) 
+
+(** Extract only the file name of a filename *)
 val basename        : filename -> filename
+
+(** Extract the directory name of a filename *)
 val dirname         : filename -> filename
+
+(** Append a filename to the filename *)
 val concat          : filename -> filename -> filename
-val make_filename   : filename list -> filename 
+
+(** Return the shortest filename which is equal to the filename given *)
 val reduce          : filename -> filename
+
+(** Create an absolute filename from a filename relative and an absolute base filename *)
 val make_absolute   : filename -> filename -> filename
+
+(** Create a filename which is relative to the base filename *)
 val make_relative   : filename -> filename -> filename
+
+(** Reparent a filename : reparent fln_src fln_dst fln, return the same filename as fln 
+    but the root is no more fln_src but fln_dst *)
 val reparent        : filename -> filename -> filename -> filename 
+
+(** Identity : for testing the stability of implode/explode *)
 val identity        : filename -> filename
+
+(** Test if the filename is a valid one *)
 val is_valid        : filename -> bool
+
+(** Check if the filename is relative to a dir or not ( ie beginning with Component, ParentDir, CurrentDir ) *)
 val is_relative     : filename -> bool
+
+(** Check if the filename is an absolute one or not ( ie beginning by a Root reference )*)
 val is_implicit     : filename -> bool
+
+(** Check if the filename is a reference to current directory ( ie beginning with CurrentDir ) *)
 val is_current      : filename -> bool
+
+(** Check if the filename is a reference to the parent directory ( ie beginning with ParentDir ) *)
 val is_parent       : filename -> bool
 
+
+(** {2 Manipulate the extension }*)
+
+(** Remove extension *)
 val chop_extension      : filename -> filename
+
+(** Extract the extension *)
 val get_extension       : filename -> extension 
+
+(** Check the extension *)
 val check_extension     : filename -> extension -> bool
+
+(** Add an extension *)
 val add_extension       : filename -> extension -> filename
+
+(** Create an extension from a string *)
 val extension_of_string : string -> extension
+
+(** Create a string from an extension *)
 val string_of_extension : extension -> string
 
+
+(** {2 Transformation of PATH like variable }*)
+
+(** Create an environnement PATH like string from different filename *)
 val string_of_path : filename list -> string
+
+(** Return the different filename of an environnement PATH like string *)
 val path_of_string : string -> filename list
 end
 ;;
 
+(** Generic operation on filename, the type filename being a string *)
+module type PATH_STRING_SPECIFICATION =
+(PATH_SPECIFICATION with type filename = string)
+;;
+
+(** Meta structure to generate a module for 
+    a new filesystem specification. See the 
+    source code to know how to do it        *)
 module type META_PATH_SPECIFICATION =
 functor ( OsOperation : OS_SPECIFICATION ) -> 
 PATH_SPECIFICATION
 ;;
 
+(** Meta structure to define a string-proxy doing
+    the conversion between an abstract type to a
+    string type *)
+module type META_PATH_STRING_SPECIFICATION =
+functor ( PathOperation : PATH_SPECIFICATION ) ->
+PATH_STRING_SPECIFICATION
+;;
+
+(** Implementation of the META_PATH_SPECIFICATION *)
 module GenericPath : META_PATH_SPECIFICATION = 
 functor ( OsOperation : OS_SPECIFICATION ) ->
 struct
@@ -315,7 +421,7 @@ struct
 	(* Make_filename *)
 
 	let make_filename lst_path =
-		List.flatten lst_path
+		List.flatten (List.map filename_of_string lst_path)
 		
 	(* Reparent *)
 
@@ -344,17 +450,12 @@ struct
 end 
 ;;
 
-module type META_PATH_STRING_SPECIFICATION =
-functor ( PathOperation : PATH_SPECIFICATION ) ->
-PATH_SPECIFICATION
-;;
-
-
+(** Implementation of the META_PATH_STRING_SPECIFICATION *)
 module GenericStringPath : META_PATH_STRING_SPECIFICATION =
 functor ( PathOperation : PATH_SPECIFICATION ) ->
 struct
 
-	type filename = string
+	type filename  = string
 	type extension = PathOperation.extension
 
 	let string_of_filename path = 
@@ -386,7 +487,7 @@ struct
 		f2s (PathOperation.concat (s2f path1) (s2f path2))
 		
 	let make_filename path_lst =
-		f2s (PathOperation.make_filename (List.map s2f path_lst))
+		f2s (PathOperation.make_filename path_lst)
 
 	let reduce path =
 		f2s (PathOperation.reduce (s2f path))
@@ -446,7 +547,18 @@ struct
 		List.map f2s (PathOperation.path_of_string str)
 end
 ;;
-	
+
+(** {1 Instanciation of specific OS filename }*)
+
+(** Some instanciation of the above structure. You can use it to manipulate filename        
+    However, this function is mainly for testing purpose. You should consider using 
+    DefaultPath  which is the binding for the current running OS. If you need to 
+    manipulate frequently filename, for storing them in a Set, doing frequent operation... 
+    You should consider using an abstract type. Otherwise, you should consider using
+    the normal one, which enables you to simply manipulate string
+    ( type filename = string, so all operation can be made using string 
+  *)
+
 module AbstractDefaultPath : PATH_SPECIFICATION = GenericPath(struct
 
 	let os_depend unix macos win32 cygwin =
@@ -464,7 +576,7 @@ module AbstractDefaultPath : PATH_SPECIFICATION = GenericPath(struct
 end)
 ;;
 
-module DefaultPath : PATH_SPECIFICATION = GenericStringPath(AbstractDefaultPath)
+module DefaultPath : PATH_STRING_SPECIFICATION = GenericStringPath(AbstractDefaultPath)
 ;;
 
 module AbstractUnixPath : PATH_SPECIFICATION =  GenericPath(struct
@@ -475,7 +587,7 @@ module AbstractUnixPath : PATH_SPECIFICATION =  GenericPath(struct
 end)
 ;;
 		
-module UnixPath : PATH_SPECIFICATION = GenericStringPath(AbstractUnixPath)
+module UnixPath : PATH_STRING_SPECIFICATION = GenericStringPath(AbstractUnixPath)
 ;;
 
 module AbstractMacOSPath : PATH_SPECIFICATION = GenericPath(struct
@@ -486,7 +598,7 @@ module AbstractMacOSPath : PATH_SPECIFICATION = GenericPath(struct
 end)
 ;;
 
-module MacOSPath : PATH_SPECIFICATION = GenericStringPath(AbstractMacOSPath)
+module MacOSPath : PATH_STRING_SPECIFICATION = GenericStringPath(AbstractMacOSPath)
 ;;
 
 module AbstractWin32Path : PATH_SPECIFICATION = GenericPath(struct 
@@ -497,7 +609,7 @@ module AbstractWin32Path : PATH_SPECIFICATION = GenericPath(struct
 end)
 ;;
 
-module Win32Path : PATH_SPECIFICATION = GenericStringPath(AbstractWin32Path)
+module Win32Path : PATH_STRING_SPECIFICATION = GenericStringPath(AbstractWin32Path)
 ;;
 
 module AbstractCygwinPath : PATH_SPECIFICATION = GenericPath(struct
@@ -508,5 +620,5 @@ module AbstractCygwinPath : PATH_SPECIFICATION = GenericPath(struct
 end)
 ;;
 
-module CygwinPath : PATH_SPECIFICATION = GenericStringPath(AbstractCygwinPath)
+module CygwinPath : PATH_STRING_SPECIFICATION = GenericStringPath(AbstractCygwinPath)
 ;;

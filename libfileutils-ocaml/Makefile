@@ -30,7 +30,7 @@ INSTALLIB = \
 	META
 ODOC = \
 	sysPath.ml \
-	sysUtil.mli 
+	sysUtil.ml
 
 include ../TopMakefile
 

@@ -225,18 +225,19 @@ install-lib: META
 	$(OCAMLP4) pa_o.cmo pa_zog.cma  pr_o.cmo -impl $< > $@
 	
 clean::
-	rm -f *.cm[iox] *.o *~
-	rm -f $(GENERATED) parser.output
-	rm -f $(NAME).byte $(NAME).opt
-	rm -f $(NAME).cma $(NAME).cmxa
-	rm -f $(NAME).a META
-	rm -f .depend
+	-$(RM) *.cm[iox] *.o *~
+	-$(RM) $(GENERATED) parser.output
+	-$(RM) $(NAME).byte $(NAME).opt
+	-$(RM) $(NAME).cma $(NAME).cmxa
+	-$(RM) $(NAME).a META
+	-$(RM) $(NAME).odoc
+	-$(RM) .depend
 
 dist-clean distclean:: clean
-	rm -f TopMakefile Makefile config.cache config.log config.status
+	-$(RM) TopMakefile Makefile config.cache config.log config.status
 
 .depend depend:: $(GENERATED)
-	rm -f .depend
+	-$(RM) .depend
 	$(OCAMLDEP) $(INCLUDES) *.ml *.mli > .depend
 
 include .depend

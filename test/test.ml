@@ -1,6 +1,9 @@
 open Fort;;
 open SysPath;;
+open DefaultPath;;
 open SysUtil;;
+open StrUtil;;
+
 
 exception CannotContinueTest;;
 
@@ -18,7 +21,7 @@ let expect_equal_bool =
 ;;
 
 module Test = 
-functor ( OsPath : PATH_SPECIFICATION ) ->
+functor ( OsPath : PATH_STRING_SPECIFICATION ) ->
 struct
 	let os_string = ref ""
 	
@@ -32,7 +35,7 @@ struct
 		expect_pass ~desc:((!os_string)^" : make_path [ " ^ 
 			(String.concat " ; " exp) ^ " ]" )
 		~body:( fun () ->
-			expect_equal_string res (OsPath.make_path_variable exp)
+			expect_equal_string res (OsPath.string_of_path exp)
 		)
 		
 	let make_absolute (base,rela,res) =
@@ -373,15 +376,15 @@ in
    ("Match",                        Match(dir_test),     dir_test,true );
    ("Is_owned_by_user_ID",          Is_owned_by_user_ID, dir_test,true );
    ("Is_owned_by_group_ID",         Is_owned_by_group_ID,dir_test,true );
-   ("Is_newer_than",                (Is_newer_than("test.ml","test.ml")),dir_test,false);
-   ("Is_older_than",                (Is_older_than("test.ml","test.ml")),dir_test,false);
+   ("Is_newer_than",                (Is_newer_than("test.ml",dir_test)),dir_test,true);
+   ("Is_older_than",                (Is_older_than("test.ml",dir_test)),dir_test,false);
    ("Has_same_device_and_inode",    (Has_same_device_and_inode("test.ml","test.ml")),dir_test,true)
   ];
   
   Fort.test ~desc:"Touch in not existing subdir"
   ~body:( fun () ->
   	try 
-  		SysUtil.touch (make_filename [dir_test;"doesntexist";"essai0"]);
+  		SysUtil.StrUtil.touch (make_filename [dir_test;"doesntexist";"essai0"]);
   		Pass
   	with _ ->
   		XFail
@@ -455,11 +458,11 @@ in
   		(
   			(make_filename [ dir_test ; "essai4" ; "essai5" ]) :: 
   			(List.map (fun x -> make_filename [ dir_test ; x ] ) [
-  				"essai4";
-  				"essai3";
-  				"essai2";
+  				"essai0";
   				"essai1";
-  				"essai0"
+  				"essai2";
+  				"essai3";
+  				"essai4"
   			])
   		)
   		lst 
@@ -474,9 +477,9 @@ in
   		(
   		(make_filename [ dir_test ; "essai4" ; "essai5" ]) ::
   			(List.map (fun x -> make_filename [ dir_test ; x ]) [
-  				"essai4";
+  				"essai2";
   				"essai3";
-  				"essai2"
+  				"essai4";
   			])
   		)
   		lst
@@ -488,8 +491,8 @@ in
   	in
   	expect_equal_list_string 
   		(List.map (fun x -> make_filename [ dir_test ; x ]) [
-  			"essai1";
-  			"essai0"
+  			"essai0";
+  			"essai1"
   		])
   		lst
   );

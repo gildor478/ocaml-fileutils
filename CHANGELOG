@@ -1,3 +1,17 @@
+v0.2 :
+  * Use module/functor to abstract a lot of operation.
+  * Generate a decent ocamldoc documentation
+  * Abstract regexp matching using functor
+  * Separate the sysPath modules in two : Abstract and not. Abstract
+    permits to parse once and for all the filename, and then operate
+    on it. It allows to handle fast all operation. Concrete module 
+    are only proxy that do the conversion to/from the Abstract 
+    implementation.
+  * Introduce relation ( updir, subdir, compare ) to allow manipulating
+    filename in classical structure ( Set, Map... )
+  * Remove debian subdir. It will go to svn of pkg-ocaml-maint, since i consider
+    that it is better to split things which are not generic regarding this package
+    ( ie apart from debian users, nobody care about having debian/ in the tarball )
 
 v0.1.1 ( devel ) :
 
