@@ -32,17 +32,16 @@ open StrUtil;;
 
 exception CannotContinueTest;;
 
-let expect_equal_string = 
-	expect_equal ~printer:(fun x -> x)
+let expect_equal_string s1 s2 = 
+	expect_equal ~printer:(fun x -> x) s1 s2
 ;;	
 
-let expect_equal_list_string = 
-	expect_equal ~printer:(fun lst -> 
-		List.fold_left (fun x y -> x^";"^y ) "" lst)
+let expect_equal_list_string lst1 lst2= 
+	expect_equal ~printer:(fun lst -> String.concat ";" lst) lst1 lst2
 ;;	
 
-let expect_equal_bool = 
-	expect_equal ~printer:(string_of_bool)
+let expect_equal_bool b1 b2= 
+	expect_equal ~printer:(string_of_bool) b1 b2
 ;;
 
 module Test = 
@@ -51,7 +50,7 @@ struct
 	let os_string = ref ""
 	
 	let reduce (exp,res) =
-		expect_pass ~desc:((!os_string)^" : reduce " ^ exp )
+		expect_pass ~desc:((!os_string)^" : reduce \"" ^ exp ^ "\"")
 		~body:( fun () ->
 			expect_equal_string res (OsPath.reduce exp)
 		)
@@ -64,29 +63,50 @@ struct
 		)
 		
 	let make_absolute (base,rela,res) =
-		expect_pass ~desc:((!os_string)^" : make_absolute " ^ base ^ " " ^ rela )
+		expect_pass ~desc:((!os_string)^" : make_absolute \"" ^ base ^ "\" \"" ^ rela ^ "\"" )
 		~body:( fun () ->
 			expect_equal_string res (OsPath.make_absolute base rela)
 		)
 		
 	let make_relative (base,abs,res) =
-		expect_pass ~desc:((!os_string)^" : make_relative " ^ base ^ " " ^ abs )
+		expect_pass ~desc:((!os_string)^" : make_relative \"" ^ base ^ "\" \"" ^ abs ^ "\"" )
 		~body:( fun () ->
 			expect_equal_string res (OsPath.make_relative base abs)
 		)
 		
 	let valid (exp) =
-		expect_pass ~desc:((!os_string)^" : is_valid " ^ exp )
+		expect_pass ~desc:((!os_string)^" : is_valid \"" ^ exp ^ "\"" )
 		~body:( fun () ->
 			expect_true (OsPath.is_valid exp)
 		)
 		
 	let identity (exp) = 
-		expect_pass ~desc:((!os_string)^" : identity "^exp)
+		expect_pass ~desc:((!os_string)^" : identity \""^exp^ "\"")
 		~body:( fun () ->
 			expect_equal_string exp (OsPath.identity exp)
 		)
 
+	let extension (filename,basename,extension) = 
+		expect_pass ~desc:((!os_string)^" : chop_extension \""^filename^"\"")
+		~body:( fun () ->
+			expect_equal_string (OsPath.chop_extension filename) basename
+		);
+		expect_pass ~desc:((!os_string)^" : get_extension \""^filename^"\"")
+		~body:( fun () ->
+			expect_equal_string 
+			(OsPath.string_of_extension (OsPath.get_extension filename))
+			extension
+		);
+		expect_pass ~desc:((!os_string)^" : check_extension \""^filename^"\"")
+		~body:( fun () ->
+			expect_true (OsPath.check_extension filename 
+			(OsPath.extension_of_string extension))
+		);
+		expect_pass ~desc:((!os_string)^" : check_extension ( false ) \""^filename^"\"")
+		~body:( fun () ->
+			expect_true (not (OsPath.check_extension filename 
+			(OsPath.extension_of_string "dummy")))
+		)
 end
 ;;
 
@@ -144,6 +164,29 @@ TestCygwin.os_string := "Cygwin"
 (*********************)
 (* Unix FilePath test*)
 (*********************)
+let test_path = 
+[
+ ("/");
+ ("/a/b");
+ ("/a/b/c/");
+ ("/a/../b/c");
+ ("/a/../b/../c");
+ ("a/b/c/");
+ ("../a/b");
+ ("");
+ (".");
+ ("./");
+ ("..");
+ ("../")
+]
+in
+(* Is_valid *)
+List.iter TestUnix.valid test_path
+;
+
+(* Identity *)
+List.iter TestUnix.identity test_path
+;
 
 (* Reduce path *)
 List.iter TestUnix.reduce
@@ -164,12 +207,18 @@ List.iter TestUnix.reduce
  ("/a/../..",                 "/");
  ("./d/../a/b/c",             "a/b/c");
  ("a/b/c/../../../",          "");
+ ("",                         "");
+ (".",                        "");
+ ("./",                       "");
+ ("..",                       "..");
+ ("../",                      "..");
 ];
 
 (* Create path *)
 List.iter TestUnix.make_path
 [
- (["/a";"b";"/c/d"], "/a:b:/c/d")
+ (["/a";"b";"/c/d"], "/a:b:/c/d");
+ ([],                "");
 ];
 
 (* Convert to absolute *)
@@ -177,7 +226,12 @@ List.iter TestUnix.make_absolute
 [
  ("/a/b/c", ".",    "/a/b/c");
  ("/a/b/c", "./d",  "/a/b/c/d");
- ("/a/b/c", "../d", "/a/b/d")
+ ("/a/b/c", "../d", "/a/b/d");
+ ("/a/b/c", "",     "/a/b/c");
+ ("/a/b/c", ".",    "/a/b/c");
+ ("/a/b/c", "./",   "/a/b/c");
+ ("/a/b/c", "..",   "/a/b");
+ ("/a/b/c", "../",  "/a/b")
 ];
 
 (* Convert to relative *)
@@ -185,6 +239,15 @@ List.iter TestUnix.make_relative
 [
  ("/a/b/c", "/a/b/c", "");
  ("/a/b/c", "/a/b/d", "../d")
+];
+
+
+(* Check extension *)
+List.iter TestUnix.extension
+[
+ ("/a/b/c.d",   "/a/b/c",   "d");
+ ("/a/b.c/d.e", "/a/b.c/d", "e");
+ ("a.",         "a",        "");
 ];
 
 (**********************)
@@ -199,7 +262,12 @@ let test_path =
  ("c:/a\\..\\b\\c");
  ("c:/a\\..\\b\\..\\c");
  ("a\\b\\c\\");
- ("..\\a\\b")
+ ("..\\a\\b");
+ ("");
+ (".");
+ (".\\");
+ ("..");
+ ("..\\")
 ]
 in
 (* Is_valid *)
@@ -227,12 +295,18 @@ List.iter TestWin32.reduce
  ("c:/a\\.\\.\\.\\b\\.\\c",               "c:/a\\b\\c");
  ("c:/a\\..\\a\\.\\b\\..\\c\\..\\b\\.\\c","c:/a\\b\\c");
  ("a\\..\\b",                             "b");
+ ("",                                     "");
+ (".",                                    "");
+ (".\\",                                  "");
+ ("..",                                   "..");
+ ("..\\",                                 "..");
 ];
 
 (* Create path *)
 List.iter TestWin32.make_path
 [
- (["c:/a";"b";"c:/c\\d"], "c:/a;b;c:/c\\d")
+ (["c:/a";"b";"c:/c\\d"], "c:/a;b;c:/c\\d");
+ ([],                     "");
 ];
 
 (* Convert to absolute *)
@@ -240,7 +314,12 @@ List.iter TestWin32.make_absolute
 [
  ("c:/a\\b\\c", ".",     "c:/a\\b\\c");
  ("c:/a\\b\\c", ".\\d",  "c:/a\\b\\c\\d");
- ("c:/a\\b\\c", "..\\d", "c:/a\\b\\d")
+ ("c:/a\\b\\c", "..\\d", "c:/a\\b\\d");
+ ("c:/a\\b\\c", "",      "c:/a\\b\\c");
+ ("c:/a\\b\\c", ".",     "c:/a\\b\\c");
+ ("c:/a\\b\\c", ".\\",   "c:/a\\b\\c");
+ ("c:/a\\b\\c", "..",    "c:/a\\b");
+ ("c:/a\\b\\c", "..\\",  "c:/a\\b");
 ];
 
 (* Convert to relative *)
@@ -249,6 +328,15 @@ List.iter TestWin32.make_relative
  ("c:/a\\b\\c", "c:/a\\b\\c", "");
  ("c:/a\\b\\c", "c:/a\\b\\d", "..\\d")
 ];
+
+(* Check extension *)
+List.iter TestWin32.extension
+[
+ ("c:/a\\b\\c.d",   "c:/a\\b\\c",   "d");
+ ("c:/a\\b.c\\d.e", "c:/a\\b.c\\d", "e");
+ ("a.",         "a",        "");
+];
+
 
 (**********************)
 (* MacOS FilePath test*)
@@ -259,6 +347,9 @@ let test_path =
  ("a:");
  ("a:::");
  (":a:b:c");
+ ("");
+ (":");
+ ("::");
 ]
 in
 
@@ -278,12 +369,16 @@ List.iter TestMacOS.reduce
  ("root:a:b:c:d::",  "root:a:b:c");
  ("root:a:b:d::c",   "root:a:b:c");
  ("root:a:b::d::b:c","root:a:b:c");
+ ("",                "");
+ (":",               "");
+ ("::",              "::");
 ];
 
 (* Create path *)
 List.iter TestMacOS.make_path
 [
- ([":a";"b";":c:d"],":a;b;:c:d")
+ ([":a";"b";":c:d"],":a;b;:c:d");
+ ([],               "");
 ];
 
 (* Convert to absolute *)
@@ -291,7 +386,10 @@ List.iter TestMacOS.make_absolute
 [
  ("root:a:b:c", ":",   "root:a:b:c");
  ("root:a:b:c", ":d",  "root:a:b:c:d");
- ("root:a:b:c", "::d", "root:a:b:d")
+ ("root:a:b:c", "::d", "root:a:b:d");
+ ("root:a:b:c", "",    "root:a:b:c");
+ ("root:a:b:c", ":",   "root:a:b:c");
+ ("root:a:b:c", "::",  "root:a:b");
 ];
 
 (* Convert to relative *)
@@ -299,6 +397,14 @@ List.iter TestMacOS.make_relative
 [
  ("root:a:b:c", "root:a:b:c", "");
  ("root:a:b:c", "root:a:b:d", "::d")
+];
+
+(* Check extension *)
+List.iter TestWin32.extension
+[
+ ("root:a:b:c.d",   "root:a:b:c",   "d");
+ ("root:a:b.c:d.e", "root:a:b.c:d", "e");
+ ("a.",         "a",        "");
 ];
 
 (***********************)
@@ -342,6 +448,14 @@ List.iter TestCygwin.make_relative
 [
  ("c:/a/b/c", "c:/a/b/c", "");
  ("c:/a/b/c", "c:/a/b/d", "../d")
+];
+
+(* Check extension *)
+List.iter TestWin32.extension
+[
+ ("c:/a/b/c.d",   "c:/a/b/c",   "d");
+ ("c:a/b.c/d.e",  "c:a/b.c/d",  "e");
+ ("a.",           "a",        "");
 ];
 
 (****************)

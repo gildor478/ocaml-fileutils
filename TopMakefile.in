@@ -162,7 +162,7 @@ $(NAME).cmxa: $(CMX)
 	$(call CLI_OCAMLOLIB,$(REQUIRES),$(PREDICATES),$(NAME)) $(INCLUDES) $(CMX)
 
 install-buildlib: byte opt 
-	$(call CLI_REMOVELIB,$(TEMPBUILDLIB),$(NAME))
+	-$(call CLI_REMOVELIB,$(TEMPBUILDLIB),$(NAME))
 	$(call CLI_INSTALLIB,$(TEMPBUILDLIB),$(NAME),$(INSTALLIB))
 
 install-lib: byte opt

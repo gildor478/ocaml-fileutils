@@ -365,7 +365,12 @@ struct
 				fun x -> OperationRegexp.test reg x
 				end
 			| Has_extension(ext) ->
-				fun x -> check_extension x (extension_of_string ext)
+				begin
+				fun x -> try 
+					check_extension x (extension_of_string ext)
+				with FilePathNoExtension ->
+					false
+				end
 			| Is_current_dir ->
 				fun x -> (is_current (basename x))
 			| Is_parent_dir ->

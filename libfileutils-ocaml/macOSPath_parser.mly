@@ -55,8 +55,9 @@ begin_normal_filename:
 ;
 main_filename:
   IDENT SEPARATOR begin_normal_filename { (Root $1) :: $3 }
-| SEPARATOR begin_normal_filename       { CurrentDir :: $2 }
+| SEPARATOR begin_normal_filename       { (CurrentDir Long) :: $2 }
 | IDENT no_separator                    { end_string(add_string $1 $2) }
+| EOF                                   { [ CurrentDir Short ] }
 ;
 main_path_variable:
   IDENT main_path_variable { $1 :: $2 }

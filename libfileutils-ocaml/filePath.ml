@@ -168,6 +168,14 @@ val string_of_path : filename list -> string
 
 (** Return the different filename of an environnement PATH like string *)
 val path_of_string : string -> filename list
+
+(** {2 Generic component } *)
+
+(** Return an identifier to the current dir *)
+val current_dir : filename
+
+(** Return an identifier to the upper dir *)
+val parent_dir : filename
 end
 ;;
 
@@ -208,7 +216,8 @@ struct
 			  Root s      -> "Root : "^s
 			| Component s -> "Component : "^s
 			| ParentDir   -> "ParenDir"
-			| CurrentDir  -> "CurrentDir"
+			| CurrentDir Long  -> "CurrentDir Long"
+			| CurrentDir Short -> "CurrentDir Short"
 		in
 		List.iter print_string (List.map (fun x -> (debug_print_one_component x)^" ;") lst);
 		print_newline ()
@@ -245,7 +254,7 @@ struct
 				| _ :: tl ->
 					tl
 				end
-			| CurrentDir :: tl 
+			| (CurrentDir _) :: tl 
 			| Component "" :: tl ->
 				(reduce_aux tl)
 			| Component s :: tl ->
@@ -329,7 +338,7 @@ struct
 	let is_implicit lst_path  = 
 		match lst_path with
 		  ParentDir :: _ 
-		| CurrentDir :: _ 
+		| (CurrentDir _) :: _ 
 		| Component _ :: _ -> true
 		| _                -> false
 
@@ -343,7 +352,7 @@ struct
 
 	let is_current path = 
 		match path with
-		  [ CurrentDir ] -> true
+		  [ (CurrentDir _) ] -> true
 		| _ -> false
 
 	let is_parent path =
@@ -376,9 +385,12 @@ struct
 		  (Component str) :: []->
 			let lexbuf = Lexing.from_string str
 			in
-			let (base,ext) = GenericPath_parser.main_extension
-				GenericPath_lexer.token_extension
-				lexbuf
+			let (base,ext) =  try 
+				GenericPath_parser.main_extension
+					GenericPath_lexer.token_extension
+					lexbuf
+				with Parsing.Parse_error ->
+					raise FilePathNoExtension
 			in
 			((dirname path) @ [Component base], ext)
 		| _ ->
@@ -472,6 +484,12 @@ struct
 			List.map filename_of_string (OsOperation.path_reader lexbuf)
 		with Parsing.Parse_error ->
 			raise FilePathInvalidFilename
+
+	(* Generic filename component *)
+
+	let current_dir = [ CurrentDir Long ]
+
+	let parent_dir = [ ParentDir ]
 end 
 ;;
 
@@ -570,6 +588,12 @@ struct
 
 	let path_of_string str =
 		List.map f2s (PathOperation.path_of_string str)
+
+	let current_dir =
+		f2s (PathOperation.current_dir)
+
+	let parent_dir =
+		f2s (PathOperation.parent_dir)
 end
 ;;
 

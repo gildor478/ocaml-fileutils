@@ -23,10 +23,14 @@
 (*                                                                        *)
 (**************************************************************************)
 
+type current_dir_type = 
+	  Short 
+	| Long
+
 type filename_part =
-	Root of string
+	  Root of string
 	| ParentDir 
-	| CurrentDir
+	| CurrentDir of current_dir_type
 	| Component of string
 
 type filename = string

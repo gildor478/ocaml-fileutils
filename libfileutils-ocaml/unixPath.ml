@@ -29,12 +29,14 @@ let rec dir_writer lst =
 	match lst with 
 	  Root s :: tl ->
 	  	"/"^(dir_writer tl)
+	| [ CurrentDir Short ] ->
+		""
 	| lst ->
 		let rec dir_writer_aux cmp =
 			match cmp with
 			  Root _ -> ""
 			| ParentDir -> ".."
-			| CurrentDir -> "."
+			| CurrentDir _ -> "."
 			| Component s -> s
 		in
 		String.concat "/" ( List.map dir_writer_aux lst )

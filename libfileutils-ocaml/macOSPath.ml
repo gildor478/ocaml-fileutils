@@ -34,7 +34,7 @@ let rec dir_writer lst =
 			Buffer.add_string buffer s;
 			Buffer.add_char   buffer ':';
 			dir_writer_aux tl
-		| CurrentDir :: tl 
+		| (CurrentDir _) :: tl 
 		| ParentDir  :: tl ->
 			Buffer.add_char   buffer ':';
 			dir_writer_aux tl
@@ -52,7 +52,9 @@ let rec dir_writer lst =
 	in
 	match lst with
 	  ParentDir :: _ -> 
-	  	dir_writer_aux ( CurrentDir :: lst )
+	  	dir_writer_aux ( (CurrentDir Long) :: lst )
+	| [ CurrentDir Short ] ->
+		""
 	| _ -> 
 		dir_writer_aux lst
 ;;

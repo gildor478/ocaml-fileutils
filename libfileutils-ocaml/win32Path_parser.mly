@@ -68,7 +68,7 @@ begin_simple_filename_part:
 
 normal_filename_part:
   DOUBLE_DOT filename_part_separator { ParentDir :: $2 }
-| DOT filename_part_separator        { CurrentDir :: $2 }
+| DOT filename_part_separator        { (CurrentDir Long) :: $2 }
 | filename_part_separator            { (Component "") :: $1 }
 | begin_simple_filename_part         { end_string $1 }
 ;
@@ -76,6 +76,7 @@ normal_filename_part:
 main_filename:
   IDENT ROOT_SEPARATOR normal_filename_part { (Root $1) :: $3 }
 | normal_filename_part                      { $1 }
+| EOF                                       { [ (CurrentDir Short) ] }
 ;
 
 main_path_variable:

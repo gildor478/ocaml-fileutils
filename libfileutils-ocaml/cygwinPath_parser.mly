@@ -68,9 +68,10 @@ begin_simple_filename_part:
 
 normal_filename_part:
   DOUBLE_DOT filename_part_separator { ParentDir :: $2 }
-| DOT filename_part_separator        { CurrentDir :: $2 }
+| DOT filename_part_separator        { (CurrentDir Long) :: $2 }
 | filename_part_separator            { (Component "") :: $1 }
 | begin_simple_filename_part         { end_string $1 }
+| EOF                                { [ CurrentDir Short ] }
 ;
 
 main_filename:
