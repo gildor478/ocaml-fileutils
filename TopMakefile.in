@@ -17,6 +17,7 @@
 prefix=@prefix@
 exec_prefix=@exec_prefix@
 BINDIR=@bindir@
+LIBDIR=@libdir@
 
 # where to install the man page
 MANDIR=@mandir@
@@ -35,7 +36,7 @@ OCAMLFIND = @OCAMLFIND@
 OCAMLP4 = @OCAMLP4@
 EXE = @EXE@
 TEMPBUILDLIB=@TEMPLIB@
-OCAMLPATH=`echo $OCAMLPATH`:$(TEMPBUILDLIB)/
+OCAMLPATH=$$OCAMLPATH:$(TEMPBUILDLIB)/
 export OCAMLPATH
 
 all: $(if $(LIBRARY), install-buildlib, $(OCAMLBEST))
@@ -67,10 +68,10 @@ install-buildlib: $(TEMPBUILDLIB) byte opt META
 	$(OCAMLFIND) install -destdir $(TEMPBUILDLIB) $(NAME) $(INSTALLIB)
 
 install-lib: byte opt META
-	$(OCAMLFIND) install $(NAME) $(INSTALLIB)
+	$(OCAMLFIND) install -destdir $(LIBDIR) $(NAME) $(INSTALLIB)
 
 uninstall-lib: 
-	$(OCAMLFIND) remove $(NAME)
+	$(OCAMLFIND) remove -destdir $(LIBDIR) $(NAME)
 
 # Build the executable
 
@@ -135,6 +136,7 @@ clean::
 	rm -f $(NAME).byte $(NAME).opt
 	rm -f $(NAME).cma $(NAME).cmxa
 	rm -f $(NAME).a META
+	rm -f .depend
 
 dist-clean distclean:: clean
 	rm -f TopMakefile Makefile config.cache config.log config.status
