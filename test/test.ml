@@ -1,5 +1,6 @@
 open Fort;;
-open Fileutils;;
+open SysPath;;
+open SysUtil;;
 
 let expect_equal_string = expect_equal ~printer:(fun x -> x)
 in
@@ -78,7 +79,6 @@ test_reduce "remove multiple . and .." 	"/a/../a/./b/../c/../b/./c";
 test_make_path "identity"	["/a";"b";"/c/d"];
 test_explode_path "identity"	"/a:b:/c/d";
 
-
 test_make_absolute "identity" "/a/b/c" "." "/a/b/c";
 test_make_absolute "simple v1" "/a/b/c" "./d" "/a/b/c/d";
 test_make_absolute "simple v2" "/a/b/c" "../d" "/a/b/d";
@@ -88,3 +88,5 @@ test_make_relative "identity" "/a/b/c" "/a/b/c" "";
 test_make_relative "simple v1" "/a/b/c" "/a/b/d" "../d";
 
 ();;
+
+print_string (which "ocaml");;

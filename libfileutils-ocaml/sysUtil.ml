@@ -2,7 +2,7 @@
 manipulate file and directory. All function nearly match
 common unix utilities ( but try to be more portable )*)
 
-open Path;;
+open SysPath;;
 
 type fs_type = 
 	Dir  
@@ -12,8 +12,10 @@ type fs_type =
 	| Link
 	| Fifo
 	| Socket
-	| Unknown
 ;;	
+
+exception File_doesnt_exist
+;;
 
 let stat_type filename =
 	try
@@ -28,7 +30,7 @@ let stat_type filename =
 		| Unix.S_FIFO -> Fifo 
 		| Unix.S_SOCK -> Socket
 	with Unix.Unix_error(_) ->
-		Unknown 
+		raise File_doesnt_exist 
 ;;
 
 let stat_type_match tp filename = stat_type filename = tp
@@ -38,12 +40,13 @@ let stat_right filename =
 	try
 		let stats = Unix.stat filename
 		in
-		stats.Unix.st_perm with
+		stats.Unix.st_perm 
 	with Unix.Unix_error(_) ->
-		Unknown 
+		raise File_doesnt_exist
 ;;
 
-let stat_right_match right filename = (stat_right filename land right) <> 0
+let stat_right_match right filename = 
+	(stat_right filename land right) <> 0
 ;;
 
 let right_sticky       = 0o1000
@@ -53,6 +56,60 @@ let right_sticky_group = 0o2000
 ;;
 
 let right_sticky_user  = 0o4000
+;;
+
+let right_exec         = 0o0111
+;;
+
+let right_write        = 0o0222
+;;
+
+let right_read         = 0o0444
+;;
+
+let stat_size filename =
+	try
+		let stats = Unix.stat filename
+		in
+		stats.Unix.st_size
+	with Unix.Unix_error(_) ->
+		raise File_doesnt_exist
+;;
+
+let stat_ugid filename =
+	try
+		let stats = Unix.stat filename
+		in
+		(stats.Unix.st_uid,stats.Unix.st_gid)
+	with Unix.Unix_error(_) ->
+		raise File_doesnt_exist
+;;
+
+let stat_mtime filename =
+	try
+		let stats = Unix.stat filename
+		in
+		stats.Unix.st_mtime
+	with Unix.Unix_error(_) ->
+		raise File_doesnt_exist
+;;
+
+let stat_dev filename =
+	try
+		let stats = Unix.stat filename
+		in
+		(stats.Unix.st_dev,stats.Unix.st_rdev)
+	with Unix.Unix_error(_) ->
+		raise File_doesnt_exist
+;;
+
+let stat_inode filename =
+	try
+		let stats = Unix.stat filename
+		in
+		stats.Unix.st_ino
+	with Unix.Unix_error(_) ->
+		raise File_doesnt_exist
 ;;
 
 type test_file =
@@ -76,14 +133,14 @@ type test_file =
 	| Is_pipe
 	(** FILE exists and is readable *)
 	| Is_readable
+	(** FILE exists and is writeable *)
+	| Is_writeable
 	(** FILE exists and has a size greater than zero *)
 	| Size_not_null
 	(** FILE exists and is a socket *)
 	| Is_socket
 	(** FILE exists and its set-user-ID bit is set *)
 	| Has_set_user_ID
-	(** FILE exists and is writable *)
-	| Is_writeable
 	(** FILE exists and is executable *)
 	| Is_exec
 	(** FILE exists and is owned by the effective user ID *)
@@ -91,11 +148,11 @@ type test_file =
 	(** FILE exists and is owned by the effective group ID *)
 	| Is_owned_by_group_ID
 	(** FILE1 is newer (modification date) than FILE2 *)
-	| Is_newer_than string * string
+	| Is_newer_than of string * string
 	(** FILE1 is older than FILE2 *)
-	| Is_older_than string * string
+	| Is_older_than of string * string
 	(** FILE1 and FILE2 have the same device and inode numbers *)
-	| Has_same_device_and_inode string * string
+	| Has_same_device_and_inode of string * string
 	(** Result of TEST1 and TEST2 *)
 	| And of test_file * test_file
 	(** Result of TEST1 or TEST2 *)
@@ -135,63 +192,64 @@ type test_file =
 *)
 
 let rec compile_filter flt =
-	match flt with
-	  Is_dev_block    -> stat_type_match Dev_block
-	| Is_dev_char     -> stat_type_match Dev_char
-	| Is_dir          -> stat_type_match Dir
-	| Exists	  -> fun x -> not(stat_match Unknown x)
-	| Is_file         -> stat_type_match File
-	| Is_set_group_ID -> stat_right_match right_sticky_group
-	| Has_sticky_bit  -> stat_right_match right_sticky
-	| Is_link         -> stat_type_match Link
-	| Is_pipe         -> stat_type_match Fifo
-	| Is_readable     -> acces_match access_read
-	| Size_not_null
-	| Is_socket       -> stat_match Socket
-	| Has_set_user_ID -> stat_right_match right_sticky_user
-	| Is_writeable    -> access_match access_write
-	| Is_exec         -> 
-	| Is_owned_by_user_ID
-	| Is_owned_by_group_ID
-	| Is_newer_than string * string
-	| Is_older_than string * string
-	| Has_same_device_and_inode string * string
-	| And(flt1,flt2) ->
-		begin
-		fun x -> 
-			let cflt1 = (compile_filter flt1)
+	let res_filter =
+		match flt with
+		  Is_dev_block    -> stat_type_match Dev_block
+		| Is_dev_char     -> stat_type_match Dev_char
+		| Is_dir          -> stat_type_match Dir
+		| Is_file         -> stat_type_match File
+		| Is_set_group_ID -> stat_right_match right_sticky_group
+		| Has_sticky_bit  -> stat_right_match right_sticky
+		| Is_link         -> stat_type_match Link
+		| Is_pipe         -> stat_type_match Fifo
+		| Is_readable     -> stat_right_match right_read
+		| Is_writeable    -> stat_right_match right_write
+		| Size_not_null   -> fun x -> (stat_size x) > 0
+		| Is_socket       -> stat_type_match Socket
+		| Has_set_user_ID -> stat_right_match right_sticky_user
+		| Is_exec         -> stat_right_match right_exec
+		| True            -> fun x -> true
+		| False           -> fun x -> false
+		| Is_owned_by_user_ID  -> fun x -> Unix.geteuid () = fst (stat_ugid x)
+		| Is_owned_by_group_ID -> fun x -> Unix.getegid () = snd (stat_ugid x)
+		| Is_newer_than(f1,f2) -> fun x -> (stat_mtime f1) < (stat_mtime f2)
+		| Is_older_than(f1,f2) -> fun x -> (stat_mtime f1) > (stat_mtime f2)
+		| Has_same_device_and_inode(f1,f2) -> 
+			fun x -> (stat_dev f1,stat_inode f1) = (stat_dev f2, stat_inode f2)
+		| Exists	  -> fun x -> let _ = stat_right x in  true
+		| And(flt1,flt2) ->
+			begin
+			fun x -> 
+				let cflt1 = (compile_filter flt1)
+				in
+				let cflt2 = (compile_filter flt2)
+				in
+				(cflt1 x) && (cflt2 x)
+			end
+		| Or(flt1,flt2) ->
+			begin
+			fun x -> 
+				let cflt1 = (compile_filter flt1)
+				in
+				let cflt2 = (compile_filter flt2)
+				in
+				(cflt1 x) || (cflt2 x)
+			end
+		| Not(flt1) ->
+			begin
+			fun x -> 
+				let cflt1 = (compile_filter flt1)
+				in
+				not (cflt1 x)
+			end	
+		| Match(r) ->
+			begin
+			let reg = Str.regexp r
 			in
-			let cflt2 = (compile_filter flt2)
-			in
-			(cflt1 x) && (cflt2 x)
-		end
-	| Or(flt1,flt2) ->
-		begin
-		fun x -> 
-			let cflt1 = (compile_filter flt1)
-			in
-			let cflt2 = (compile_filter flt2)
-			in
-			(cflt1 x) || (cflt2 x)
-		end
-	| Not(flt1) ->
-		begin
-		fun x -> 
-			let cflt1 = (compile_filter flt1)
-			in
-			not (cflt1 x)
-		end	
-	| Match(r) ->
-		begin
-		let reg = Str.regexp r
-		in
-		fun x -> Str.string_match reg x 0
-		end
-	| True ->
-		fun x -> true
-	| False ->
-		fun x -> false
-			
+			fun x -> Str.string_match reg x 0
+			end
+	in
+	fun x -> ( try res_filter x with File_doesnt_exist -> false )
 ;;
 
 let list_dir dirname =
@@ -213,7 +271,7 @@ let list_dir dirname =
 ;;	
 
 
-let filter_dir flt lst =
+let filter flt lst =
 	let cflt = compile_filter flt
 	in
 	List.filter cflt lst
@@ -225,4 +283,19 @@ let test tst fln =
 	ctst fln 
 ;;	
 
-
+let which ?(path) fln =
+	let real_path =
+		match path with
+		  None ->
+			explode_path (Sys.getenv "PATH")
+		| Some x ->
+			x
+	in
+	let ctst x = 
+		test (And(Is_exec,Not(Is_dir))) (concat x fln)
+	in
+	let which_path =
+		List.find ctst real_path
+	in
+	concat which_path fln
+;;

@@ -15,10 +15,9 @@ val chop_extension : string -> string
 val basename : string -> string
 val dirname : string -> string
 val temp_file : string -> string -> string
-val open_temp_file : ?mode:Pervasives.open_flag list -> 
-	string -> string -> string * Pervasives.out_channel
+val open_temp_file :
+  ?mode:open_flag list -> string -> string -> string * out_channel
 val quote : string -> string
-
 
 (** Take a list of path component and return the string 
 corresponding to this path *)
@@ -37,27 +36,6 @@ val make_absolute : string -> string -> string
 
 (** Create a path which is relative to the base path *)
 val make_relative : string -> string -> string
-
-(** Create a directory listing of the dir *)
-val list_dir : string -> string list
-
-(** Pattern you can use to filter you directory listing *)
-type test_file =
-    Is_file
-  | Is_dir
-  | Is_link
-  | And of test_file * test_file
-  | Or of test_file * test_file
-  | Not of test_file
-  | Match of string
-  | True
-  | False
-
-(** Apply a filtering pattern to a directory listing *)
-val filter_dir : test_file -> string list -> string list
-
-(** Test the existence of the file... *)
-val test : test_file -> string -> bool
 
 (** Create an environnement PATH like string from different path *)
 val make_path : string list -> string
