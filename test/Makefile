@@ -23,11 +23,15 @@
 #                                                                        #
 ##########################################################################
 
-REQUIRES = fileutils 
-PREDICATES = byte
+NAME = test
+CMO = version.cmo test.cmo
+REQUIRES = fileutils oUnit 
 
-test:
+test: all
 	$(RM) -r test-util
-	fort -I +fort -I $(TEMPBUILDLIB)/fileutils fileutils.cma test.ml
+	./test.$(OCAMLBEST)
+
+clean::
+	$(RM) -r test-util
 
 include ../TopMakefile

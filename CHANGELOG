@@ -20,13 +20,15 @@ v0.2.2 :
   * Implement type size and operation coming along ( add, sub, convert, compare,
     string_of_size ).
   * Implement type permission / base_permission and operation coming along (
-    permissin_of_int, int_of_permission ).
+    permission_of_int, int_of_permission ).
   * Implement type kind ( Dir, File... ).
   * Implement function stat 
   * Rewrite find, in order to be able to execute codes foreach filename. Very useful 
     for rewriting other functions ( rm, cp, mv )
   * Use list argument in place of single filename for rm, cp
   * Fix a bug that prevent ls to be able to list ""
+  * Reworked unitary tests : include test for symlink and anti recursion
+  * Unitary tests change from Fort to OUnit test suite
 
 v0.2.1 :
   * Minor bug fixes to correct website aspect
