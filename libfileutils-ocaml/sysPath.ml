@@ -36,10 +36,37 @@ sig
 end
 ;;
 
-module type PATH_SPECIFICATION =
+module type META_PATH_SPECIFICATION =
 functor ( OsOperation : OS_SPECIFICATION ) ->
 sig
+val basename        : filename -> filename_part
+val dirname         : filename -> filename
+val up_dir          : filename -> filename 
+val concat      : filename -> filename_part -> filename
+val reduce : filename -> filename
+val make_absolute : filename -> filename -> filename
+val make_relative : filename -> filename -> filename
+val identity : filename -> filename
+val is_valid : filename -> bool
+val is_relative : filename -> bool
+val is_implicit : filename -> bool
+val chop_extension  : filename -> filename
+val get_extension   : filename -> extension 
+val check_extension : filename -> extension -> bool
+val make_path_variable : filename list -> string
+val read_path_variable : string -> filename list
+val filename_of_filename_part : filename_part -> filename
+val filename_part_of_filename : filename -> filename_part
+val current_dir : filename_part
+val parent_dir  : filename_part
+val root        : string -> filename_part
+val component   : string -> filename_part
+val implode : filename_part list -> filename
+val explode : filename -> filename_part list   
+end
 
+module type PATH_SPECIFICATION =
+sig
 (********************************)
 (** Manipulating/Splitting path *)
 (********************************)
@@ -128,7 +155,7 @@ val explode : filename -> filename_part list
 end
 ;;
 
-module GenericPath : PATH_SPECIFICATION = 
+module GenericPath : META_PATH_SPECIFICATION = 
 functor ( OsOperation : OS_SPECIFICATION ) ->
 struct
 	let filename_of_filename_part =
@@ -336,7 +363,7 @@ end
 ;;
 
 
-module UnixPath = GenericPath(struct
+module UnixPath : PATH_SPECIFICATION = GenericPath(struct
 	let filename_of_filename_part = UnixPath.filename_of_filename_part
 	let dir_separator             = UnixPath.dir_separator
 	let dir_spec                  = UnixPath.dir_spec
@@ -345,7 +372,7 @@ module UnixPath = GenericPath(struct
 end)
 ;;
 
-module MacOSPath = GenericPath(struct
+module MacOSPath : PATH_SPECIFICATION = GenericPath(struct
 	let filename_of_filename_part = MacOSPath.filename_of_filename_part
 	let dir_separator             = MacOSPath.dir_separator
 	let dir_spec                  = MacOSPath.dir_spec
@@ -354,7 +381,7 @@ module MacOSPath = GenericPath(struct
 end)
 ;;
 
-module Win32Path = GenericPath(struct 
+module Win32Path : PATH_SPECIFICATION = GenericPath(struct 
 	let filename_of_filename_part = Win32Path.filename_of_filename_part
 	let dir_separator             = Win32Path.dir_separator
 	let dir_spec                  = Win32Path.dir_spec
@@ -363,7 +390,7 @@ module Win32Path = GenericPath(struct
 end)
 ;;
 (*
-module CygwinPath = GenericPath(struct
+module CygwinPath : PATH_SPECIFICATION = GenericPath(struct
 	let filename_of_filename_part = CygwinPath.filename_of_filename_part
 	let dir_separator             = CygwinPath.dir_separator
 	let dir_spec                  = CygwinPath.dir_spec

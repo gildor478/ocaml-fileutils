@@ -1,108 +1,107 @@
 open Fort;;
 open SysPath;;
-open SysPath_type;;
 open SysUtil;;
 
 exception CannotContinueTest;;
 
-let dir_test = "test-util"
-in
-let error_syspath = ref true
-in
-let expect_equal_string = expect_equal ~printer:(fun x -> x)
-in
-let expect_equal_list_string = expect_equal ~printer:(fun lst -> 
-	List.fold_left (fun x y -> x^";"^y ) "" lst)
-in
-let expect_equal_list_filename_part = expect_equal ~printer:(fun lst -> 
-	List.fold_left (fun x y -> x^";"^y ) "" (List.map filename_of_filename_part lst))
-in
-let expect_equal_bool = expect_equal ~printer:(string_of_bool)
-in
-(* Test to be performed *)
+module Test = 
+functor ( OsPath : PATH_SPECIFICATION ) ->
+struct
+	let os_string = ref ""
+	
+	let expect_equal_string = expect_equal ~printer:(fun x -> x)
+	
+	let expect_equal_list_string = expect_equal ~printer:(fun lst -> 
+		List.fold_left (fun x y -> x^";"^y ) "" lst)
+		
+	let expect_equal_bool = expect_equal ~printer:(string_of_bool)
 
-let test_test (stest,expr,file,res) =
-	expect_pass ~desc:("Test "^stest^" on "^file) 
-	~body:( fun () ->
-		expect_equal_bool res (test expr file)
-	)
-in
-let ask_user file = 
-	let answer =
-		print_string ("Delete file : "^file^" (y/n) ? ");
-		read_line ()
-	in
-	answer = "y"
-in
-let root x = Root x
-in
-let c x = Component x
-in
-let up = ParentDir
-in
-let cur = CurrentDir
-in
+
+	let reduce (test,exp,res) =
+		expect_pass ~desc:((!os_string)^" : reduce " ^ test)
+		~body:( fun () ->
+			expect_equal_string res (OsPath.reduce exp)
+		)
+		
+	let make_path (test,exp,res) =
+		expect_pass ~desc:((!os_string)^" : make Path " ^ test)
+		~body:( fun () ->
+			expect_equal_string res (OsPath.make_path_variable exp)
+		)
+		
+	let make_absolute (test,base,rela,res) =
+		expect_pass ~desc:((!os_string)^" : make absolute " ^ test)
+		~body:( fun () ->
+			expect_equal_string res (OsPath.make_absolute base rela)
+		)
+		
+	let make_relative (test,base,abs,res) =
+		expect_pass ~desc:((!os_string)^" : make relative " ^ test)
+		~body:( fun () ->
+			expect_equal_string res (OsPath.make_relative base abs)
+		)
+		
+	let valid (test,exp) =
+		expect_pass ~desc:((!os_string)^" : valid "^test )
+		~body:( fun () ->
+			expect_true (OsPath.is_valid exp)
+		)
+		
+	let identity (test,exp) = 
+		expect_pass ~desc:((!os_string)^" : identity "^test)
+		~body:( fun () ->
+			expect_equal_string exp (OsPath.identity exp)
+		)
+end
+;;
+
+module TestUnix  = Test(UnixPath)
+;;
+TestUnix.os_string := "Unix"
+;;
+module TestMacOS = Test(MacOSPath)
+;;
+TestMacOS.os_string := "MacOS"
+;;
+module TestWin32 = Test(Win32Path)
+;;
+TestWin32.os_string := "Win32"
+;;
+(*module TestCygwin = Test(CygWin)
+;;
+TestCygwin.os_string := "Cygwin"
+;;*)
 
 (*********************)
 (* Unix SysPath test *)
 (*********************)
 
 (* Reduce path *)
-let test_reduce (test,exp) =
-	expect_pass ~desc:("Reduce " ^ test)
-	~body:( fun () ->
-		expect_equal_string "/a/b/c" (UnixPath.reduce exp)
-	)
-in
-List.iter test_reduce
+List.iter TestUnix.reduce
 [
- ("identity",                    "/a/b/c"          );
- ("remove trailer",              "/a/b/c/"         );
- ("remove last ..",              "/a/b/c/d/.."     );
- ("remove last .",               "/a/b/c/."        );
- ("remove inside ..",            "/a/d/../b/c"     );
- ("remove inside .",             "/a/./b/c"        );
- ("remove last . and ..",        "/a/b/c/d/./.."   );
- ("remove last .. and .",        "/a/b/c/d/../."   );
- ("remove following . and ..",   "/a/b/d/./../c"   );
- ("remove following .. and .",   "/a/b/d/.././c"   );
- ("remove multiple ..",          "/a/b/../d/../b/c");
- ("remove multiple .",           "/a/./././b/./c"  );
- ("remove multiple . and ..",    "/a/../a/./b/../c/../b/./c")
+ ("identity",                    "/a/b/c",                   "/a/b/c");
+ ("remove trailer",              "/a/b/c/",                  "/a/b/c");
+ ("remove last ..",              "/a/b/c/d/..",              "/a/b/c");
+ ("remove last .",               "/a/b/c/.",                 "/a/b/c");
+ ("remove inside ..",            "/a/d/../b/c",              "/a/b/c");
+ ("remove inside .",             "/a/./b/c",                 "/a/b/c");
+ ("remove last . and ..",        "/a/b/c/d/./..",            "/a/b/c");
+ ("remove last .. and .",        "/a/b/c/d/../.",            "/a/b/c");
+ ("remove following . and ..",   "/a/b/d/./../c",            "/a/b/c");
+ ("remove following .. and .",   "/a/b/d/.././c",            "/a/b/c");
+ ("remove multiple ..",          "/a/b/../d/../b/c",         "/a/b/c");
+ ("remove multiple .",           "/a/./././b/./c",           "/a/b/c");
+ ("remove multiple . and ..",    "/a/../a/./b/../c/../b/./c","/a/b/c")
 ];
 
 (* Create path *)
-let test_make_path (test,exp) =
-	expect_pass ~desc:("Make Path " ^ test)
-	~body:( fun () ->
-		expect_equal_string "/a:b:/c/d" (UnixPath.make_path_variable exp)
-	)
-in
-List.iter test_make_path
+List.iter TestUnix.make_path
 [
- ("identity", ["/a";"b";"/c/d"])
-];
-
-(* Explode path *)
-let test_explode_path (test,imp) =
-	expect_pass ~desc:("Explode Path " ^ test)
-	~body:( fun () ->
-		expect_equal_list_string ["/a";"b";"/c/d"] (UnixPath.read_path_variable imp)
-	)
-in
-List.iter test_explode_path
-[
- ("identity", "/a:b:/c/d")
+ ("identity", ["/a";"b";"/c/d"], "/a;b;/c/d")
 ];
 
 (* Convert to absolute *)
-let test_make_absolute (test,base,rela,res) =
-	expect_pass ~desc:("Make absolute " ^ test)
-	~body:( fun () ->
-		expect_equal_string res (UnixPath.make_absolute base rela)
-	)
-in
-List.iter test_make_absolute
+List.iter TestUnix.make_absolute
 [
  ("identity",  "/a/b/c", ".",    "/a/b/c");
  ("simple v1", "/a/b/c", "./d",  "/a/b/c/d");
@@ -110,13 +109,7 @@ List.iter test_make_absolute
 ];
 
 (* Convert to relative *)
-let test_make_relative (test,base,abs,res) =
-	expect_pass ~desc:("Make absolute " ^ test)
-	~body:( fun () ->
-		expect_equal_string res (UnixPath.make_relative base abs)
-	)
-in
-List.iter test_make_relative 
+List.iter TestUnix.make_relative 
 [
  ("identity",  "/a/b/c", "/a/b/c", "");
  ("simple v1", "/a/b/c", "/a/b/d", "../d")
@@ -127,61 +120,31 @@ List.iter test_make_relative
 (**********************)
 
 (* Reduce path *)
-let test_reduce (test,exp) =
-	expect_pass ~desc:("Reduce " ^ test)
-	~body:( fun () ->
-		expect_equal_string "/a/b/c" (Win32Path.reduce exp)
-	)
-in
-List.iter test_reduce
+List.iter TestWin32.reduce
 [
- ("identity",                    "/a/b/c"          );
- ("remove trailer",              "/a/b/c/"         );
- ("remove last ..",              "/a/b/c/d/.."     );
- ("remove last .",               "/a/b/c/."        );
- ("remove inside ..",            "/a/d/../b/c"     );
- ("remove inside .",             "/a/./b/c"        );
- ("remove last . and ..",        "/a/b/c/d/./.."   );
- ("remove last .. and .",        "/a/b/c/d/../."   );
- ("remove following . and ..",   "/a/b/d/./../c"   );
- ("remove following .. and .",   "/a/b/d/.././c"   );
- ("remove multiple ..",          "/a/b/../d/../b/c");
- ("remove multiple .",           "/a/./././b/./c"  );
- ("remove multiple . and ..",    "/a/../a/./b/../c/../b/./c")
+ ("identity",                    "/a/b/c",                   "/a/b/c");
+ ("remove trailer",              "/a/b/c/",                  "/a/b/c");
+ ("remove last ..",              "/a/b/c/d/..",              "/a/b/c");
+ ("remove last .",               "/a/b/c/.",                 "/a/b/c");
+ ("remove inside ..",            "/a/d/../b/c",              "/a/b/c");
+ ("remove inside .",             "/a/./b/c",                 "/a/b/c");
+ ("remove last . and ..",        "/a/b/c/d/./..",            "/a/b/c");
+ ("remove last .. and .",        "/a/b/c/d/../.",            "/a/b/c");
+ ("remove following . and ..",   "/a/b/d/./../c",            "/a/b/c");
+ ("remove following .. and .",   "/a/b/d/.././c",            "/a/b/c");
+ ("remove multiple ..",          "/a/b/../d/../b/c",         "/a/b/c");
+ ("remove multiple .",           "/a/./././b/./c",           "/a/b/c");
+ ("remove multiple . and ..",    "/a/../a/./b/../c/../b/./c","/a/b/c")
 ];
 
 (* Create path *)
-let test_make_path (test,exp) =
-	expect_pass ~desc:("Make Path " ^ test)
-	~body:( fun () ->
-		expect_equal_string "/a:b:/c/d" (Win32Path.make_path_variable exp)
-	)
-in
-List.iter test_make_path
+List.iter TestWin32.make_path
 [
- ("identity", ["/a";"b";"/c/d"])
-];
-
-(* Explode path *)
-let test_explode_path (test,imp) =
-	expect_pass ~desc:("Explode Path " ^ test)
-	~body:( fun () ->
-		expect_equal_list_string ["/a";"b";"/c/d"] (Win32Path.read_path_variable imp)
-	)
-in
-List.iter test_explode_path
-[
- ("identity", "/a:b:/c/d")
+ ("identity", ["/a";"b";"/c/d"], "/a:b:/c/d")
 ];
 
 (* Convert to absolute *)
-let test_make_absolute (test,base,rela,res) =
-	expect_pass ~desc:("Make absolute " ^ test)
-	~body:( fun () ->
-		expect_equal_string res (UnixPath.make_absolute base rela)
-	)
-in
-List.iter test_make_absolute
+List.iter TestWin32.make_absolute
 [
  ("identity",  "/a/b/c", ".",    "/a/b/c");
  ("simple v1", "/a/b/c", "./d",  "/a/b/c/d");
@@ -189,13 +152,7 @@ List.iter test_make_absolute
 ];
 
 (* Convert to relative *)
-let test_make_relative (test,base,abs,res) =
-	expect_pass ~desc:("Make absolute " ^ test)
-	~body:( fun () ->
-		expect_equal_string res (Win32Path.make_relative base abs)
-	)
-in
-List.iter test_make_relative 
+List.iter TestWin32.make_relative 
 [
  ("identity",  "/a/b/c", "/a/b/c", "");
  ("simple v1", "/a/b/c", "/a/b/d", "../d")
@@ -205,62 +162,44 @@ List.iter test_make_relative
 (* MacOS SysPath test *)
 (**********************)
 
-(* Reduce path *)
-let test_reduce (test,exp) =
-	expect_pass ~desc:("Reduce " ^ test)
-	~body:( fun () ->
-		expect_equal_string "/a/b/c" (MacOSPath.reduce exp)
-	)
-in
-List.iter test_reduce
+(* Is_valid *)
+List.iter TestMacOS.valid
 [
- ("identity",                    "/a/b/c"          );
- ("remove trailer",              "/a/b/c/"         );
- ("remove last ..",              "/a/b/c/d/.."     );
- ("remove last .",               "/a/b/c/."        );
- ("remove inside ..",            "/a/d/../b/c"     );
- ("remove inside .",             "/a/./b/c"        );
- ("remove last . and ..",        "/a/b/c/d/./.."   );
- ("remove last .. and .",        "/a/b/c/d/../."   );
- ("remove following . and ..",   "/a/b/d/./../c"   );
- ("remove following .. and .",   "/a/b/d/.././c"   );
- ("remove multiple ..",          "/a/b/../d/../b/c");
- ("remove multiple .",           "/a/./././b/./c"  );
- ("remove multiple . and ..",    "/a/../a/./b/../c/../b/./c")
+ ("Root", "a:");
+];
+
+(* Identity *)
+List.iter TestMacOS.identity
+[
+ ("Root", "a:");
+];
+
+(* Reduce path *)
+List.iter TestMacOS.reduce
+[
+ ("identity",                    "/a/b/c",                   "/a/b/c");
+ ("remove trailer",              "/a/b/c/",                  "/a/b/c");
+ ("remove last ..",              "/a/b/c/d/..",              "/a/b/c");
+ ("remove last .",               "/a/b/c/.",                 "/a/b/c");
+ ("remove inside ..",            "/a/d/../b/c",              "/a/b/c");
+ ("remove inside .",             "/a/./b/c",                 "/a/b/c");
+ ("remove last . and ..",        "/a/b/c/d/./..",            "/a/b/c");
+ ("remove last .. and .",        "/a/b/c/d/../.",            "/a/b/c");
+ ("remove following . and ..",   "/a/b/d/./../c",            "/a/b/c");
+ ("remove following .. and .",   "/a/b/d/.././c",            "/a/b/c");
+ ("remove multiple ..",          "/a/b/../d/../b/c",         "/a/b/c");
+ ("remove multiple .",           "/a/./././b/./c",           "/a/b/c");
+ ("remove multiple . and ..",    "/a/../a/./b/../c/../b/./c","/a/b/c")
 ];
 
 (* Create path *)
-let test_make_path (test,exp) =
-	expect_pass ~desc:("Make Path " ^ test)
-	~body:( fun () ->
-		expect_equal_string "/a:b:/c/d" (MacOSPath.make_path_variable exp)
-	)
-in
-List.iter test_make_path
+List.iter TestMacOS.make_path
 [
- ("identity", ["/a";"b";"/c/d"])
-];
-
-(* Explode path *)
-let test_explode_path (test,imp) =
-	expect_pass ~desc:("Explode Path " ^ test)
-	~body:( fun () ->
-		expect_equal_list_string ["/a";"b";"/c/d"] (MacOSPath.read_path_variable imp)
-	)
-in
-List.iter test_explode_path
-[
- ("identity", "/a:b:/c/d")
+ ("identity", ["/a";"b";"/c/d"],"/a;b;/c/d")
 ];
 
 (* Convert to absolute *)
-let test_make_absolute (test,base,rela,res) =
-	expect_pass ~desc:("Make absolute " ^ test)
-	~body:( fun () ->
-		expect_equal_string res (MacOSPath.make_absolute base rela)
-	)
-in
-List.iter test_make_absolute
+List.iter TestMacOS.make_absolute
 [
  ("identity",  "/a/b/c", ".",    "/a/b/c");
  ("simple v1", "/a/b/c", "./d",  "/a/b/c/d");
@@ -268,13 +207,7 @@ List.iter test_make_absolute
 ];
 
 (* Convert to relative *)
-let test_make_relative (test,base,abs,res) =
-	expect_pass ~desc:("Make absolute " ^ test)
-	~body:( fun () ->
-		expect_equal_string res (MacOSPath.make_relative base abs)
-	)
-in
-List.iter test_make_relative 
+List.iter TestMacOS.make_relative 
 [
  ("identity",  "/a/b/c", "/a/b/c", "");
  ("simple v1", "/a/b/c", "/a/b/d", "../d")
@@ -286,61 +219,31 @@ List.iter test_make_relative
 (***********************)
 
 (* Reduce path *)
-let test_reduce (test,exp) =
-	expect_pass ~desc:("Reduce " ^ test)
-	~body:( fun () ->
-		expect_equal_string "/a/b/c" (CygwinPath.reduce exp)
-	)
-in
-List.iter test_reduce
+List.iter TestCygwin.reduce
 [
- ("identity",                    "/a/b/c"          );
- ("remove trailer",              "/a/b/c/"         );
- ("remove last ..",              "/a/b/c/d/.."     );
- ("remove last .",               "/a/b/c/."        );
- ("remove inside ..",            "/a/d/../b/c"     );
- ("remove inside .",             "/a/./b/c"        );
- ("remove last . and ..",        "/a/b/c/d/./.."   );
- ("remove last .. and .",        "/a/b/c/d/../."   );
- ("remove following . and ..",   "/a/b/d/./../c"   );
- ("remove following .. and .",   "/a/b/d/.././c"   );
- ("remove multiple ..",          "/a/b/../d/../b/c");
- ("remove multiple .",           "/a/./././b/./c"  );
- ("remove multiple . and ..",    "/a/../a/./b/../c/../b/./c")
+ ("identity",                    "/a/b/c",                   "/a/b/c");
+ ("remove trailer",              "/a/b/c/",                  "/a/b/c");
+ ("remove last ..",              "/a/b/c/d/..",              "/a/b/c");
+ ("remove last .",               "/a/b/c/.",                 "/a/b/c");
+ ("remove inside ..",            "/a/d/../b/c",              "/a/b/c");
+ ("remove inside .",             "/a/./b/c",                 "/a/b/c");
+ ("remove last . and ..",        "/a/b/c/d/./..",            "/a/b/c");
+ ("remove last .. and .",        "/a/b/c/d/../.",            "/a/b/c");
+ ("remove following . and ..",   "/a/b/d/./../c",            "/a/b/c");
+ ("remove following .. and .",   "/a/b/d/.././c",            "/a/b/c");
+ ("remove multiple ..",          "/a/b/../d/../b/c",         "/a/b/c");
+ ("remove multiple .",           "/a/./././b/./c",           "/a/b/c");
+ ("remove multiple . and ..",    "/a/../a/./b/../c/../b/./c","/a/b/c")
 ];
 
 (* Create path *)
-let test_make_path (test,exp) =
-	expect_pass ~desc:("Make Path " ^ test)
-	~body:( fun () ->
-		expect_equal_string "/a:b:/c/d" (CygwinPath.make_path_variable exp)
-	)
-in
-List.iter test_make_path
+List.iter TestCygwin.make_path
 [
  ("identity", ["/a";"b";"/c/d"])
 ];
 
-(* Explode path *)
-let test_explode_path (test,imp) =
-	expect_pass ~desc:("Explode Path " ^ test)
-	~body:( fun () ->
-		expect_equal_list_string ["/a";"b";"/c/d"] (CygwinPath.read_path_variable imp)
-	)
-in
-List.iter test_explode_path
-[
- ("identity", "/a:b:/c/d")
-];
-
 (* Convert to absolute *)
-let test_make_absolute (test,base,rela,res) =
-	expect_pass ~desc:("Make absolute " ^ test)
-	~body:( fun () ->
-		expect_equal_string res (CygwinPath.make_absolute base rela)
-	)
-in
-List.iter test_make_absolute
+List.iter TestCygwin.make_absolute
 [
  ("identity",  "/a/b/c", ".",    "/a/b/c");
  ("simple v1", "/a/b/c", "./d",  "/a/b/c/d");
@@ -348,13 +251,7 @@ List.iter test_make_absolute
 ];
 
 (* Convert to relative *)
-let test_make_relative (test,base,abs,res) =
-	expect_pass ~desc:("Make absolute " ^ test)
-	~body:( fun () ->
-		expect_equal_string res (CygwinPath.make_relative base abs)
-	)
-in
-List.iter test_make_relative 
+List.iter TestCygwin.make_relative 
 [
  ("identity",  "/a/b/c", "/a/b/c", "");
  ("simple v1", "/a/b/c", "/a/b/d", "../d")
@@ -364,6 +261,26 @@ List.iter test_make_relative
 (* SysUtil test *)
 (****************)
 
+(* Test to be performed *)
+
+let dir_test = "test-util"
+in
+let test_test (stest,expr,file,res) =
+	expect_pass ~desc:("Test "^stest^" on "^file) 
+	~body:( fun () ->
+		expect_true (res = (test expr file))
+	)
+in
+let ask_user file = 
+	let answer =
+		print_string ("Delete file : "^file^" (y/n) ? ");
+		read_line ()
+	in
+	answer = "y"
+in
+
+
+(*
 if !error_syspath then
   raise CannotContinueTest
 else
@@ -549,6 +466,6 @@ else
   	expect_true (test (Not Exists) dir_test)
   )
   end
-;
+;*)
 
 ();;
