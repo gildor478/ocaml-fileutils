@@ -27,21 +27,181 @@
 manipulate file and directory. All function nearly match
 common unix utilities ( but try to be more portable )*)
 
-(** {1 Exceptions}*)
+open FilePath
+open FilePath.DefaultPath
 
+(** {1 Types and exceptions }*)
+
+(** The base type of the module *)
+type filename = string
+
+exception SizeInvalid
 exception FileDoesntExist
-exception RecursiveLink of string
-exception RmDirNotEmpty
-exception MkdirMissingComponentPath
-exception MkdirDirnameAlreadyUsed
-exception CpCannotCopyDirToDir
-exception CpCannotCopyDirToFile
-exception CpCannotCopy
+exception RecursiveLink of filename
+exception RmDirNotEmpty of filename
+exception MkdirMissingComponentPath of filename
+exception MkdirDirnameAlreadyUsed of filename
+exception CpCannotCopyDirToDir of filename
+exception CpCannotCopyDirToFile of filename
+exception CpCannotCopy of filename
 exception CpNoSourceFile
 exception MvNoSourceFile
 
-open FilePath
-open FilePath.DefaultPath
+(** The policy concerning the links which are directory *)
+type action_link =
+    Follow
+    (** We consider links as simple directory ( it is dangerous ) *)
+  | Skip 
+  (** Just skip it *)
+  | SkipInform of (filename -> unit)
+  (** Skip and execute an action *)
+  | AskFollow of (filename -> bool)
+  (** Ask and wait for input : true means follow and false means
+      skip *)
+      
+(** For certain command, you should need to ask the user wether
+    or not he does want to do some action. Provide the function 
+    to Ask or Force the action *)
+type interactive =
+    Force
+  (** Do it anyway *)
+  | Ask of (filename -> bool)
+  (** Promp the user *)
+
+(** Size type *)
+type size = 
+    TB of float
+    (** Terra bytes *)
+  | GB of float
+    (** Giga bytes *)
+  | MB of float
+    (** Mega bytes *)
+  | KB of float
+    (** Kilo bytes *)
+  | B  of float
+    (** Bytes *)
+    
+(** Kind of file. This set is a combination of all POSIX file, some of them
+    doesn't exist at all on certain file system *)
+type kind = 
+    Dir  
+  | File 
+  | Dev_char
+  | Dev_block
+  | Link
+  | Fifo
+  | Socket
+  
+(** Base permission. This is the base type for one set of permission *)
+type base_permission = 
+  {
+    sticky : bool;
+    exec   : bool;
+    write  : bool;
+    read   : bool;
+  }
+
+(** Permission. All the base permission of a file *)
+type permission =
+  {
+    user  : base_permission;
+    group : base_permission;
+    other : base_permission;
+  }
+  
+(** Information about a file. This type is derived from Unix.stat *)
+type stat =
+  {
+    kind              : kind;
+    is_link           : bool;
+    permission        : permission;
+    size              : size;
+    owner             : int;
+    group_owner       : int;
+    access_time       : float;
+    modification_time : float;
+    creation_time     : float;
+  }
+
+(** Pattern you can use to test file *)
+type test_file =
+  Is_dev_block
+  (** FILE exists and is block special *)
+  | Is_dev_char
+  (** FILE exists and is character special *)
+  | Is_dir
+  (** FILE exists and is a directory *)
+  | Exists
+  (** FILE exists *)
+  | Is_file
+  (** FILE exists and is a regular file *)
+  | Is_set_group_ID
+  (** FILE exists and is set-group-ID *)
+  | Has_sticky_bit
+  (** FILE exists and has its sticky bit set *)
+  | Is_link
+  (** FILE exists and is a symbolic link *)
+  | Is_pipe
+  (** FILE exists and is a named pipe *)
+  | Is_readable
+  (** FILE exists and is readable *)
+  | Is_writeable
+  (** FILE exists and is writeable *)
+  | Size_not_null
+  (** FILE exists and has a size greater than zero *)
+  | Size_bigger_than of size
+  (** FILE exists and has a size greater than given size *)
+  | Size_smaller_than of size
+  (** FILE exists and has a size smaller than given size *)
+  | Size_equal_to of size
+  (** FILE exists and has the same size as given size *)
+  | Size_fuzzy_equal_to of size
+  (** FILE exists and has approximatively the same size as given size *)
+  | Is_socket
+  (** FILE exists and is a socket *)
+  | Has_set_user_ID
+  (** FILE exists and its set-user-ID bit is set *)
+  | Is_exec
+  (** FILE exists and is executable *)
+  | Is_owned_by_user_ID
+  (** FILE exists and is owned by the effective user ID *)
+  | Is_owned_by_group_ID
+  (** FILE exists and is owned by the effective group ID *)
+  | Is_newer_than of filename 
+  (** FILE1 is newer (modification date) than FILE2 *)
+  | Is_older_than of filename 
+  (** FILE1 is older than FILE2 *)
+  | Is_newer_than_date of float
+  (** FILE is newer than given date *)
+  | Is_older_than_date of float
+  (** FILE is older than given date *)
+  | And of test_file * test_file
+  (** Result of TEST1 and TEST2 *)
+  | Or of test_file * test_file
+  (** Result of TEST1 or TEST2 *)
+  | Not of test_file
+  (** Result of not TEST *)
+  | Match of string
+  (** Match regexp *)
+  | True
+  (** Always true *)
+  | False
+  (** Always false *)
+  | Has_extension of string
+  (** Check extension *)
+  | Has_no_extension
+  (** Check absence of extension *)
+  | Is_parent_dir 
+  (** Is it the parent dir *)
+  | Is_current_dir
+  (** Is it the current dir *)
+  | Basename_is of filename
+  (** Check the basename *)
+  | Dirname_is of filename
+  (** Check the dirname *)
+  | Custom of (filename -> bool )
+  (** Custom operation on filename *)
+
 
 (** {1 File utils specification} *)
 
@@ -59,102 +219,6 @@ end
 module type FILE_UTILS =
 sig
   (** Module to manipulate real file *)
-
-  (** {2 Types}*)
-
-  (** The base type of the module *)
-  type filename = string
-
-  (** {2 Testing file} *)
-
-  (** The policy concerning the links which are directory *)
-  type action_link =
-      Follow
-      (** We consider links as simple directory ( it is dangerous ) *)
-    | Skip 
-    (** Just skip it *)
-    | SkipInform of (filename -> unit)
-    (** Skip and execute an action *)
-    | AskFollow of (filename -> bool)
-    (** Ask and wait for input : true means follow and false means
-        skip *)
-        
-  (** For certain command, you should need to ask the user wether
-      or not he does want to do some action. Provide the function 
-      to Ask or Force the action *)
-  type interactive =
-      Force
-    (** Do it anyway *)
-    | Ask of (filename -> bool)
-    (** Promp the user *)
-
-  (** Pattern you can use to test file *)
-  type test_file =
-    Is_dev_block
-    (** FILE exists and is block special *)
-    | Is_dev_char
-    (** FILE exists and is character special *)
-    | Is_dir
-    (** FILE exists and is a directory *)
-    | Exists
-    (** FILE exists *)
-    | Is_file
-    (** FILE exists and is a regular file *)
-    | Is_set_group_ID
-    (** FILE exists and is set-group-ID *)
-    | Has_sticky_bit
-    (** FILE exists and has its sticky bit set *)
-    | Is_link
-    (** FILE exists and is a symbolic link *)
-    | Is_pipe
-    (** FILE exists and is a named pipe *)
-    | Is_readable
-    (** FILE exists and is readable *)
-    | Is_writeable
-    (** FILE exists and is writeable *)
-    | Size_not_null
-    (** FILE exists and has a size greater than zero *)
-    | Is_socket
-    (** FILE exists and is a socket *)
-    | Has_set_user_ID
-    (** FILE exists and its set-user-ID bit is set *)
-    | Is_exec
-    (** FILE exists and is executable *)
-    | Is_owned_by_user_ID
-    (** FILE exists and is owned by the effective user ID *)
-    | Is_owned_by_group_ID
-    (** FILE exists and is owned by the effective group ID *)
-    | Is_newer_than of filename * filename
-    (** FILE1 is newer (modification date) than FILE2 *)
-    | Is_older_than of filename * filename
-    (** FILE1 is older than FILE2 *)
-    | Has_same_device_and_inode of filename * filename
-    (** FILE1 and FILE2 have the same device and inode numbers *)
-    | And of test_file * test_file
-    (** Result of TEST1 and TEST2 *)
-    | Or of test_file * test_file
-    (** Result of TEST1 or TEST2 *)
-    | Not of test_file
-    (** Result of not TEST *)
-    | Match of string
-    (** Match regexp *)
-    | True
-    (** Always true *)
-    | False
-    (** Always false *)
-    | Has_extension of string
-    (** Check extension *)
-    | Has_no_extension
-    (** Check absence of extension *)
-    | Is_parent_dir 
-    (** Is it the parent dir *)
-    | Is_current_dir
-    (** Is it the current dir *)
-    | Basename_is of filename
-    (** Check the basename *)
-    | Dirname_is of filename
-
-  (** {2 Common operation on file }*)
 
   (** List the content of a directory *)
   val ls : filename -> filename list
@@ -178,10 +242,13 @@ sig
   if you don't want to create the file *)
   val touch : ?create:bool -> filename -> unit
 
-  (** Descend the directory tree starting from the given filename and using
-  the test provided to find what is looking for. You cannot match current_dir
-  and parent_dir.*)
-  val find : ?follow:action_link -> test_file -> filename -> filename list
+  (** find ~follow:fol tst fln exec accu : Descend the directory tree starting 
+  from the given filename and using the test provided to find what is looking 
+  for. You cannot match current_dir and parent_dir. For every file found, 
+  the action exec is done, using the accu to start. For a simple file
+  listing, you can use find True "." ( fun x y -> x :: y ) [] *)
+  val find : ?follow:action_link -> test_file -> filename -> 
+    ( 'a -> filename ->'a ) -> 'a -> 'a
 
   (** Remove the filename provided. Turn recurse to true in order to 
   completely delete a directory *)
@@ -204,11 +271,13 @@ sig
   * (Some -1) if one of the file is not readable or if it is not a file. *) 
   val cmp : ?skip1:int -> filename -> ?skip2:int -> filename -> int option 
   
+  (** du fln_lst : Returns the amount of space of all the file 
+  * which are subdir of fln_lst. Also returns details for each 
+  * file scanned *)
+  val du : filename list -> size * ((filename * size) list)
+
   (** For future release : 
-     - type filename_size = TO of int | GO of int | MO of int | KO of int | O of int 
-     - du : filename -> ?pattern:test -> size * ( filename * size ) list 
      - pathchk : filename -> boolean * string 
-     - test : Is_bigger_than_size(x), Is_smaller_than_size(x), Is_equal_to_size(x), Is_newer_than_date 
     *)
 end
 ;;
@@ -218,69 +287,208 @@ module type META_FILE_UTILS =
 functor ( OperationRegexp : OPERATION_REGEXP ) -> FILE_UTILS
 ;;
 
+(** {1 Implementation} *)
+
+(** {2 Classical permission } *)
+
+(** Understand the POSIX permission integer norm *)
+let permission_of_int pr =
+  let perm_match oct = 
+    (pr land oct) <> 0
+  in
+  {
+    user = 
+      {
+        sticky = perm_match 0o4000;
+        exec   = perm_match 0o0100;
+        write  = perm_match 0o0200;
+        read   = perm_match 0o0400;
+      };
+    group =
+      {
+        sticky = perm_match 0o2000;
+        exec   = perm_match 0o0010;
+        write  = perm_match 0o0020;
+        read   = perm_match 0o0040;
+      };
+    other = 
+      {
+        sticky = perm_match 0o1000;
+        exec   = perm_match 0o0001;
+        write  = perm_match 0o0002;
+        read   = perm_match 0o0004;
+      };
+  }
+
+(** Return the POSIX integer permission associated to the permission *)
+let int_of_permission pr =
+  let permission_int = [ 
+    (pr.user.sticky,  0o4000);
+    (pr.user.exec,    0o0100);
+    (pr.user.write,   0o0200);
+    (pr.user.read,    0o0400);
+    (pr.group.sticky, 0o2000);
+    (pr.group.exec,   0o0010);
+    (pr.group.write,  0o0020);
+    (pr.group.read,   0o0040);
+    (pr.other.sticky, 0o1000);
+    (pr.other.exec,   0o0001);
+    (pr.other.write,  0o0002);
+    (pr.other.read,   0o0004)
+  ]
+  in
+  List.fold_left ( fun full_perm (b,perm) -> 
+    if b then 
+      perm lor full_perm 
+    else 
+      full_perm ) 
+    0o0000 permission_int
+  
+(** {2 Size operation } *)
+
+(** Convert to the upper unit a size *)
+let size_convert_down sz =
+  match sz with
+    TB f -> GB (f *. 1024.0)
+  | GB f -> MB (f *. 1024.0)
+  | MB f -> KB (f *. 1024.0)
+  | KB f -> B  (f *. 1024.0)
+  | B  f -> B f
+
+(** Convert to the smaller unit a size *)
+let size_convert_up sz = 
+  match sz with 
+    TB f -> TB f
+  | GB f -> TB (f /. 1024.0)
+  | MB f -> GB (f /. 1024.0)
+  | KB f -> MB (f /. 1024.0)
+  | B  f -> KB (f /. 1024.0)
+
+(** Compare two units of size : classification of size is 
+  [ To, Go, Mo, Ko, O ], with To being the bigger unit *)
+let size_compare_unit sz1 sz2 =
+  let value_unit sz = 
+    match sz with
+      TB _ -> 4
+    | GB _ -> 3
+    | MB _ -> 2
+    | KB _ -> 1
+    |  B _ -> 0
+  in
+  (value_unit sz1) - (value_unit sz2)
+ 
+(** size_to_same_unit sz1 sz2 : convert sz2 to the unit of sz1 *)
+let size_to_same_unit sz1 sz2 =
+  let rec size_to_same_unit_aux sz = 
+    if (size_compare_unit sz1 sz) < 0 then
+      size_to_same_unit_aux (size_convert_down sz)
+    else if ( size_compare_unit sz1 sz) > 0 then
+      size_to_same_unit_aux (size_convert_up sz)
+    else
+      sz
+  in
+  size_to_same_unit_aux sz2
+      
+(** Convert a size to To *)
+let size_to_To sz = size_to_same_unit (TB 0.0) sz
+
+(** Convert a size to Go *)
+let size_to_Go sz = size_to_same_unit (GB 0.0) sz
+
+(** Convert a size to Mo *)
+let size_to_Mo sz = size_to_same_unit (MB 0.0) sz
+
+(** Convert a size to Ko *)
+let size_to_Ko sz = size_to_same_unit (KB 0.0) sz
+
+(** Convert a size to O*)
+let size_to_O  sz = size_to_same_unit (B  0.0) sz
+
+(** Apply an operation to a size : the two size are converted
+* to the same unit and the function is applied to their value *)
+let size_apply_operation f sz1 sz2 = 
+  let sz2p = size_to_same_unit sz1 sz2
+  in
+  match sz1,sz2p with
+    TB f1, TB f2 -> TB ( f f1 f2 )
+  | GB f1, GB f2 -> GB ( f f1 f2 )
+  | MB f1, MB f2 -> MB ( f f1 f2 )
+  | KB f1, KB f2 -> KB ( f f1 f2 )
+  | B  f1, B  f2 -> B  ( f f1 f2 )
+  |     _ ,    _ -> raise SizeInvalid
+
+(** Compare two size, using the classical compare function. The two size
+* are converted to the same unit before. If fuzzy is set to true, the 
+* comparison is done on the floor value of the two size. *)
+let size_compare ?(fuzzy=false) sz1 sz2 = 
+  let sz2p = size_to_same_unit sz1 sz2
+  in
+  match sz1,sz2p with
+    TB f1, TB f2
+  | GB f1, GB f2 
+  | MB f1, MB f2 
+  | KB f1, KB f2 
+  | B  f1, B  f2 -> 
+      if fuzzy then 
+        Pervasives.compare (floor f1) (floor f2)
+      else
+        Pervasives.compare f1 f2
+  |     _ ,    _ -> raise SizeInvalid
+
+(** size_add sz1 sz2 : add sz1 to sz2, result is in the unit of sz1 *)
+let size_add sz1 sz2 = size_apply_operation (+.)
+
+(** size_sub sz1 sz2 : substract sz1 to sz2, result is in the unit of sz1 *)
+let size_sub sz1 sz2 = size_apply_operation (-.) 
+
+(** Convert a value to a string representation. If fuzzy is set to true, only
+* consider the most significant unit *)
+let string_of_size ?(fuzzy=false) sz = 
+  let buffer = Buffer.create 16
+  in
+  let append_unit unt vl =
+    begin
+      if Buffer.length buffer = 0 then
+        ()
+      else
+        Buffer.add_char buffer ' '
+    end;
+    Printf.bprintf buffer "%d %s" (truncate vl) unt;
+    vl -. (float_of_int (truncate vl))
+  in
+  let rec string_of_size_aux sz =
+    if fuzzy && (Buffer.length buffer > 0) then
+      Buffer.contents buffer
+    else
+      begin
+        match sz with
+          TB f when f > 1.0 -> 
+            string_of_size_aux (TB (append_unit "TB" f))
+        | GB f when f > 1.0 ->
+            string_of_size_aux (GB (append_unit "GB" f))
+        | MB f when f > 1.0 ->
+            string_of_size_aux (MB (append_unit "MB" f))
+        | KB f when f > 1.0 ->
+            string_of_size_aux (KB (append_unit "KB" f))
+        | B  f when f > 1.0 ->
+            string_of_size_aux (B  (append_unit "B"  f))
+        | B  f ->
+            Buffer.contents buffer
+        | sz ->
+            string_of_size_aux (size_convert_down sz)
+      end
+  in
+  string_of_size_aux sz
+        
 (** Implementation of META_FILE_UTILS *)
 module GenericUtil : META_FILE_UTILS =
 functor ( OperationRegexp : OPERATION_REGEXP ) ->
 struct
-  type filename = string
   
   module SetFilename = Set.Make (struct
     type t = filename
     let compare = FilePath.DefaultPath.compare
   end)
-
-  type action_link =
-    Follow
-    | Skip 
-    | SkipInform of (filename -> unit)
-    | AskFollow of (filename -> bool)
-        
-  type interactive =
-      Force
-    | Ask of (string -> bool)
-
-  type fs_type = 
-    Dir  
-    | File 
-    | Dev_char
-    | Dev_block
-    | Link
-    | Fifo
-    | Socket
-
-  type test_file =
-    Is_dev_block
-    | Is_dev_char
-    | Is_dir
-    | Exists
-    | Is_file
-    | Is_set_group_ID
-    | Has_sticky_bit
-    | Is_link
-    | Is_pipe
-    | Is_readable
-    | Is_writeable
-    | Size_not_null
-    | Is_socket
-    | Has_set_user_ID
-    | Is_exec
-    | Is_owned_by_user_ID
-    | Is_owned_by_group_ID
-    | Is_newer_than of string * string
-    | Is_older_than of string * string
-    | Has_same_device_and_inode of string * string
-    | And of test_file * test_file
-    | Or of test_file * test_file
-    | Not of test_file
-    | Match of string
-    | True
-    | False
-    | Has_extension of string
-    | Has_no_extension
-    | Is_parent_dir
-    | Is_current_dir
-    | Basename_is of string
-    | Dirname_is of string
 
   let doit force fln = 
     match force with
@@ -296,181 +504,176 @@ struct
     else
       SetFilename.add fln fln_set
 
-  let stat_type filename =
+  let stat filename =
     try
       let stats = Unix.stat filename
       in
-      match stats.Unix.st_kind with
-        Unix.S_REG -> File 
-      | Unix.S_DIR -> Dir 
-      | Unix.S_CHR -> Dev_char 
-      | Unix.S_BLK -> Dev_block
-      | Unix.S_LNK -> Link
-      | Unix.S_FIFO -> Fifo 
-      | Unix.S_SOCK -> Socket
+      let kind = 
+        match stats.Unix.st_kind with
+          Unix.S_REG -> File 
+        | Unix.S_DIR -> Dir 
+        | Unix.S_CHR -> Dev_char 
+        | Unix.S_BLK -> Dev_block
+        | Unix.S_LNK -> Link
+        | Unix.S_FIFO -> Fifo 
+        | Unix.S_SOCK -> Socket
+      in
+      let is_link = 
+        let stats = Unix.lstat filename 
+        in
+        stats.Unix.st_kind = Unix.S_LNK
+      in
+      {
+        kind              = kind;
+        is_link           = is_link;
+        permission        = permission_of_int stats.Unix.st_perm;
+        size              = B (float_of_int stats.Unix.st_size);
+        owner             = stats.Unix.st_uid;
+        group_owner       = stats.Unix.st_gid;
+        access_time       = stats.Unix.st_atime;
+        modification_time = stats.Unix.st_mtime;
+        creation_time     = stats.Unix.st_ctime;
+      }
     with Unix.Unix_error(_) ->
       raise FileDoesntExist 
 
-  let stat_type_match tp filename = stat_type filename = tp
-  
-  let stat_type_match_link filename = 
-    try
-      let stats = Unix.lstat filename
-      in
-      stats.Unix.st_kind = Unix.S_LNK
-    with Unix.Unix_error(_) ->
-      raise FileDoesntExist
-                  
-
-  let stat_right filename =
-    try
-      let stats = Unix.stat filename
-      in
-      stats.Unix.st_perm 
-    with Unix.Unix_error(_) ->
-      raise FileDoesntExist
-
-  let stat_right_match right filename = 
-    (stat_right filename land right) <> 0
-
-  let right_sticky       = 0o1000
-  let right_sticky_group = 0o2000
-  let right_sticky_user  = 0o4000
-  let right_exec         = 0o0111
-  let right_write        = 0o0222
-  let right_read         = 0o0444
-
-  let stat_size filename =
-    try
-      let stats = Unix.stat filename
-      in
-      stats.Unix.st_size
-    with Unix.Unix_error(_) ->
-      raise FileDoesntExist
-
-  let stat_ugid filename =
-    try
-      let stats = Unix.stat filename
-      in
-      (stats.Unix.st_uid,stats.Unix.st_gid)
-    with Unix.Unix_error(_) ->
-      raise FileDoesntExist
-
-  let stat_mtime filename =
-    try
-      let stats = Unix.stat filename
-      in
-      stats.Unix.st_mtime
-    with Unix.Unix_error(_) ->
-      raise FileDoesntExist
-
-  let stat_dev filename =
-    try
-      let stats = Unix.stat filename
-      in
-      (stats.Unix.st_dev,stats.Unix.st_rdev)
-    with Unix.Unix_error(_) ->
-      raise FileDoesntExist
-
-  let stat_inode filename =
-    try
-      let stats = Unix.stat filename
-      in
-      stats.Unix.st_ino
-    with Unix.Unix_error(_) ->
-      raise FileDoesntExist
-
   let rec compile_filter flt =
+    let wrapper f fln =
+      try 
+        let stats = stat fln
+        in
+        f stats
+      with FileDoesntExist ->
+        false
+    in
     let res_filter =
       match flt with
-        Is_dev_block    -> stat_type_match Dev_block
-      | Is_dev_char     -> stat_type_match Dev_char
-      | Is_dir          -> stat_type_match Dir
-      | Is_file         -> stat_type_match File
-      | Is_set_group_ID -> stat_right_match right_sticky_group
-      | Has_sticky_bit  -> stat_right_match right_sticky
-      | Is_link         -> stat_type_match_link
-      | Is_pipe         -> stat_type_match Fifo
-      | Is_readable     -> stat_right_match right_read
-      | Is_writeable    -> stat_right_match right_write
-      | Size_not_null   -> fun x -> (stat_size x) > 0
-      | Is_socket       -> stat_type_match Socket
-      | Has_set_user_ID -> stat_right_match right_sticky_user
-      | Is_exec         -> stat_right_match right_exec
+        Is_dev_block    -> wrapper (fun st -> st.kind = Dev_block)
+      | Is_dev_char     -> wrapper (fun st -> st.kind = Dev_char)
+      | Is_dir          -> wrapper (fun st -> st.kind = Dir)
+      | Is_file         -> wrapper (fun st -> st.kind = File)
+      | Is_socket       -> wrapper (fun st -> st.kind = Socket)
+      | Is_pipe         -> wrapper (fun st -> st.kind = Fifo)
+      | Is_link         -> wrapper (fun st -> st.is_link)
+      | Exists          -> wrapper (fun st -> true) 
+      | Is_set_group_ID -> wrapper (fun st -> st.permission.group.sticky)
+      | Has_sticky_bit  -> wrapper (fun st -> st.permission.other.sticky)
+      | Has_set_user_ID -> wrapper (fun st -> st.permission.user.sticky)
+      | Is_readable     -> wrapper (
+        fun st -> st.permission.user.read  || st.permission.group.read  || st.permission.other.read
+        )
+      | Is_writeable    -> wrapper (
+        fun st -> st.permission.user.write || st.permission.group.write || st.permission.other.write
+        )
+      | Is_exec         -> wrapper (
+        fun st -> st.permission.user.exec  || st.permission.group.exec  || st.permission.other.exec
+        )
+      | Size_not_null          -> wrapper (
+        fun st -> (size_compare st.size (B 0.0) ) > 0
+        )
+      | Size_bigger_than sz    -> wrapper (
+        fun st -> (size_compare st.size sz) > 0
+        )
+      | Size_smaller_than sz   -> wrapper (
+        fun st -> (size_compare st.size sz) < 0
+        )
+      | Size_equal_to sz       -> wrapper (
+        fun st -> (size_compare st.size sz) = 0
+        )
+      | Size_fuzzy_equal_to sz -> wrapper (
+        fun st -> (size_compare ~fuzzy:true st.size sz) = 0 
+        )
       | True            -> fun x -> true
       | False           -> fun x -> false
-      | Is_owned_by_user_ID  -> fun x -> Unix.geteuid () = fst (stat_ugid x)
-      | Is_owned_by_group_ID -> fun x -> Unix.getegid () = snd (stat_ugid x)
-      | Is_newer_than(f1,f2) -> fun x -> 
-        (stat_mtime f1) < (stat_mtime f2)
-      | Is_older_than(f1,f2) -> fun x -> (stat_mtime f1) > (stat_mtime f2)
-      | Has_same_device_and_inode(f1,f2) -> 
-        fun x -> (stat_dev f1,stat_inode f1) = (stat_dev f2, stat_inode f2)
-      | Exists    -> fun x -> let _ = stat_right x in  true
+      | Is_owned_by_user_ID  -> wrapper (
+        fun st -> Unix.geteuid () = st.owner
+        )
+      | Is_owned_by_group_ID -> wrapper (
+        fun st -> Unix.getegid () = st.group_owner
+        )
+      | Is_newer_than(f1)    -> 
+          begin
+            try 
+              let st1 = stat f1
+              in
+              wrapper (fun st2 -> st1.modification_time < st2.modification_time)
+            with FileDoesntExist ->
+              fun x -> false
+          end
+      | Is_older_than(f1)    -> 
+          begin
+            try 
+              let st1 = stat f1
+              in
+              wrapper (fun st2 -> st2.modification_time > st2.modification_time)
+            with FileDoesntExist ->
+              fun x -> false
+          end
+      | Is_newer_than_date(dt) -> wrapper (fun st -> st.modification_time > dt)
+      | Is_older_than_date(dt) -> wrapper (fun st -> st.modification_time < dt)
       | And(flt1,flt2) ->
-        begin
-        fun x -> 
-          let cflt1 = (compile_filter flt1)
-          in
-          let cflt2 = (compile_filter flt2)
-          in
-          (cflt1 x) && (cflt2 x)
-        end
+        let cflt1 = (compile_filter flt1)
+        in
+        let cflt2 = (compile_filter flt2)
+        in
+        fun x -> (cflt1 x) && (cflt2 x)
       | Or(flt1,flt2) ->
-        begin
-        fun x -> 
-          let cflt1 = (compile_filter flt1)
-          in
-          let cflt2 = (compile_filter flt2)
-          in
-          (cflt1 x) || (cflt2 x)
-        end
+        let cflt1 = (compile_filter flt1)
+        in
+        let cflt2 = (compile_filter flt2)
+        in
+        fun x -> (cflt1 x) || (cflt2 x)
       | Not(flt1) ->
-        begin
-        fun x -> 
-          let cflt1 = (compile_filter flt1)
-          in
-          not (cflt1 x)
-        end  
+        let cflt1 = (compile_filter flt1)
+        in
+        fun x -> not (cflt1 x)
       | Match(r) ->
-        begin
         let reg = OperationRegexp.compile r
         in
         fun x -> OperationRegexp.test reg x
-        end
       | Has_extension(ext) ->
         begin
-        fun x -> try 
-          check_extension x (extension_of_string ext)
-        with FilePathNoExtension ->
-          false
+          fun x -> 
+            try 
+              check_extension x (extension_of_string ext)
+            with FilePathNoExtension ->
+              false
         end
       | Has_no_extension ->
-          begin
-            fun x -> try
+        begin
+          fun x -> 
+            try
               let _ = chop_extension x 
               in 
               false
-        with FilePathNoExtension ->
-          true
+            with FilePathNoExtension ->
+              true
         end
       | Is_current_dir ->
         fun x -> (is_current (basename x))
       | Is_parent_dir ->
         fun x -> (is_parent  (basename x))
       | Basename_is s ->
-          let rs = reduce s
-          in
-          fun x -> (reduce (basename x)) = rs
+        let rs = reduce s
+        in
+        fun x -> (reduce (basename x)) = rs
       | Dirname_is s ->
-          let rs = reduce s
-          in
-          fun x -> (reduce (dirname x)) = rs
+        let rs = reduce s
+        in
+        fun x -> (reduce (dirname x)) = rs
+      | Custom f ->
+          f
     in
-    fun x -> ( try res_filter x with FileDoesntExist -> false )
+    fun x -> res_filter x 
 
   let ls dirname =
-    let array_dir = Sys.readdir dirname
+    let real_dirname = 
+      if is_current dirname then
+        current_dir
+      else
+        dirname
+    in
+    let array_dir = Sys.readdir real_dirname
     in
     let list_dir  = Array.to_list array_dir
     in
@@ -549,12 +752,12 @@ struct
         if test Is_dir fln then
           ()
         else
-          raise MkdirDirnameAlreadyUsed 
+          raise (MkdirDirnameAlreadyUsed fln)
       else
         try 
           Unix.mkdir fln mode 
         with Unix.Unix_error(Unix.ENOENT,_,_) | Unix.Unix_error(Unix.ENOTDIR,_,_) ->
-          raise MkdirMissingComponentPath
+          raise (MkdirMissingComponentPath fln)
     in
     let directories = 
       if parent then 
@@ -570,7 +773,7 @@ struct
     else 
       ()
 
-  let find ?(follow = Skip) tst fln =
+  let find ?(follow = Skip) tst fln exec accu =
     let ctest = compile_filter (And(tst,Not(Or(Is_parent_dir,Is_current_dir))))
     in
     let cdir  = compile_filter (And(Is_dir,Not(Or(Is_parent_dir,Is_current_dir))))
@@ -585,50 +788,46 @@ struct
       else
         true    
     in
-    let rec find_simple (already_read,fln_set) fln =
+    let rec find_simple (already_read,accu) fln =
       let newly_read = prevent_recursion already_read (make_absolute (pwd ()) (readlink fln))
       in
       let dir_content = ls fln
       in
-      let new_set = unique_sorted fln_set (List.filter ctest dir_content)
+      let new_accu = List.fold_left exec accu (List.filter ctest dir_content)
       in
       let directories = List.filter clink (List.filter cdir dir_content)
       in
       if directories = [] then
-        (newly_read,new_set)
+        (newly_read,new_accu)
       else
-        List.fold_left find_simple (newly_read,new_set) directories
+        List.fold_left find_simple (newly_read,new_accu) directories
     in
-    let (_,fln_set) = 
-      find_simple (SetFilename.empty,SetFilename.empty) fln
-    in
-    SetFilename.elements fln_set
+    snd(find_simple (SetFilename.empty,accu) fln)
 
   let rm ?(force=Force) ?(recurse=false) fln_lst =
-    let cdir = compile_filter Is_dir
-    in
-    let rm_simple fln =
-      if cdir fln then
-        try 
+    let rmdir () fln =
+      try 
+        if doit force fln then
           Unix.rmdir fln
-        with Unix.Unix_error(Unix.ENOTEMPTY,_,_) ->
-          raise RmDirNotEmpty
-      else 
+        else
+          ()
+      with Unix.Unix_error(Unix.ENOTEMPTY,_,_) ->
+        raise (RmDirNotEmpty fln)
+    in
+    let rmfile () fln =
+      if doit force fln then
         Unix.unlink fln
+      else
+        ()
     in
-    let all_files = 
-      unique_sorted SetFilename.empty
-      (
-        List.filter (doit force)
-        (
-          if recurse then
-            List.flatten (List.map (find True) fln_lst)
-          else
-            fln_lst
-        )
-      )
+    let rmfull (fln:filename) = 
+      find (Not(Is_dir)) fln rmfile ();
+      find (Is_dir) fln rmdir ()
     in
-    List.iter rm_simple (SetFilename.elements all_files)
+    if recurse then
+      List.iter rmfull fln_lst 
+    else
+      List.iter (rmfile ()) (filter (Not(Is_dir)) fln_lst)
 
   let cp ?(follow=Skip) ?(force=Force) ?(recurse=false) fln_src_lst fln_dst = 
     let cwd = pwd ()

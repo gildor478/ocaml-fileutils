@@ -11,7 +11,22 @@ v0.2.2 :
   * Implement pwd ( closes : #39 )
   * Implement cmp ( closes : #37, #38 )
   * Implement new test : Has_no_extension | Basename_is | Dirname_is
-  * Implement an anti recursion system ( experimental, need to be tested )
+  * Implement an anti recursion system ( experimental, need to be tested ) :
+    * Use a type action_link : Follow, Skip, SkipInform, AskFollow
+    * Maitain a set of visited directories
+  * Implement new test : Is_older_than_date, Is_newer_than_date, Size_bigger_than,
+    Size_smaller_than, Size_equal_to, Size_fuzzy_equal_to, Custom
+  * Rewrite the test : Is_older_than, Is_newer_than, now takes only one args
+  * Implement type size and operation coming along ( add, sub, convert, compare,
+    string_of_size ).
+  * Implement type permission / base_permission and operation coming along (
+    permissin_of_int, int_of_permission ).
+  * Implement type kind ( Dir, File... ).
+  * Implement function stat 
+  * Rewrite find, in order to be able to execute codes foreach filename. Very useful 
+    for rewriting other functions ( rm, cp, mv )
+  * Use list argument in place of single filename for rm, cp
+  * Fix a bug that prevent ls to be able to list ""
 
 v0.2.1 :
   * Minor bug fixes to correct website aspect
