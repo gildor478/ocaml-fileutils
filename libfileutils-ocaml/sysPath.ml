@@ -138,6 +138,19 @@ PATH_SPECIFICATION
 module GenericPath : META_PATH_SPECIFICATION = 
 functor ( OsOperation : OS_SPECIFICATION ) ->
 struct
+	(* Debug function *)
+
+	let debug_print_component lst=
+		let debug_print_one_component elem =
+			match elem with
+			  Root s      -> "Root : "^s
+			| Component s -> "Component : "^s
+			| ParentDir   -> "ParenDir"
+			| CurrentDir  -> "CurrentDir"
+		in
+		List.iter print_string (List.map (fun x -> (debug_print_one_component x)^" ;") lst);
+		print_newline ()
+
 	(* Explode *)
 
 	let explode str = 
@@ -301,11 +314,11 @@ struct
 
 	(* Make_relative *)
 
-	let rec make_relative_list lst_base lst_path =
-		let make_relative_list_aux lst_base lst_path =
+	let make_relative_list lst_base lst_path =
+		let rec make_relative_list_aux lst_base lst_path =
 			match  (lst_base, lst_path) with
 			x :: tl_base, a :: tl_path when x = a ->
-				make_relative_list tl_base tl_path
+				make_relative_list_aux tl_base tl_path
 			| _, _ ->
 				let back_to_base = List.rev_map 
 					(fun x -> ParentDir)
