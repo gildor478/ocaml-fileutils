@@ -28,7 +28,6 @@ type extension = SysPath_type.extension
 
 module type OS_SPECIFICATION =
 sig
-	val filename_of_filename_part : filename_part -> filename
 	val dir_writer                : (filename_part list) -> string
 	val dir_reader                : Lexing.lexbuf -> (filename_part list)
 	val path_writer               : (filename list) -> string
@@ -64,6 +63,10 @@ val make_absolute : filename -> filename -> filename
 (** Create a path which is relative to the base path *)
 val make_relative : filename -> filename -> filename
 
+(** Reparent a path : reparent fln_src fln_dst fln, return the same filename as fln 
+    but the root is no more fln_src but fln_dst *)
+val reparent : filename -> filename -> filename -> filename 
+
 (** Identity : for testing the stability of implode/explode *)
 val identity : filename -> filename
 
@@ -89,6 +92,9 @@ val get_extension   : filename -> extension
 (** Check the extension *)
 val check_extension : filename -> extension -> bool
 
+(** Add an extension *)
+val add_extension   : filename -> extension -> filename
+
 (*****************************************)
 (** Transformation of PATH like variable *)
 (*****************************************)
@@ -108,8 +114,6 @@ val read_path_variable : string -> filename list
     are context depedent and cannot be interpreted as simple 
     component without the rest of the string. Use it at your own 
     risk *)
-val filename_of_filename_part : filename_part -> filename
-val filename_part_of_filename : filename -> filename_part
 
 val current_dir : filename
 val parent_dir  : filename
@@ -127,40 +131,14 @@ end
 ;;
 
 module type META_PATH_SPECIFICATION =
-functor ( OsOperation : OS_SPECIFICATION ) -> PATH_SPECIFICATION
-(*sig
-val basename        : filename -> filename_part
-val dirname         : filename -> filename
-val up_dir          : filename -> filename 
-val concat      : filename -> filename_part -> filename
-val reduce : filename -> filename
-val make_absolute : filename -> filename -> filename
-val make_relative : filename -> filename -> filename
-val identity : filename -> filename
-val is_valid : filename -> bool
-val is_relative : filename -> bool
-val is_implicit : filename -> bool
-val chop_extension  : filename -> filename
-val get_extension   : filename -> extension 
-val check_extension : filename -> extension -> bool
-val make_path_variable : filename list -> string
-val read_path_variable : string -> filename list
-val filename_of_filename_part : filename_part -> filename
-val filename_part_of_filename : filename -> filename_part
-val current_dir : filename_part
-val parent_dir  : filename_part
-val root        : string -> filename_part
-val component   : string -> filename_part
-val implode : filename_part list -> filename
-val explode : filename -> filename_part list   
-end*)
+functor ( OsOperation : OS_SPECIFICATION ) -> 
+PATH_SPECIFICATION
 ;;
 
 module GenericPath : META_PATH_SPECIFICATION = 
 functor ( OsOperation : OS_SPECIFICATION ) ->
 struct
-	let filename_of_filename_part =
-		OsOperation.filename_of_filename_part
+	(* Explode *)
 
 	let explode str = 
 		try 
@@ -170,33 +148,44 @@ struct
 		with Parsing.Parse_error ->
 			raise SysPathInvalidFilename
 
-	let filename_part_of_filename x =
-		match explode x with
-		  [ y ] -> y
-		| [] -> raise SysPathEmpty
-		| _  -> raise SysPathFilenameMultiple
-
+	(* Implode *)
 
 	let implode lst = 
 		OsOperation.dir_writer lst 
 
-	let concat fln1 fln2 = 
-		(* We use a lot of time to concatenate because of the @ 
-		   we should try to avoid this kind of behavior *)
-		implode  ((explode fln1) @ (explode fln2))
+	(* Concat *)
 
-	let is_relative fln  = 
-		match explode fln with
+	let concat_list lst_fln1 lst_fln2 =
+		implode (lst_fln1 @ lst_fln2)
+	
+	let concat fln1 fln2 = 
+		concat_list  (explode fln1) (explode fln2)
+
+	(* Is_relative *)
+
+	let is_relative_list lst_fln =
+		match lst_fln with
 		 (Root _) :: _ -> false
 		| _            -> true
 
-	let is_implicit fln  = 
-		match explode fln with
+	let is_relative fln  = 
+		is_relative_list ( explode fln )
+	
+	(* Is_implicit *)
+	
+	let is_implicit_list lst_fln  = 
+		match lst_fln with
 		  ParentDir :: _ 
 		| CurrentDir :: _ 
 		| Component _ :: _ -> true
 		| _                -> false
 
+	let is_implicit fln =
+		is_implicit_list ( explode fln )
+
+	
+	(* Is_valid *)
+	
 	let is_valid fln =
 		try
 			let _ = explode fln
@@ -205,6 +194,8 @@ struct
 		with SysPathInvalidFilename ->
 			false
 
+	(* Basename *)
+
 	let basename fln = 
 		match List.rev ( explode fln ) with	
 		  hd :: tl ->
@@ -212,12 +203,16 @@ struct
 		| [] ->
 			raise SysPathEmpty
 
+	(* Dirname *)
+
 	let dirname fln = 
 		match List.rev ( explode fln ) with
 		  hd :: tl ->
 			implode (List.rev tl)
 		| [] ->
 			raise SysPathEmpty
+
+	(* Extension manipulation *)
 
 	let split_extension fln = 
 		match explode (basename fln) with
@@ -247,11 +242,10 @@ struct
 		in
 		real_fln
 
-	let check_base_path path =
-		if is_relative path then
-			raise SysPathBasePathRelative
-		else
-			()
+	let add_extension fln ext =
+		fln^"."^ext
+
+	(* Reduce *)
 
 	let rec reduce_list path_lst =
 		let stack_dir = Stack.create ()
@@ -279,62 +273,75 @@ struct
 			| Component _ 
 			| Root _       -> Stack.push itm stack_dir
 		in
-		let lst = 
-			List.iter walk_path path_lst;
-			to_list ()
-		in
-		lst
-
-	let reduce path =
-		if is_relative path then
+		if is_relative_list path_lst then
 			raise SysPathRelativeUnreducable
 		else
-			implode (reduce_list (explode path))
+			let lst = 
+				List.iter walk_path path_lst;
+				to_list ()
+			in
+			lst
+
+	let reduce path =
+		implode (reduce_list (explode path))
+
+	(* Make_asbolute *)
 
 	let make_absolute_list lst_base lst_path =
-		reduce_list (lst_base @ lst_path)
+		if is_relative_list lst_base then
+			raise SysPathBasePathRelative
+		else if is_relative_list lst_path then
+			reduce_list (lst_base @ lst_path)
+		else
+			reduce_list (lst_path)
+
 
 	let make_absolute base_path path =
-		if is_relative path then
-			begin
-			let list_absolute =
-				check_base_path base_path;
-				make_absolute_list 
-					(reduce_list (explode base_path))
-					(explode path)
-			in
-			implode list_absolute
-			end
-		else
-			path
+		implode (make_absolute_list (explode base_path) (explode path))
+
+	(* Make_relative *)
 
 	let rec make_relative_list lst_base lst_path =
-		match  (lst_base, lst_path) with
-		x :: tl_base, a :: tl_path when x = a ->
-			make_relative_list tl_base tl_path
-		| _, _ ->
-			let back_to_base = List.rev_map 
-				(fun x -> ParentDir)
-				lst_base
-			in
-			back_to_base @ lst_path
+		let make_relative_list_aux lst_base lst_path =
+			match  (lst_base, lst_path) with
+			x :: tl_base, a :: tl_path when x = a ->
+				make_relative_list tl_base tl_path
+			| _, _ ->
+				let back_to_base = List.rev_map 
+					(fun x -> ParentDir)
+					lst_base
+				in
+				back_to_base @ lst_path
+		in
+		if is_relative_list lst_base then
+			raise SysPathBasePathRelative
+		else if is_relative_list lst_path then
+			(reduce_list lst_path)
+		else
+			make_relative_list_aux (reduce_list lst_base) (reduce_list lst_path)
+
 
 	let make_relative base_path path =
-		if is_relative path then
-			path
-		else
-			begin
-			let list_relative =
-				check_base_path base_path;
-				make_relative_list 
-					(reduce_list (explode base_path))
-					(reduce_list (explode path))
-			in
-			implode list_relative
-			end
+		implode (make_relative_list (explode base_path) (explode path))
 
+	(* Reparent *)
+
+	let reparent_list lst_src lst_dst lst_fln =
+		let lst_relative =
+			make_relative_list lst_src lst_fln
+		in
+		make_absolute_list lst_dst lst_relative
+
+	let reparent fln_src fln_dst fln =
+		implode (reparent_list (explode fln_src) (explode fln_dst) (explode fln))
+
+	(* Identity *)
+	
 	let identity fln =
 		implode (explode fln)
+
+	
+	(* Dangerous functions *)
 
 	let parent_dir  = implode [ParentDir]
 
@@ -345,6 +352,8 @@ struct
 	let component s = implode [Component s]
 
 	let up_dir fln  = reduce ( concat fln parent_dir )
+
+	(* Manipulate path like variable *)
 
 	let make_path_variable lst = 
 		OsOperation.path_writer lst
@@ -361,7 +370,6 @@ end
 
 
 module UnixPath : PATH_SPECIFICATION = GenericPath(struct
-	let filename_of_filename_part = UnixPath.filename_of_filename_part
 	let dir_writer                = UnixPath.dir_writer
 	let dir_reader                = UnixPath.dir_reader
 	let path_writer               = UnixPath.path_writer
@@ -370,7 +378,6 @@ end)
 ;;
 
 module MacOSPath : PATH_SPECIFICATION = GenericPath(struct
-	let filename_of_filename_part = MacOSPath.filename_of_filename_part
 	let dir_writer                = MacOSPath.dir_writer
 	let dir_reader                = MacOSPath.dir_reader
 	let path_writer               = MacOSPath.path_writer
@@ -379,7 +386,6 @@ end)
 ;;
 
 module Win32Path : PATH_SPECIFICATION = GenericPath(struct 
-	let filename_of_filename_part = Win32Path.filename_of_filename_part
 	let dir_writer                = Win32Path.dir_writer
 	let dir_reader                = Win32Path.dir_reader
 	let path_writer               = Win32Path.path_writer
@@ -388,7 +394,6 @@ end)
 ;;
 (*
 module CygwinPath : PATH_SPECIFICATION = GenericPath(struct
-	let filename_of_filename_part = CygwinPath.filename_of_filename_part
 	let dir_writer                = CygwinPath.dir_writer
 	let dir_reader                = CygwinPath.dir_reader
 	let path_writer               = CygwinPath.path_writer
@@ -411,8 +416,6 @@ let (
  make_relative,
  make_path_variable,
  read_path_variable,
- filename_of_filename_part,
- filename_part_of_filename,
  current_dir,
  parent_dir,
  root,
@@ -437,8 +440,6 @@ let (
                    UnixPath.make_relative,
                    UnixPath.make_path_variable,
                    UnixPath.read_path_variable,
-                   UnixPath.filename_of_filename_part,
-                   UnixPath.filename_part_of_filename,
                    UnixPath.current_dir,
                    UnixPath.parent_dir,
                    UnixPath.root,
@@ -462,8 +463,6 @@ let (
                    MacOSPath.make_relative,
                    MacOSPath.make_path_variable,
                    MacOSPath.read_path_variable,
-                   MacOSPath.filename_of_filename_part,
-                   MacOSPath.filename_part_of_filename,
                    MacOSPath.current_dir,
                    MacOSPath.parent_dir,
                    MacOSPath.root,
@@ -487,8 +486,6 @@ let (
                    Win32Path.make_relative,
                    Win32Path.make_path_variable,
                    Win32Path.read_path_variable,
-                   Win32Path.filename_of_filename_part,
-                   Win32Path.filename_part_of_filename,
                    Win32Path.current_dir,
                    Win32Path.parent_dir,
                    Win32Path.root,

@@ -1,14 +1,6 @@
 
 open SysPath_type;;
 
-let filename_of_filename_part cmp =
-	match cmp with
-	  Root s -> s^":"
-	| ParentDir -> ".."
-	| CurrentDir -> "."
-	| Component s -> s
-;;
-
 let rec dir_writer lst = 
 	match lst with 
 	  Root s :: tl ->

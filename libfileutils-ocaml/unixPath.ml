@@ -1,14 +1,6 @@
 
 open SysPath_type;;
 
-let filename_of_filename_part cmp =
-	match cmp with
-	  Root _ -> ""
-	| ParentDir -> ".."
-	| CurrentDir -> "."
-	| Component s -> s
-;;
-
 let dir_writer lst = 
 	let dir_sep = "/"
 	in

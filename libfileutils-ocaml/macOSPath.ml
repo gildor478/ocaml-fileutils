@@ -1,16 +1,6 @@
 
 open SysPath_type;;
 
-(* Using this function is really not relevant, since MacPath are really
-   context dependent *)
-let filename_of_filename_part cmp =
-	match cmp with
-	  Root s -> s
-	| ParentDir -> ""
-	| CurrentDir -> ""
-	| Component s -> s
-;;
-
 let rec dir_writer lst =
 	let buffer = Buffer.create path_length
 	in
@@ -36,7 +26,11 @@ let rec dir_writer lst =
 		| [] ->
 			Buffer.contents buffer
 	in
-	dir_writer_aux lst
+	match lst with
+	  ParentDir :: _ -> 
+	  	dir_writer_aux ( CurrentDir :: lst )
+	| _ -> 
+		dir_writer_aux lst
 ;;
 
 let dir_reader      = MacOSPath_parser.main_filename 
