@@ -21,7 +21,7 @@ let dir_reader  = Win32Path_parser.main_filename
 	Win32Path_lexer.token_filename
 ;;
 
-let path_writer lst = String.concat ":" lst
+let path_writer lst = String.concat ";" lst
 ;;
 
 let path_reader     = Win32Path_parser.main_path_variable 

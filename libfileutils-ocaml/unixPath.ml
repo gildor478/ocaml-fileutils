@@ -1,17 +1,19 @@
 
 open SysPath_type;;
 
-let dir_writer lst = 
-	let dir_sep = "/"
-	in
-	let rec dir_writer_aux cmp =
-		match cmp with
-		  Root _ -> ""
-		| ParentDir -> ".."
-		| CurrentDir -> "."
-		| Component s -> s
-	in
-	String.concat dir_sep ( List.map dir_writer_aux lst )
+let rec dir_writer lst = 
+	match lst with 
+	  Root s :: tl ->
+	  	"/"^(dir_writer tl)
+	| lst ->
+		let rec dir_writer_aux cmp =
+			match cmp with
+			  Root _ -> ""
+			| ParentDir -> ".."
+			| CurrentDir -> "."
+			| Component s -> s
+		in
+		String.concat "/" ( List.map dir_writer_aux lst )
 ;;
 
 let dir_reader  = UnixPath_parser.main_filename 

@@ -28,6 +28,9 @@ INSTALLIB = \
 	sysPath.cmi \
 	sysUtil.cmi \
 	META
+OCAMLDOC = \
+	sysPath.ml \
+	sysUtil.mli 
 
 include ../TopMakefile
 

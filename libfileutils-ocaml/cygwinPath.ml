@@ -21,7 +21,7 @@ let dir_reader     = CygwinPath_parser.main_filename
 	CygwinPath_lexer.token_filename
 ;;
 
-let path_writer lst = String.concat ":" lst
+let path_writer lst = String.concat ";" lst
 ;;
 
 let path_reader    = CygwinPath_parser.main_path_variable 

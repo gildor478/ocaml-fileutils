@@ -18,9 +18,7 @@ prefix=@prefix@
 exec_prefix=@exec_prefix@
 BINDIR=@bindir@
 LIBDIR=@libdir@
-
-# where to install the man page
-MANDIR=@mandir@
+DOCDIR=@docdir@
 
 # other variables set by ./configure
 USE_OCAMLFIND=@USE_OCAMLFIND@
@@ -31,17 +29,30 @@ OCAMLWIN32   = @OCAMLWIN32@
 OCAMLP4      = @OCAMLP4@
 OCAMLYACC    = @OCAMLYACC@
 OCAMLLEX     = @OCAMLLEX@
+OCAMLDOC     = @OCAMLDOC@
 EXE          = @EXE@
-TEMPBUILDLIB = @TEMPLIB@
+TEMPBUILD    = @TEMPLIB@
+TEMPBUILDLIB = @TEMPLIB@/lib
+TEMPBUILDEXE = @TEMPLIB@/bin
+TEMPBUILDDOC = @TEMPLIB@/doc
 
 #INSTALLLIB    (destdir,name,files)  : install a library
 #REMOVELIB     (destdir,name)        : uninstall a library
+#INSTALLEXE    (destdir,file)        : install an executable
+#REMOVEEXE     (destdir,file)        : uninstall an executable
+#INSTALLDOC    (destdir,file)        : install an odoc file
+#REMOVEDOC     (destdir,file)        : uninstall an odoc file
 #CLI_OCAMLCLIB (requires,predicates) : compile a lib ( ocamlc )
 #CLI_OCAMLOLIB (requires,predicates) : compile a lib ( ocamlopt )
 #CLI_OCAMLCEXE (requires,predicates) : compile an executable ( ocamlc )
 #CLI_OCAMLOEXE (requires,predicates) : compile an executable ( ocamlopt )
 #CLI_OCAMLC    (requires,predicates) : compile ( ocamlc )
 #CLI_OCAMLOPT  (requires,predicates) : compile ( ocamlopt )
+
+INSTALLEXE = cp $2 $1
+REMOVEEXE  = $(RM) $2/$1
+INSTALLDOC = cp $2 $1
+REMOVEDOC  = $(RM) $2/$1
 
 ifeq "$(USE_OCAMLFIND)" "yes"
 	OCAMLC     = @OCAMLFIND@ ocamlc 
@@ -98,6 +109,7 @@ else
 endif
 
 all: $(if $(LIBRARY), install-buildlib, $(OCAMLBEST))
+all: $(if $(ODOC), install-builddoc,)
 
 CMX = $(CMO:.cmo=.cmx)
 
@@ -106,7 +118,9 @@ GENERATED = version.ml
 byte:      $(if $(LIBRARY), $(NAME).cma, $(NAME).byte)
 opt:       $(if $(LIBRARY), $(NAME).cmxa, $(NAME).opt)
 install:   $(if $(LIBRARY), install-lib, install-exe)
+install:   $(if $(ODOC), install-doc,)
 uninstall: $(if $(LIBRARY), uninstall-lib, uninstall-exe)
+uninstall: $(if $(ODOC), uninstall-doc,)
 
 # Build the lib
 
@@ -116,10 +130,7 @@ $(NAME).cma: $(CMO)
 $(NAME).cmxa: $(CMX)
 	$(call CLI_OCAMLOLIB,$(REQUIRES),$(PREDICATES),$(NAME)) $(INCLUDES) $(CMX)
 
-$(TEMPBUILDLIB):
-	mkdir $(TEMPBUILDLIB)
-
-install-buildlib: $(TEMPBUILDLIB) byte opt 
+install-buildlib: byte opt 
 	$(call CLI_REMOVELIB,$(TEMPBUILDLIB),$(NAME))
 	$(call CLI_INSTALLIB,$(TEMPBUILDLIB),$(NAME),$(INSTALLIB))
 
@@ -129,6 +140,20 @@ install-lib: byte opt
 uninstall-lib: 
 	$(call CLI_REMOVELIB,$(LIBDIR),$(NAME))
 
+# Write the documentation
+
+$(NAME).odoc: $(CMO)
+	$(OCAMLDOC) $(ODOC) -dump $@
+	
+install-builddoc: $(NAME).odoc
+	$(call INSTALLDOC,$(TEMPBUILDDOC),$(NAME).odoc)
+
+install-doc: $(NAME).odoc
+	$(call INSTALLDOC,$(DOCDIR),$(NAME).odoc)
+
+uninstall-doc: 
+	$(call UNINSTALLDOC,$(DOCDIR),$(NAME).odoc)
+
 # Build the executable
 
 BLIBS = $(addsuffix .cma,$(LIBS))
@@ -136,15 +161,30 @@ BLIBS = $(addsuffix .cma,$(LIBS))
 $(NAME).byte: $(CMO)
 	$(call CLI_OCAMLCEXE,$(REQUIRES),$(PREDICATES),$(NAME)) $(INCLUDES) $(BLIBS) $(CMO)
 
+install-exebuild: $(NAME).byte
+	$(call INSTALLEXE,$(TEMPBUILDEXE),$(NAME).byte)
+
+install-exe: $(NAME).byte
+	$(call INSTALLEXE,$(BINDIR),$(NAME).byte)
+
 OLIBS = $(addsuffix .cmxa,$(LIBS))
 
 $(NAME).opt: $(CMX)
 	$(call CLI_OCAMLOEXE,$(REQUIRES),$(PREDICATES),$(NAME))  $(INCLUDES) $(OLIBS) $(CMX)
 
+install-exebuild: $(NAME).opt
+	$(call INSTALLEXE,$(TEMPBUILDEXE),$(NAME).opt)
+
+install-exe: $(NAME).opt
+	$(call INSTALLEXE,$(BINDIR),$(NAME).opt)
+
+uninstall-exe: 
+	$(call REMOVEEXE,$(BINDIR),$(NAME).opt)
+	$(call REMOVEEXE,$(BINDIR),$(NAME).byte)
 
 # Extra files
 
-VERSION=0.1
+VERSION=0.1.1
 
 version.ml: 
 	echo "let version = \""$(VERSION)"\"" > version.ml

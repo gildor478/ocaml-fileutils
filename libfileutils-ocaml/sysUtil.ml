@@ -178,7 +178,11 @@ let rec compile_filter flt =
 		| False           -> fun x -> false
 		| Is_owned_by_user_ID  -> fun x -> Unix.geteuid () = fst (stat_ugid x)
 		| Is_owned_by_group_ID -> fun x -> Unix.getegid () = snd (stat_ugid x)
-		| Is_newer_than(f1,f2) -> fun x -> (stat_mtime f1) < (stat_mtime f2)
+		| Is_newer_than(f1,f2) -> fun x -> 
+			print_endline ("mtime f1 : "^(string_of_float (stat_mtime f1)));
+			print_endline ("mtime f2 : "^(string_of_float (stat_mtime f2)));
+			print_newline ();
+			(stat_mtime f1) < (stat_mtime f2)
 		| Is_older_than(f1,f2) -> fun x -> (stat_mtime f1) > (stat_mtime f2)
 		| Has_same_device_and_inode(f1,f2) -> 
 			fun x -> (stat_dev f1,stat_inode f1) = (stat_dev f2, stat_inode f2)
