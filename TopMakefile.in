@@ -34,16 +34,11 @@ OCAMLWIN32 = @OCAMLWIN32@
 OCAMLFIND = @OCAMLFIND@
 OCAMLP4 = @OCAMLP4@
 EXE = @EXE@
-TEMPBUILDLIB=$(TOP_SRCDIR)/.libs
-BUILDLIB=@libdir@
+TEMPBUILDLIB=@TEMPLIB@
 OCAMLPATH=`echo $OCAMLPATH`:$(TEMPBUILDLIB)/
 export OCAMLPATH
 
 all: $(if $(LIBRARY), install-buildlib, $(OCAMLBEST))
-
-install: $(if $(LIBRARY), install-lib, install-exe)
-
-uninstall: $(if $(LIBRARY), uninstall-lib, uninstall-exe)
 
 CMX = $(CMO:.cmo=.cmx)
 
@@ -51,6 +46,8 @@ GENERATED = version.ml
 
 byte: $(if $(LIBRARY), $(NAME).cma, $(NAME).byte)
 opt: $(if $(LIBRARY), $(NAME).cmxa, $(NAME).opt)
+install: $(if $(LIBRARY), install-lib, install-exe)
+uninstall: $(if $(LIBRARY), uninstall-lib, uninstall-exe)
 
 # Build the lib
 
@@ -138,7 +135,6 @@ clean::
 	rm -f $(NAME).byte $(NAME).opt
 	rm -f $(NAME).cma $(NAME).cmxa
 	rm -f $(NAME).a META
-	$(OCAMLFIND) remove -destdir $(TEMPBUILDLIB) $(NAME)
 
 dist-clean distclean:: clean
 	rm -f TopMakefile Makefile config.cache config.log config.status

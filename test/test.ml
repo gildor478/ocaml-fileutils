@@ -24,6 +24,20 @@ let test_reduce test exp =
 		expect_equal_string "/a/b/c" (reduce exp)
 	)
 in
+let test_make_path test exp =
+	expect_pass ~desc:("Make Path " ^ test)
+	~body:( fun () ->
+		expect_equal_string "/a:b:/c/d" (make_path exp)
+	)
+in
+let test_explode_path test imp =
+	expect_pass ~desc:("Explode Path " ^ test)
+	~body:( fun () ->
+		expect_equal_list_string ["/a";"b";"/c/d"] (explode_path imp)
+	)
+in
+
+
 
 test_implode "absolute"		"/a/b/c" 	["" ; "a" ; "b" ; "c"];
 test_implode "implicit v1"		"a/b/c"  	["a"; "b"; "c"];
@@ -50,6 +64,7 @@ test_reduce "remove multiple .." 	"/a/b/../d/../b/c";
 test_reduce "remove multiple ." 	"/a/./././b/./c";
 test_reduce "remove multiple . and .." 	"/a/../a/./b/../c/../b/./c";
 
-
+test_make_path "identity"	["/a";"b";"/c/d"];
+test_explode_path "identity"	"/a:b:/c/d";
 
 ();;

@@ -119,38 +119,11 @@ let check_base_path path =
 ;; 
 
 let implode path =
-	match path with 
-	"" :: tl_lst ->
-		List.fold_left 
-			(concat) 
-			"/"
-			tl_lst	
-	| _ ->
-		List.fold_left 
-			(concat) 
-			""
-			path
-	
+	String.concat "/" path
 ;;
 
 let rec explode path =
-	let rec sub_path start s = 
-		try
-			let next_sep = String.index_from s start '/'
-			in
-			let component = (String.sub s start (next_sep - start)) 
-			in
-			(component :: sub_path (next_sep+1) s)
-		with Not_found ->
-			begin
-			match (String.length s)-start with
-			0 ->
-				[]
-			| x -> 
-				String.sub s start x :: []
-			end
-	in
-	sub_path 0 path
+	Str.split_delim (Str.regexp "/") path
 ;;
 
 let rec reduce_list path_lst =
@@ -175,11 +148,19 @@ let rec reduce_list path_lst =
 			safe_pop ()
 		else if itm = current_dir_name then
 			()
+		else if itm = "" then
+			()
 		else
 			safe_push itm
 	in
-	List.iter walk_path path_lst;
-	to_list ()
+	let lst = List.iter walk_path path_lst;
+		to_list ()
+	in
+	match path_lst with
+	"" :: _ ->
+		"" :: lst
+	| _ ->
+		lst
 ;;
 
 let reduce path =
@@ -266,3 +247,11 @@ let test tst fln =
 	in
 	ctst fln 
 ;;	
+
+let make_path lst =
+	String.concat ":" lst
+;;
+
+let explode_path s =	
+	Str.split (Str.regexp ":") s 
+;;

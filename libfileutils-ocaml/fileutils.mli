@@ -55,3 +55,9 @@ val filter_dir : test_file -> string list -> string list
 
 (** Test the existence of the file... *)
 val test : test_file -> string -> bool
+
+(** Create an environnement PATH like string from different path *)
+val make_path : string list -> string
+
+(** Return the different component of an environnement PATH like string *)
+val explode_path : string -> string list

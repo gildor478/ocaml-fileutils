@@ -1,9 +1,0 @@
-NAME = fileutils
-LIBRARY = true
-CMO = version.cmo fileutils.cmo 
-REQUIRES = unix  
-PREDICATES = 
-TOP_SRCDIR = @top_srcdir@
-INSTALLIB = fileutils.a fileutils.cmxa fileutils.cma fileutils.cmi META
-
-include ../TopMakefile

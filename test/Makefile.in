@@ -1,9 +1,0 @@
-REQUIRES = fileutils  
-PREDICATES = byte 
-TOP_SRCDIR = @top_srcdir@
-
-include ../TopMakefile
-
-test:
-	fort -I +fort `$(OCAMLFIND) query -i-format $(REQUIRES) -predicates $(PREDICATES)` \
-	`$(OCAMLFIND) query -a-format $(REQUIRES) -predicates $(PREDICATES)` test.ml
