@@ -1,0 +1,23 @@
+--------------
+ocaml-fileutils.
+--------------
+
+Prerequisite :
+
+In order to install you will need :
+- ocaml ( <= 3.06 )
+	http://caml.inria.fr/
+- ocamlfind ( <= 0.8 ) 
+	http://www.ocaml-programming.de/packages/
+- make, a C compiler
+
+Installing :
+1) Go in the untared source directory
+2) ./configure
+3) make
+4) make install
+
+Uninstalling :
+With the same value you use to install
+1) Go in the untared source directory
+2) make uninstall

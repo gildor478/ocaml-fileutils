@@ -1,0 +1,17 @@
+--------------
+libexif-ocaml.
+--------------
+
+This library is a wrapper around libexif ( http://libexif.sourceforge.net ).
+It uses a different set of functions to correctly handle the type of each
+exif entry. 
+
+The type are separated in : string, byte, short, long, rational, srational,
+undefined.
+
+Please take a look at the documentation to see the different functions you
+can use to extract the exif tag from a file.
+
+Please report me any typing problem ( incoherent type for an entry ).
+
+Sylvain LE GALL
