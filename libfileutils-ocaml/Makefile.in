@@ -1,0 +1,14 @@
+NAME = gallery_gui
+CMO = fileutils.cmo translation.cmo gallery_gui.cmo \
+	gControl.cmo \
+	applicationState.cmo \
+	gGalleryViewer.cmo \
+	gFolderList.cmo \
+	gImageBrowser.cmo \
+	gTreeGallery.cmo \
+	gallery_main.cmo
+REQUIRES = unix gallery lablgtk 
+PREDICATES = 
+TOP_SRCDIR = @top_srcdir@
+
+include ../TopMakefile

@@ -1,0 +1,138 @@
+#
+# sample Makefile for Objective Caml
+# Copyright (C) 2001 Jean-Christophe FILLIATRE
+# 
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Library General Public
+# License version 2, as published by the Free Software Foundation.
+# 
+# This library is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+# 
+# See the GNU Library General Public License version 2 for more details
+# (enclosed in the file LGPL).
+
+# where to install the binaries
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+BINDIR=@bindir@
+
+# where to install the man page
+MANDIR=@mandir@
+
+# other variables set by ./configure
+OCAMLFIND_COMMANDS = "ocamlc=@OCAMLC@ \
+	ocamlopt=@OCAMLOPT@ \
+	ocamldep=@OCAMLDEP@"
+OCAMLC   = @OCAMLFIND@ ocamlc 
+OCAMLOPT = @OCAMLFIND@ ocamlopt
+OCAMLDEP = @OCAMLFIND@ ocamldep
+OCAMLBEST = @OCAMLBEST@
+OCAMLVERSION = @OCAMLVERSION@
+OCAMLWIN32 = @OCAMLWIN32@
+OCAMLFIND = @OCAMLFIND@
+OCAMLP4 = @OCAMLP4@
+EXE = @EXE@
+TEMPBUILDLIB=$(TOP_SRCDIR)/.libs
+OCAMLPATH=$(TEMPBUILDLIB)/
+export OCAMLPATH
+
+all: $(if $(LIBRARY), install-buildlib, $(OCAMLBEST))
+
+CMX = $(CMO:.cmo=.cmx)
+
+GENERATED = version.ml
+
+byte: $(if $(LIBRARY), $(NAME).cma, $(NAME).byte)
+opt: $(if $(LIBRARY), $(NAME).cmxa, $(NAME).opt)
+
+# Build the lib
+
+$(NAME).cma: $(CMO) 
+	$(OCAMLC) -a -o $(NAME).cma $(INCLUDES) -package "$(REQUIRES)" -linkpkg \
+	-predicates "$(PREDICATES)" $(CMO)
+
+$(NAME).cmxa: $(CMX)
+	$(OCAMLOPT) -a -o $(NAME).cmxa $(INCLUDES) -package "$(REQUIRES)" \
+	-predicates "$(PREDICATES)" $(CMX)
+
+$(TEMPBUILDLIB):
+	mkdir $(TEMPBUILDLIB)
+
+install-buildlib: $(TEMPBUILDLIB) byte opt META
+	$(OCAMLFIND) install -destdir $(TEMPBUILDLIB) $(NAME) $(INSTALLIB)
+
+
+# Build the executable
+
+BLIBS = $(addsuffix .cma,$(LIBS))
+
+$(NAME).byte: $(CMO)
+	$(OCAMLC) -o $(NAME).byte $(INCLUDES) -package "$(REQUIRES)" -linkpkg \
+	-predicates "$(PREDICATES)" $(BLIBS) $(CMO)
+
+OLIBS = $(addsuffix .cmxa,$(LIBS))
+
+$(NAME).opt: $(CMX)
+	$(OCAMLOPT) -o $(NAME).opt $(INCLUDES) -package "$(REQUIRES)" -linkpkg \
+	-predicates "$(PREDICATES)" $(OLIBS) $(CMX)
+
+
+# Extra files
+
+VERSION=0.1
+
+version.ml: 
+	echo "let version = \""$(VERSION)"\"" > version.ml
+	echo "let date = \""`date`"\"" >> version.ml
+
+META:
+	echo "requires = \""$(REQUIRES)"\"" > META
+	echo "version = \""$(VERSION)"\"" >> META
+	echo "predicates = \""$(PREDICATES)"\"" >> META
+	echo "archive(byte) = \""$(NAME).cma"\"" >> META
+	echo "archive(native) = \""$(NAME).cmxa"\"" >> META
+	
+
+.SUFFIXES: .mli .ml .cmi .cmo .cmx .mll .mly .zog
+
+.mli.cmi:
+	$(OCAMLC) $(INCLUDES) -package "$(REQUIRES)" -predicates "$(PREDICATES)" -c $<
+
+.ml.cmo:
+	$(OCAMLC) $(INCLUDES) -package "$(REQUIRES)" -predicates "$(PREDICATES)" -c $<
+
+.ml.o:
+	$(OCAMLOPT) $(INCLUDES) -package "$(REQUIRES)" -predicates "$(PREDICATES)" -c $<
+	
+.ml.cmx:
+	$(OCAMLOPT) $(INCLUDES) -package "$(REQUIRES)" -predicates "$(PREDICATES)" -c $<
+	
+.mll.ml:
+	$(OCAMLLEX) $<
+
+.mly.ml:
+	$(OCAMLYACC) -v $<
+
+.mly.mli:
+	$(OCAMLYACC) -v $<
+	
+.zog.ml:
+	$(OCAMLP4) pa_o.cmo pa_zog.cma  pr_o.cmo -impl $< > $@
+	
+clean::
+	rm -f *.cm[iox] *.o *~
+	rm -f $(GENERATED) parser.output
+	rm -f $(NAME).byte $(NAME).opt
+	rm -f $(NAME).cma $(NAME).cmxa
+	rm -f $(NAME).a META
+
+dist-clean distclean:: clean
+	rm -f TopMakefile Makefile config.cache config.log config.status
+
+.depend depend:: $(GENERATED)
+	rm -f .depend
+	$(OCAMLDEP) $(INCLUDES) *.ml *.mli > .depend
+
+include .depend
