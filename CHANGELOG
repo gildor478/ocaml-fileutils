@@ -4,6 +4,13 @@ v0.2.2 :
   * Change --enable-docdir --enable-builddir to --withXX ( closes: #32 )
   * Configure now test that ocamlfind is not detected and that we want to
     use ocamlfind ( closes: #34 )
+  * Correct error concerning parsing of "" as a current dir ( closes : #40 )
+  * Correct error concerning the test Has_extension ( closes : #41 )
+  * Use a new CurrenDir of (Long|Short) to denote the difference between "" and "."
+  * Implement readlink
+  * Implement pwd ( closes : #39 )
+  * Implement cmp ( closes : #37, #38 )
+  * Implement new test : Has_no_extension | Basename_is | Dirname_is
 
 v0.2.1 :
   * Minor bug fixes to correct website aspect

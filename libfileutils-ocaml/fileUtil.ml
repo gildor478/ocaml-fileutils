@@ -29,7 +29,8 @@ common unix utilities ( but try to be more portable )*)
 
 (** {1 Exceptions}*)
 
-exception File_doesnt_exist
+exception FileDoesntExist
+exception RecursiveLink of string
 exception RmDirNotEmpty
 exception MkdirMissingComponentPath
 exception MkdirDirnameAlreadyUsed
@@ -39,6 +40,7 @@ exception CpCannotCopy
 exception CpNoSourceFile
 exception MvNoSourceFile
 
+open FilePath
 open FilePath.DefaultPath
 
 (** {1 File utils specification} *)
@@ -130,10 +132,15 @@ sig
 		(** Always false *)
 		| Has_extension of string
 		(** Check extension *)
+                | Has_no_extension
+                (** Check absence of extension *)
 		| Is_parent_dir 
 		(** Is it the parent dir *)
 		| Is_current_dir
 		(** Is it the current dir *)
+                | Basename_is of filename
+                (** Check the basename *)
+                | Dirname_is of filename
 
 	(** {2 Common operation on file }*)
 
@@ -173,6 +180,25 @@ sig
 
 	(** Move files/directory to another destination *)
 	val mv : ?force:interactive -> filename -> filename -> unit
+
+        (** Return the real filename of a filename which could have link *)
+        val readlink : filename -> filename 
+
+        (** Return the currend dir *)
+        val pwd : unit -> filename
+
+        (** cmp skip1 fln1 skip2 fln2 : Compare files fln1 fln2 starting at pos
+            skip1 skip2 and returning the first octect where a difference
+            occurs. Returns (Some -1) if one of the file is not readable or
+            if it is not a file. *)
+        val cmp : ?skip1:int -> filename -> ?skip2:int -> filename -> int option
+ 
+        (** For future release :
+          - type filename_size = TO of int | GO of int | MO of int | KO of int | O of int
+          - du : filename -> ?pattern:test -> size * ( filename * size ) list
+          - pathchk : filename -> boolean * string
+          - test : Is_bigger_than_size(x), Is_smaller_than_size(x),
+          Is_equal_to_size(x), Is_newer_than_date *)
 end
 ;;
 
@@ -187,6 +213,11 @@ functor ( OperationRegexp : OPERATION_REGEXP ) ->
 struct
 	type filename = string
 
+        module SetFilename = Set.Make (struct
+          type t = filename
+          let compare = FilePath.DefaultPath.compare
+        end)
+        
 	type interactive =
 		  Force
 		| Ask of (string -> bool)
@@ -228,8 +259,11 @@ struct
 		| True
 		| False
 		| Has_extension of string
+                | Has_no_extension
 		| Is_parent_dir
 		| Is_current_dir
+                | Basename_is of string
+                | Dirname_is of string
 
 	let stat_type filename =
 		try
@@ -244,9 +278,18 @@ struct
 			| Unix.S_FIFO -> Fifo 
 			| Unix.S_SOCK -> Socket
 		with Unix.Unix_error(_) ->
-			raise File_doesnt_exist 
+			raise FileDoesntExist 
 
 	let stat_type_match tp filename = stat_type filename = tp
+	
+        let stat_type_match_link filename = 
+                try
+                  let stats = Unix.lstat filename
+                  in
+                  stats.Unix.st_kind = Unix.S_LNK
+                with Unix.Unix_error(_) ->
+                  raise FileDoesntExist
+                  
 
 	let stat_right filename =
 		try
@@ -254,7 +297,7 @@ struct
 			in
 			stats.Unix.st_perm 
 		with Unix.Unix_error(_) ->
-			raise File_doesnt_exist
+			raise FileDoesntExist
 
 	let stat_right_match right filename = 
 		(stat_right filename land right) <> 0
@@ -272,7 +315,7 @@ struct
 			in
 			stats.Unix.st_size
 		with Unix.Unix_error(_) ->
-			raise File_doesnt_exist
+			raise FileDoesntExist
 
 	let stat_ugid filename =
 		try
@@ -280,7 +323,7 @@ struct
 			in
 			(stats.Unix.st_uid,stats.Unix.st_gid)
 		with Unix.Unix_error(_) ->
-			raise File_doesnt_exist
+			raise FileDoesntExist
 
 	let stat_mtime filename =
 		try
@@ -288,7 +331,7 @@ struct
 			in
 			stats.Unix.st_mtime
 		with Unix.Unix_error(_) ->
-			raise File_doesnt_exist
+			raise FileDoesntExist
 
 	let stat_dev filename =
 		try
@@ -296,7 +339,7 @@ struct
 			in
 			(stats.Unix.st_dev,stats.Unix.st_rdev)
 		with Unix.Unix_error(_) ->
-			raise File_doesnt_exist
+			raise FileDoesntExist
 
 	let stat_inode filename =
 		try
@@ -304,7 +347,7 @@ struct
 			in
 			stats.Unix.st_ino
 		with Unix.Unix_error(_) ->
-			raise File_doesnt_exist
+			raise FileDoesntExist
 
 	let rec compile_filter flt =
 		let res_filter =
@@ -315,7 +358,7 @@ struct
 			| Is_file         -> stat_type_match File
 			| Is_set_group_ID -> stat_right_match right_sticky_group
 			| Has_sticky_bit  -> stat_right_match right_sticky
-			| Is_link         -> stat_type_match Link
+			| Is_link         -> stat_type_match_link
 			| Is_pipe         -> stat_type_match Fifo
 			| Is_readable     -> stat_right_match right_read
 			| Is_writeable    -> stat_right_match right_write
@@ -371,12 +414,29 @@ struct
 				with FilePathNoExtension ->
 					false
 				end
+                        | Has_no_extension ->
+                                begin
+                                fun x -> try
+                                        let _ = chop_extension x 
+                                        in 
+                                        false
+                                with FilePathNoExtension ->
+                                        true
+                                end
 			| Is_current_dir ->
 				fun x -> (is_current (basename x))
 			| Is_parent_dir ->
 				fun x -> (is_parent  (basename x))
+                        | Basename_is s ->
+                                let rs = reduce s
+                                in
+                                fun x -> (reduce (basename x)) = rs
+                        | Dirname_is s ->
+                                let rs = reduce s
+                                in
+                                fun x -> (reduce (dirname x)) = rs
 		in
-		fun x -> ( try res_filter x with File_doesnt_exist -> false )
+		fun x -> ( try res_filter x with FileDoesntExist -> false )
 
 	let ls dirname =
 		let array_dir = Sys.readdir dirname
@@ -396,6 +456,46 @@ struct
 		in
 		ctst fln 
 
+        let all_upper_dir fln = 
+                let rec all_upper_dir_aux lst fln = 
+                  let dir = dirname fln
+                  in
+                  match lst with
+                    prev_dir :: tl when prev_dir = dir ->
+                      lst
+                  | _ ->
+                      all_upper_dir_aux (dir :: lst) dir
+                in
+                all_upper_dir_aux [fln] fln
+                
+        let readlink fln =
+                let rec readlink_aux already_read fln = 
+                  let newly_read = 
+                    if SetFilename.mem fln already_read then
+                      raise (RecursiveLink fln)
+                    else
+                      SetFilename.add fln already_read
+                  in
+                  let ctst = compile_filter Is_link
+                  in
+                  let dirs = all_upper_dir fln
+                  in
+                  try 
+                    let src_link = List.find ctst (List.rev dirs)
+                    in
+                    let dst_link = Unix.readlink src_link 
+                    in
+                    let real_link = 
+                      if is_relative dst_link then
+                        reduce (concat (dirname src_link) dst_link)
+                      else
+                        reduce dst_link
+                    in
+                    readlink_aux newly_read (reparent src_link real_link fln)
+                  with Not_found ->
+                    fln
+                in readlink_aux SetFilename.empty fln
+                  
 	let which ?(path) fln =
 		let real_path =
 			match path with
@@ -630,6 +730,46 @@ struct
 		end
 		else
 			()
+                        
+        let pwd () = reduce (Sys.getcwd ())
+
+        let cmp ?(skip1 = 0) fln1 ?(skip2 = 0) fln2 =
+          if (reduce fln1) = (reduce fln2) then
+            None
+          else if (test (And(Is_readable,Is_file)) fln1) && (test (And(Is_readable,Is_file)) fln2 ) then
+            let fd1 = open_in_bin fln1
+            in
+            let fd2 = open_in_bin fln2
+            in
+            let _ = seek_in fd1 skip1
+            in
+            let _ = seek_in fd2 skip2
+            in
+            let stream1 = Stream.of_channel fd1
+            in
+            let stream2 = Stream.of_channel fd2
+            in
+            try 
+              while ( (Stream.next stream1) = (Stream.next stream2) ) 
+              do () done;
+              Some (Stream.count stream1)
+            with Stream.Failure ->
+              let test_empty st = 
+                try 
+                  Stream.empty st;
+                  true
+                with Stream.Failure ->
+                  false
+              in
+              match ((test_empty stream1),(test_empty stream2)) with
+                true, true   -> None
+              | true, false 
+              | false, true 
+              (* Don't know how this case could be... *)
+              | false, false -> Some (Stream.count stream1)
+          else
+            (Some (-1))
+                      
 end
 ;;
 
