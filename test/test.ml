@@ -226,6 +226,69 @@ expect_pass ~desc:"Mkdir recurse v2"
 	mkdir ~parent:true (implode [dir_test; "essai4"; "essai5"]);
 	expect_true (test Is_dir (implode [dir_test; "essai4"; "essai5"]))
 );
-		
-	
+
+expect_pass ~desc:"Find v1"
+~body:(fun () ->
+	let lst = find True dir_test 
+	in
+	expect_equal_list_string 		
+		(List.map (concat dir_test) [
+			concat "essai4" "essai5";
+			"essai4";
+			"essai3";
+			"essai2";
+			"essai1";
+			"essai0"
+		])
+		lst 
+
+);
+
+expect_pass ~desc:"Find v2"
+~body:(fun () ->
+	let lst = find Is_dir dir_test
+	in
+	expect_equal_list_string 
+		(List.map (concat dir_test) [
+			concat "essai4" "essai5";
+			"essai4";
+			"essai3";
+			"essai2"
+		])
+		lst
+);
+			
+expect_pass ~desc:"Find v3"
+~body:(fun () ->
+	let lst = find Is_file dir_test
+	in
+	expect_equal_list_string 
+		(List.map (concat dir_test) [
+			"essai1";
+			"essai0"
+		])
+		lst
+);
+
+expect_pass ~desc:"Rm v1"
+~body:(fun () ->
+	rm (concat dir_test "essai2");
+	expect_true (test (Not Exists) (concat dir_test "essai2"))
+);
+
+Fort.test ~desc:"Rm v2"
+~body:(fun () ->
+	try 
+		rm (concat dir_test "essai4");
+		Pass
+	with RmDirNotEmpty ->
+		XFail
+);
+
+expect_pass ~desc:"Rm v3"
+~body:(fun () ->
+	rm ~recurse:true dir_test;
+	expect_true (test (Not Exists) dir_test)
+);
+
 ();;

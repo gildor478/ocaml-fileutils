@@ -4,6 +4,12 @@ common unix utilities ( but try to be more portable )*)
 
 open SysPath;;
 
+type filename = string
+
+type interactive =
+	  Force
+	| Ask of (filename -> bool)
+
 type fs_type = 
 	Dir  
 	| File 
@@ -14,10 +20,44 @@ type fs_type =
 	| Socket
 ;;	
 
+type test_file =
+	Is_dev_block
+	| Is_dev_char
+	| Is_dir
+	| Exists
+	| Is_file
+	| Is_set_group_ID
+	| Has_sticky_bit
+	| Is_link
+	| Is_pipe
+	| Is_readable
+	| Is_writeable
+	| Size_not_null
+	| Is_socket
+	| Has_set_user_ID
+	| Is_exec
+	| Is_owned_by_user_ID
+	| Is_owned_by_group_ID
+	| Is_newer_than of string * string
+	| Is_older_than of string * string
+	| Has_same_device_and_inode of string * string
+	| And of test_file * test_file
+	| Or of test_file * test_file
+	| Not of test_file
+	| Match of string
+	| True
+	| False
+;;
+
 exception File_doesnt_exist ;;
 exception RmDirNotEmpty;;
 exception MkdirMissingComponentPath;;
 exception MkdirDirnameAlreadyUsed;;
+exception CpCannotCopyDirToDir;;
+exception CpCannotCopyDirToFile;;
+exception CpCannotCopy;;
+exception CpNoSourceFile;;
+exception MvNoSourceFile;;
 
 let stat_type filename =
 	try
@@ -113,85 +153,6 @@ let stat_inode filename =
 	with Unix.Unix_error(_) ->
 		raise File_doesnt_exist
 ;;
-
-type test_file =
-	(** FILE exists and is block special *)
-	Is_dev_block
-	(** FILE exists and is character special *)
-	| Is_dev_char
-	(** FILE exists and is a directory *)
-	| Is_dir
-	(** FILE exists *)
-	| Exists
-	(** FILE exists and is a regular file *)
-	| Is_file
-	(** FILE exists and is set-group-ID *)
-	| Is_set_group_ID
-	(** FILE exists and has its sticky bit set *)
-	| Has_sticky_bit
-	(** FILE exists and is a symbolic link *)
-	| Is_link
-	(** FILE exists and is a named pipe *)
-	| Is_pipe
-	(** FILE exists and is readable *)
-	| Is_readable
-	(** FILE exists and is writeable *)
-	| Is_writeable
-	(** FILE exists and has a size greater than zero *)
-	| Size_not_null
-	(** FILE exists and is a socket *)
-	| Is_socket
-	(** FILE exists and its set-user-ID bit is set *)
-	| Has_set_user_ID
-	(** FILE exists and is executable *)
-	| Is_exec
-	(** FILE exists and is owned by the effective user ID *)
-	| Is_owned_by_user_ID
-	(** FILE exists and is owned by the effective group ID *)
-	| Is_owned_by_group_ID
-	(** FILE1 is newer (modification date) than FILE2 *)
-	| Is_newer_than of string * string
-	(** FILE1 is older than FILE2 *)
-	| Is_older_than of string * string
-	(** FILE1 and FILE2 have the same device and inode numbers *)
-	| Has_same_device_and_inode of string * string
-	(** Result of TEST1 and TEST2 *)
-	| And of test_file * test_file
-	(** Result of TEST1 or TEST2 *)
-	| Or of test_file * test_file
-	(** Result of not TEST *)
-	| Not of test_file
-	(** Match Str regex *)
-	| Match of string
-	(** Always true *)
-	| True
-	(** Always false *)
-	| False
-;;
-
-(*let test_file_of_string x =
-	match x with 
-	"-b" -> Is_dev_block
-	| "-c" -> Is_dev_char
-	| "-d" -> Is_dir
-	| "-e" -> Exists
-	| "-f" -> Is_file
-	| "-g" -> Is_set_group_ID
-	| "-k" -> Has_sticky_bit
-	| "-L" -> Is_link
-	| "-p" -> Is_pipe
-	| "-r" -> Is_readable
-	| "-s" -> Size_not_null
-	| "-S" -> Is_socket
-	| "-u" -> Has_set_user_ID
-	| "-w" -> Is_writeable
-	| "-x" -> Is_exec
-	| "-O" -> Is_owned_by_user_ID
-	| "-G" -> Is_owned_by_group_ID
-	| "-nt" -> Is_newer_than
-	| "-ot" -> Is_older_than
-	| "-ef" -> Has_same_device_and_inode
-*)
 
 let rec compile_filter flt =
 	let res_filter =
@@ -344,12 +305,13 @@ let touch ?(create=true) fln =
 ;;
 
 let find tst fln =
-	let ctest = compile_filter (And(tst,Not(Or(Match("\\.\\."),Match("\\.")))))
+	let ctest = compile_filter (And(tst,Not(Or(Match(".*/\\.\\.$"),Match(".*/\\.$")))))
 	in
-	let cdir  = compile_filter (And(Is_dir,Not(Or(Match("\\.\\."),Match("\\.")))))
+	let cdir  = compile_filter (And(Is_dir,Not(Or(Match(".*/\\.\\.$"),Match(".*/\\.$")))))
 	in
 	let rec find_simple fln =
-		let dir_content = list_dir fln
+		let dir_content = 
+			list_dir fln
 		in
 		List.fold_left 
 			(fun x y -> List.rev_append (find_simple y) x)
@@ -364,18 +326,159 @@ let find tst fln =
 		[]
 ;;
 
-let rm ?(recurse=false) fln =
+let rm ?(force=Force) ?(recurse=false) fln =
 	let rm_simple fln =
-		if test Is_dir fln then
+		let doit = 
+			match force with
+		 	  Force -> true
+			| Ask ask -> ask fln
+		in
+		if doit && (test Is_dir fln) then
 			try 
 				Unix.rmdir fln
 			with Unix.Unix_error(Unix.ENOTEMPTY,_,_) ->
 				raise RmDirNotEmpty
-		else
+		else if doit then
 			Unix.unlink fln
+		else 
+			()
 	in
 	if recurse then
-		List.iter rm_simple (find True fln)
+		begin
+		List.iter rm_simple (find True fln);
+		rm_simple fln
+		end
 	else
 		rm_simple fln
+;;
+
+
+let cp ?(force=Force) ?(recurse=false) fln_src fln_dst = 
+	let cwd = Sys.getcwd ()
+	in
+	let cp_simple fln_src fln_dst =
+		let doit = 
+			(* We do not accept to copy a file over himself *)
+			(* Use reduce to get rid of trick like ./a to a *)
+			(
+				( reduce fln_src ) <> ( reduce fln_dst )
+			)
+			&&
+			(
+				if test Exists fln_dst then
+					match force with
+					  Force -> true
+					| Ask ask -> ask fln_dst
+				else
+					true
+			)
+		in
+		if doit then
+			match stat_type fln_src with
+			  File -> 
+				begin
+					let buffer_len = 1024
+					in
+					let buffer = String.make buffer_len ' '
+					in
+					let read_len = ref 0
+					in
+					let ch_in = open_in_bin fln_src
+					in
+					let ch_out = open_out_bin fln_dst
+					in
+					while (read_len := input ch_in buffer 0 buffer_len; !read_len <> 0 ) do
+						output ch_out buffer 0 !read_len
+					done;
+					close_in ch_in;
+					close_out ch_out
+				end
+			| Dir ->
+				mkdir fln_dst
+			(* We do not accept to copy this kind of files *)
+			(* It is too POSIX specific, should not be     *)
+			(* implemented on other platform               *)
+			| Link 
+			| Fifo 
+			| Dev_char 
+			| Dev_block
+			| Socket ->
+				raise CpCannotCopy
+		else
+			()
+	in
+	let cp_dir () = 
+		let fln_src_abs = make_absolute cwd fln_src
+		in
+		let fln_dst_abs = make_absolute cwd fln_dst
+		in
+		let fln_src_lst = find True fln_src_abs
+		in
+		let fln_dst_lst = List.map 
+			(fun x -> make_absolute fln_dst_abs (make_relative fln_src_abs x))
+			fln_src_lst
+		in
+		List.iter2 cp_simple fln_src_lst fln_dst_lst
+	in
+	match (test Is_dir fln_src, test Is_dir fln_dst, recurse) with
+	  ( true, true, true) ->
+	  	cp_dir ()
+	| ( true, true,false) ->
+		raise CpCannotCopyDirToDir
+	| ( true,false, true) ->
+		if test Exists fln_dst then
+			raise CpCannotCopyDirToFile
+		else
+			(mkdir fln_dst; cp_dir ())
+	| ( true,false,false) ->
+		raise CpCannotCopyDirToDir
+	| (false, true, true) 
+	| (false, true,false) ->
+		if test Exists fln_src then
+			let fln_src_abs = make_absolute cwd fln_src
+			in
+			let fln_dst_abs = make_absolute cwd fln_dst
+			in
+			cp_simple fln_src_abs (make_absolute fln_dst_abs (basename fln_src_abs))
+	| (false,false, true) 
+	| (false,false,false) ->
+		if (test Exists fln_src) then
+			cp_simple (make_absolute cwd fln_src) (make_absolute cwd fln_dst)
+		else 
+			raise CpNoSourceFile
+;;
+
+let rec mv ?(force=Force) fln_src fln_dst =
+	let cwd = Sys.getcwd ()
+	in
+	let fln_src_abs =  make_absolute cwd fln_src 
+	in
+	let fln_dst_abs =  make_absolute cwd fln_dst
+	in
+	if fln_src_abs <> fln_dst_abs then
+	begin
+		if test Exists fln_dst_abs then
+		begin
+			let doit = 
+				match force with
+				  Force -> true
+				| Ask ask -> ask fln_dst
+			in
+			if doit then
+			begin
+				rm fln_dst_abs;
+				mv fln_src_abs fln_dst_abs
+			end
+			else
+				()
+		end
+		else if test Is_dir fln_dst_abs then
+			mv ~force:force fln_src_abs (make_absolute fln_dst_abs (basename fln_src_abs))
+		else if test Exists fln_src_abs then
+			Unix.rename fln_src_abs fln_src_abs
+		else
+			raise MvNoSourceFile
+	end
+	else
+		()
 ;;
