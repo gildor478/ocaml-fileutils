@@ -23,32 +23,30 @@
 (*                                                                        *)
 (**************************************************************************)
 
-open FilePath_type;;
+type filename_part =
+	Root of string
+	| ParentDir 
+	| CurrentDir
+	| Component of string
 
-let rec dir_writer lst = 
-	match lst with 
-	  Root s :: tl ->
-	  	"/"^(dir_writer tl)
-	| lst ->
-		let rec dir_writer_aux cmp =
-			match cmp with
-			  Root _ -> ""
-			| ParentDir -> ".."
-			| CurrentDir -> "."
-			| Component s -> s
-		in
-		String.concat "/" ( List.map dir_writer_aux lst )
+type filename = string
+
+type extension = string
+
+(* Utility function to parse filename *)
+
+let begin_string str lst =
+	(str,lst)
 ;;
 
-let dir_reader  = UnixPath_parser.main_filename 
-	UnixPath_lexer.token_filename
+let add_string str1 (str2,lst) = 
+	(str1 ^ str2,lst)
 ;;
 
-let path_writer lst = 
-	String.concat ":" lst
+let end_string (str,lst) =
+	(Component str) :: lst
 ;;
 
-let path_reader     = UnixPath_parser.main_path_variable 
-	UnixPath_lexer.token_path_variable
+(* Definition of the caracteristic length of a path *)
+let path_length = 80
 ;;
-

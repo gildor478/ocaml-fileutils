@@ -1,7 +1,32 @@
+(**************************************************************************)
+(*   Ocaml-fileutils                                                      *)
+(*                                                                        *)
+(*   Copyright (C) 2003, 2004 Sylvain Le Gall <sylvain@le-gall.net>       *)
+(*                                                                        *)
+(*   This program is free software; you can redistribute it and/or        *)
+(*   modify it under the terms of the GNU Library General Public          *)
+(*   License as published by the Free Software Foundation; either         *)
+(*   version 2 of the License, or any later version ; with the OCaml      *)
+(*   static compilation exception.                                        *)
+(*                                                                        *)
+(*   This program is distributed in the hope that it will be useful,      *)
+(*   but WITHOUT ANY WARRANTY; without even the implied warranty of       *)
+(*   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.                 *)
+(*   See the LICENCE file for more details.                               *)
+(*                                                                        *)
+(*   You should have received a copy of the GNU General Public License    *)
+(*   along with this program; if not, write to the Free Software          *)
+(*   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA             *)
+(*   02111-1307  USA                                                      *)
+(*                                                                        *)
+(*   Contact: sylvain@le-gall.net                                         *)
+(*                                                                        *)
+(**************************************************************************)
+
 open Fort;;
-open SysPath;;
+open FilePath;;
 open DefaultPath;;
-open SysUtil;;
+open FileUtil;;
 open StrUtil;;
 
 
@@ -117,7 +142,7 @@ TestCygwin.os_string := "Cygwin"
 ;;
 
 (*********************)
-(* Unix SysPath test *)
+(* Unix FilePath test*)
 (*********************)
 
 (* Reduce path *)
@@ -163,7 +188,7 @@ List.iter TestUnix.make_relative
 ];
 
 (**********************)
-(* Win32 SysPath test *)
+(* Win32 FilePath test*)
 (**********************)
 
 let test_path = 
@@ -226,7 +251,7 @@ List.iter TestWin32.make_relative
 ];
 
 (**********************)
-(* MacOS SysPath test *)
+(* MacOS FilePath test*)
 (**********************)
 
 let test_path = 
@@ -277,7 +302,7 @@ List.iter TestMacOS.make_relative
 ];
 
 (***********************)
-(* Cygwin SysPath test *)
+(* Cygwin FilePath test*)
 (***********************)
 
 (* Reduce path *)
@@ -320,7 +345,7 @@ List.iter TestCygwin.make_relative
 ];
 
 (****************)
-(* SysUtil test *)
+(* FileUtil test*)
 (****************)
 
 (* Test to be performed *)
@@ -384,7 +409,7 @@ in
   Fort.test ~desc:"Touch in not existing subdir"
   ~body:( fun () ->
   	try 
-  		SysUtil.StrUtil.touch (make_filename [dir_test;"doesntexist";"essai0"]);
+  		FileUtil.StrUtil.touch (make_filename [dir_test;"doesntexist";"essai0"]);
   		Pass
   	with _ ->
   		XFail

@@ -9,9 +9,9 @@ v0.2 :
     implementation.
   * Introduce relation ( updir, subdir, compare ) to allow manipulating
     filename in classical structure ( Set, Map... )
-  * Remove debian subdir. It will go to svn of pkg-ocaml-maint, since i consider
-    that it is better to split things which are not generic regarding this package
-    ( ie apart from debian users, nobody care about having debian/ in the tarball )
+  * Rename sysPath, sysUtil to filePath, fileUtil since it appears that it is 
+    more consistent regarding the name of the library ( i was not convinced, that 
+    sysPath represents anything ).
 
 v0.1.1 ( devel ) :
 

@@ -1,29 +1,54 @@
-open SysPath_type;;
+(**************************************************************************)
+(*   Ocaml-fileutils                                                      *)
+(*                                                                        *)
+(*   Copyright (C) 2003, 2004 Sylvain Le Gall <sylvain@le-gall.net>       *)
+(*                                                                        *)
+(*   This program is free software; you can redistribute it and/or        *)
+(*   modify it under the terms of the GNU Library General Public          *)
+(*   License as published by the Free Software Foundation; either         *)
+(*   version 2 of the License, or any later version ; with the OCaml      *)
+(*   static compilation exception.                                        *)
+(*                                                                        *)
+(*   This program is distributed in the hope that it will be useful,      *)
+(*   but WITHOUT ANY WARRANTY; without even the implied warranty of       *)
+(*   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.                 *)
+(*   See the LICENCE file for more details.                               *)
+(*                                                                        *)
+(*   You should have received a copy of the GNU General Public License    *)
+(*   along with this program; if not, write to the Free Software          *)
+(*   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA             *)
+(*   02111-1307  USA                                                      *)
+(*                                                                        *)
+(*   Contact: sylvain@le-gall.net                                         *)
+(*                                                                        *)
+(**************************************************************************)
+
+open FilePath_type;;
 
 (** Module to manipulate abstract filename ( doesn't need to be real path ).*)
 
 (** {1 Exceptions } *)
 
 (** You cannot pass a base filename which is relative *)
-exception SysPathBaseFilenameRelative;;
+exception FilePathBaseFilenameRelative;;
 
 (** One of the filename passed is relative and cannot be reduce *)
-exception SysPathRelativeUnreducable;;
+exception FilePathRelativeUnreducable;;
 
 (** We do not have recognized any OS, please contact upstream *)
-exception SysPathUnrecognizedOS of string;;
+exception FilePathUnrecognizedOS of string;;
 
 (** An expansion of filename_part_of_filename generate more than one component *)
-exception SysPathFilenameMultiple;;
+exception FilePathFilenameMultiple;;
 
 (** The filename use was empty *)
-exception SysPathEmpty;;
+exception FilePathEmpty;;
 
 (** The last component of the filename does not support extension ( Root, ParentDir... ) *)
-exception SysPathNoExtension;;
+exception FilePathNoExtension;;
 
 (** The filename used is invalid *)
-exception SysPathInvalidFilename;;
+exception FilePathInvalidFilename;;
 
 (** {1 Filename utility specification} *)
 
@@ -171,9 +196,9 @@ PATH_STRING_SPECIFICATION
 module GenericPath : META_PATH_SPECIFICATION = 
 functor ( OsOperation : OS_SPECIFICATION ) ->
 struct
-	type filename = SysPath_type.filename_part list
+	type filename = FilePath_type.filename_part list
 
-	type extension = SysPath_type.extension
+	type extension = FilePath_type.extension
 
 	(* Debug function *)
 
@@ -196,7 +221,7 @@ struct
 			in
 			OsOperation.dir_reader lexbuf
 		with Parsing.Parse_error ->
-			raise SysPathInvalidFilename
+			raise FilePathInvalidFilename
 
 	(* String_from_filename *)
 
@@ -333,7 +358,7 @@ struct
 		  hd :: tl ->
 			[hd]
 		| [] ->
-			raise SysPathEmpty
+			raise FilePathEmpty
 
 	(* Dirname *)
 
@@ -342,7 +367,7 @@ struct
 		  hd :: tl ->
 			List.rev tl
 		| [] ->
-			raise SysPathEmpty
+			raise FilePathEmpty
 
 	(* Extension manipulation *)
 
@@ -357,7 +382,7 @@ struct
 			in
 			((dirname path) @ [Component base], ext)
 		| _ ->
-			raise SysPathNoExtension
+			raise FilePathNoExtension
 
 	let check_extension path ext = 
 		let (real_path, real_ext) = split_extension path
@@ -379,7 +404,7 @@ struct
 		  Component str :: tl ->
 		  	List.rev ( Component (str^"."^ext) :: tl )
 		| _ ->
-			raise SysPathNoExtension
+			raise FilePathNoExtension
 
 
 	let extension_of_string x = x
@@ -390,7 +415,7 @@ struct
 
 	let make_absolute path_base path_path =
 		if is_relative path_base then
-			raise SysPathBaseFilenameRelative
+			raise FilePathBaseFilenameRelative
 		else if is_relative path_path then
 			reduce (path_base @ path_path)
 		else
@@ -411,7 +436,7 @@ struct
 				back_to_base @ lst_path
 		in
 		if is_relative path_base then
-			raise SysPathBaseFilenameRelative
+			raise FilePathBaseFilenameRelative
 		else if is_relative path_path then
 			reduce path_path
 		else
@@ -446,7 +471,7 @@ struct
 			in
 			List.map filename_of_string (OsOperation.path_reader lexbuf)
 		with Parsing.Parse_error ->
-			raise SysPathInvalidFilename
+			raise FilePathInvalidFilename
 end 
 ;;
 
@@ -507,7 +532,7 @@ struct
 	let is_valid path =
 		try
 			PathOperation.is_valid (s2f path)
-		with SysPathInvalidFilename ->
+		with FilePathInvalidFilename ->
 			false
 
 	let is_relative path  = 
@@ -567,7 +592,7 @@ module AbstractDefaultPath : PATH_SPECIFICATION = GenericPath(struct
 		| "MacOS"  -> macos
 		| "Win32"  -> win32
 		| "Cygwin" -> cygwin
-		| s        -> raise (SysPathUnrecognizedOS s)
+		| s        -> raise (FilePathUnrecognizedOS s)
 		
 	let dir_writer  = os_depend UnixPath.dir_writer  MacOSPath.dir_writer  Win32Path.dir_writer  CygwinPath.dir_writer
 	let dir_reader  = os_depend UnixPath.dir_reader  MacOSPath.dir_reader  Win32Path.dir_reader  CygwinPath.dir_reader
