@@ -11,6 +11,7 @@ v0.2.2 :
   * Implement pwd ( closes : #39 )
   * Implement cmp ( closes : #37, #38 )
   * Implement new test : Has_no_extension | Basename_is | Dirname_is
+  * Implement an anti recursion system ( experimental, need to be tested )
 
 v0.2.1 :
   * Minor bug fixes to correct website aspect
