@@ -34,6 +34,8 @@ uninstall:
 
 clean:: mkdir-temp-clean
 	cd libfileutils-ocaml && $(MAKE) clean
+	cd test               && $(MAKE) clean
+	cd website            && $(MAKE) clean
 
 doc: mkdir-temp
 	cd libfileutils-ocaml && $(MAKE) doc

@@ -215,7 +215,7 @@ $(NAME).opt: $(CMX)
 
 # Extra files
 
-VERSION=0.2.2
+VERSION=0.3
 
 version.ml: 
 	echo "let version = \""$(VERSION)"\"" > version.ml

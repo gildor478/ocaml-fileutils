@@ -691,6 +691,9 @@ struct
   let filter flt lst =
     List.filter (test flt) lst
 
+  let pwd () = 
+    reduce (Sys.getcwd ())
+    
   let all_upper_dir fln = 
     let rec all_upper_dir_aux lst fln = 
       let dir = dirname fln
@@ -726,10 +729,8 @@ struct
       with Not_found ->
         fln
     in 
-    readlink_aux SetFilename.empty fln
+    readlink_aux SetFilename.empty (make_absolute (pwd ()) fln)
                   
-  let pwd () = reduce (Sys.getcwd ())
-    
   let which ?(path) fln =
     let real_path =
       match path with
@@ -818,6 +819,10 @@ struct
     snd(find_simple (SetFilename.empty,accu) fln)
 
   let rm ?(force=Force) ?(recurse=false) fln_lst =
+    let cfile = (And(Custom (doit force),Or(Not(Is_dir),Is_link)))
+    in
+    let cdir  = (And(Custom (doit force),Is_dir))
+    in
     let rmdir () fln =
       try 
           Unix.rmdir fln
@@ -828,9 +833,9 @@ struct
         Unix.unlink fln
     in
     let rmfull fln = 
-      find (And(Custom (doit force),Not(Is_dir))) fln rmfile ();
+      find cfile fln rmfile ();
       let set_dir = 
-        find (And(Custom (doit force),Is_dir)) fln 
+        find cdir fln 
         ( fun set fln -> SetFilename.add fln set) SetFilename.empty
       in
       List.iter (rmdir ()) (SetFilename.elements set_dir)
@@ -838,7 +843,10 @@ struct
     if recurse then
       List.iter rmfull fln_lst 
     else
-      List.iter (rmfile ()) (filter (And(Custom (doit force),Not(Is_dir))) fln_lst)
+      begin
+      List.iter (rmfile ()) (filter cfile fln_lst);
+      List.iter (rmdir  ()) (filter cdir fln_lst)
+      end
 
   let cp ?(follow=Skip) ?(force=Force) ?(recurse=false) fln_src_lst fln_dst = 
     let cpfile fln_src fln_dst =

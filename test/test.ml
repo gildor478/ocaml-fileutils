@@ -735,9 +735,11 @@ let test_fileutil =
             
             "Find v4 ( link follow )" >::
             (fun () ->
-              let set = find ~follow:Follow Is_dir dir_test ( fun set fln -> SetFilename.add fln set ) SetFilename.empty
-              in
-              assert_bool "find symlink follow fails" ( SetFilename.equal set (SetFilename.add symlink !dirs) )
+              try 
+                find ~follow:Follow Is_dir dir_test ( fun () fln -> () ) ();
+                assert_failure "find follow should have failed, since there is recursive symlink"
+              with RecursiveLink _ ->
+                ()
             );
 
             "Find v5 ( no link follow )" >::
@@ -750,7 +752,7 @@ let test_fileutil =
             "Unix delete symlink" >::
             ( fun () ->
               rm [ symlink ];
-              assert_bool "rm symlink failed" (test Exists symlink)
+              assert_bool "rm symlink failed" (test (Not Exists) symlink)
             )
           ]
       | _ ->
