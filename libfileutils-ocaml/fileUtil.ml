@@ -41,10 +41,10 @@ exception RecursiveLink of filename
 exception RmDirNotEmpty of filename
 exception MkdirMissingComponentPath of filename
 exception MkdirDirnameAlreadyUsed of filename
-exception CpCannotCopyDirToDir of filename
-exception CpCannotCopyDirToFile of filename
 exception CpCannotCopy of filename
-exception CpNoSourceFile
+exception CpNoSourceFile of filename
+exception CpCannotCopyFilesToFile of (filename list) * filename 
+exception CpCannotCopyDir of filename
 exception MvNoSourceFile
 
 (** The policy concerning the links which are directory *)
@@ -255,7 +255,8 @@ sig
   val rm : ?force:interactive -> ?recurse:bool -> filename list -> unit
 
   (** Copy the hierarchy of files/directory to another destination *)
-  val cp : ?follow:action_link -> ?force:interactive -> ?recurse:bool -> filename list -> filename -> unit
+  val cp : ?follow:action_link -> ?force:interactive -> ?recurse:bool -> 
+    filename list -> filename -> unit
 
   (** Move files/directory to another destination *)
   val mv : ?force:interactive -> filename -> filename -> unit
@@ -436,10 +437,10 @@ let size_compare ?(fuzzy=false) sz1 sz2 =
   |     _ ,    _ -> raise SizeInvalid
 
 (** size_add sz1 sz2 : add sz1 to sz2, result is in the unit of sz1 *)
-let size_add sz1 sz2 = size_apply_operation (+.)
+let size_add sz1 sz2 = size_apply_operation (+.) sz1 sz2
 
 (** size_sub sz1 sz2 : substract sz1 to sz2, result is in the unit of sz1 *)
-let size_sub sz1 sz2 = size_apply_operation (-.) 
+let size_sub sz1 sz2 = size_apply_operation (-.) sz1 sz2
 
 (** Convert a value to a string representation. If fuzzy is set to true, only
 * consider the most significant unit *)
@@ -820,9 +821,9 @@ struct
       else
         ()
     in
-    let rmfull (fln:filename) = 
-      find (Not(Is_dir)) fln rmfile ();
-      find (Is_dir) fln rmdir ()
+    let rmfull fln = 
+      find (And(Custom (doit force),Not(Is_dir))) fln rmfile ();
+      find (And(Custom (doit force),Is_dir)) fln rmdir ()
     in
     if recurse then
       List.iter rmfull fln_lst 
@@ -830,127 +831,89 @@ struct
       List.iter (rmfile ()) (filter (Not(Is_dir)) fln_lst)
 
   let cp ?(follow=Skip) ?(force=Force) ?(recurse=false) fln_src_lst fln_dst = 
-    let cwd = pwd ()
-    in
-    let cp_simple fln_src fln_dst =
-      let doit = 
-        (* We do not accept to copy a file over himself *)
-        (* Use reduce to get rid of trick like ./a to a *)
-        (
-          reduce fln_src <> reduce fln_dst
-        )
-        &&
-        (
-          if test Exists fln_dst then
-            match force with
-              Force -> true
-            | Ask ask -> ask fln_dst
-          else
-            true
-        )
-      in
-      if doit then
-        match stat_type fln_src with
-          File -> 
-          begin
-            let buffer_len = 1024
-            in
-            let buffer = String.make buffer_len ' '
-            in
-            let read_len = ref 0
-            in
-            let ch_in = open_in_bin fln_src
-            in
-            let ch_out = open_out_bin fln_dst
-            in
-            while (read_len := input ch_in buffer 0 buffer_len; !read_len <> 0 ) do
-              output ch_out buffer 0 !read_len
-            done;
-            close_in ch_in;
-            close_out ch_out
-          end
-        | Dir ->
-          mkdir fln_dst
-        (* We do not accept to copy this kind of files *)
-        (* It is too POSIX specific, should not be     *)
-        (* implemented on other platform               *)
-        | Link 
-        | Fifo 
-        | Dev_char 
-        | Dev_block
-        | Socket ->
-          raise CpCannotCopy
-      else
-        ()
-    in
-    let cp_dir () = 
-      let fln_src_abs = (make_absolute cwd fln_src)
-      in
-      let fln_dst_abs = (make_absolute cwd fln_dst)
-      in
-      let fln_src_lst = (find True fln_src_abs)
-      in
-      let fln_dst_lst = List.map 
-        (fun x -> make_absolute fln_dst_abs (make_relative fln_src_abs x))
-        fln_src_lst
-      in
-      List.iter2 cp_simple fln_src_lst fln_dst_lst
-    in
-    match (test Is_dir fln_src, test Is_dir fln_dst, recurse) with
-      ( true, true, true) ->
-      cp_dir ()
-    | ( true, true,false) ->
-      raise CpCannotCopyDirToDir
-    | ( true,false, true) ->
-      if test Exists fln_dst then
-        raise CpCannotCopyDirToFile
-      else
-        (mkdir fln_dst; cp_dir ())
-    | ( true,false,false) ->
-      raise CpCannotCopyDirToDir
-    | (false, true, true) 
-    | (false, true,false) ->
-      if test Exists fln_src then
-        let fln_src_abs = make_absolute cwd fln_src
+    let cpfile fln_src fln_dst =
+      let cpfile () = 
+        let buffer_len = 1024
         in
-        let fln_dst_abs = make_absolute cwd fln_dst
+        let buffer = String.make buffer_len ' '
         in
-        cp_simple 
-          fln_src_abs 
-          ( make_absolute fln_dst_abs (basename fln_src_abs) )
-    | (false,false, true) 
-    | (false,false,false) ->
-      if (test Exists fln_src) then
-        cp_simple 
-          (make_absolute cwd fln_src) 
-          (make_absolute cwd fln_dst)
-      else 
-        raise CpNoSourceFile
+        let read_len = ref 0
+        in
+        let ch_in = open_in_bin fln_src
+        in
+        let ch_out = open_out_bin fln_dst
+        in
+        while (read_len := input ch_in buffer 0 buffer_len; !read_len <> 0 ) do
+          output ch_out buffer 0 !read_len
+        done;
+        close_in ch_in;
+        close_out ch_out
+      in
+      let st = stat fln_src
+      in
+      match st.kind with
+        File -> 
+         cpfile ()
+      | Dir ->
+        mkdir fln_dst
+      (* We do not accept to copy this kind of files *)
+      (* It is too POSIX specific, should not be     *)
+      (* implemented on other platform               *)
+      | Link 
+      | Fifo 
+      | Dev_char 
+      | Dev_block
+      | Socket ->
+        raise (CpCannotCopy fln_src)
+    in
+    let cpfull dir_src dir_dst fln = 
+      find (And(Custom(doit force), Is_dir)) fln (
+        fun () fln_src -> cpfile fln_src (reparent dir_src dir_dst fln)
+        ) ();
+      find (And(Custom(doit force), Not(Is_dir))) fln (
+        fun () fln_src -> cpfile fln_src (reparent dir_src dir_dst fln)
+        ) ()
+    in
+    (* Test sur l'existence des fichiers source *)
+    List.iter ( 
+      fun x -> 
+        if test (Not(Exists)) x then 
+          raise (CpNoSourceFile x) 
+        else if test Is_dir x && not recurse then
+          raise (CpCannotCopyDir x)
+        else
+          () 
+      ) 
+    fln_src_lst;
+    if test Is_dir fln_dst then
+      List.iter ( fun x -> cpfull (dirname x) fln_dst x ) fln_src_lst
+    else 
+      (
+        if (List.length fln_src_lst) = 1 then
+          let fln_src = List.nth fln_src_lst 0
+          in
+          cpfull fln_src fln_dst fln_src 
+          (* Off course, reparent will replace the common prefix 
+          * of 3rd arg and 1st arg by 2nd arg, which give 
+          * fln_src -> fln_dst *)
+        else
+          raise (CpCannotCopyFilesToFile (fln_src_lst, fln_dst))
+      )
 
   let rec mv ?(force=Force) fln_src fln_dst =
-    let cwd = Sys.getcwd ()
+    let fln_src_abs =  make_absolute (pwd ()) fln_src
     in
-    let fln_src_abs =  make_absolute cwd fln_src
+    let fln_dst_abs =  make_absolute (pwd ()) fln_dst
     in
-    let fln_dst_abs =  make_absolute cwd fln_dst
-    in
-    if fln_src_abs <> fln_dst_abs then
-    begin
+    if compare fln_src_abs fln_dst_abs <> 0 then
       if test Exists fln_dst_abs then
-      begin
-        let doit = 
-          match force with
-            Force -> true
-          | Ask ask -> ask fln_dst
-        in
-        if doit then
-        begin
-          rm fln_dst_abs;
+        if doit force fln_dst then
+        (
+          rm [fln_dst_abs];
           mv fln_src_abs fln_dst_abs
-        end
+        )
         else
           ()
-      end
       else if test Is_dir fln_dst_abs then
         mv ~force:force 
           fln_src_abs
@@ -959,47 +922,57 @@ struct
         Sys.rename fln_src_abs fln_src_abs
       else
         raise MvNoSourceFile
-    end
     else
       ()
       
-    let cmp ?(skip1 = 0) fln1 ?(skip2 = 0) fln2 =
-      if (reduce fln1) = (reduce fln2) then
-        None
-      else if (test (And(Is_readable,Is_file)) fln1) && (test (And(Is_readable,Is_file)) fln2 ) then
-        let fd1 = open_in_bin fln1
-        in
-        let fd2 = open_in_bin fln2
-        in
-        let _ = seek_in fd1 skip1
-        in
-        let _ = seek_in fd2 skip2
-        in
-        let stream1 = Stream.of_channel fd1
-        in
-        let stream2 = Stream.of_channel fd2
-        in
-        try 
-          while ( (Stream.next stream1) = (Stream.next stream2) ) 
-          do () done;
-          Some (Stream.count stream1)
-        with Stream.Failure ->
-          let test_empty st = 
-            try 
-              Stream.empty st;
-              true
-            with Stream.Failure ->
-              false
-        in
-        match ((test_empty stream1),(test_empty stream2)) with
-          true, true   -> None
-        | true, false 
-        | false, true 
-        (* Don't know how this case could be... *)
-        | false, false -> Some (Stream.count stream1)
-      else
-        (Some (-1))
-                      
+  let cmp ?(skip1 = 0) fln1 ?(skip2 = 0) fln2 =
+    if (reduce fln1) = (reduce fln2) then
+      None
+    else if (test (And(Is_readable,Is_file)) fln1) && (test (And(Is_readable,Is_file)) fln2 ) then
+      let fd1 = open_in_bin fln1
+      in
+      let fd2 = open_in_bin fln2
+      in
+      let _ = seek_in fd1 skip1
+      in
+      let _ = seek_in fd2 skip2
+      in
+      let stream1 = Stream.of_channel fd1
+      in
+      let stream2 = Stream.of_channel fd2
+      in
+      try 
+        while ( (Stream.next stream1) = (Stream.next stream2) ) 
+        do () done;
+        Some (Stream.count stream1)
+      with Stream.Failure ->
+        let test_empty st = 
+          try 
+            Stream.empty st;
+            true
+          with Stream.Failure ->
+            false
+      in
+      match ((test_empty stream1),(test_empty stream2)) with
+        true, true   -> None
+      | true, false 
+      | false, true 
+      (* Don't know how this case could be... *)
+      | false, false -> Some (Stream.count stream1)
+    else
+      (Some (-1))
+
+  let du fln_lst = 
+    let du_aux (sz, lst) fln = 
+      let st = stat fln
+      in
+      (size_add sz st.size, (fln, st.size) :: lst)
+    in
+    List.fold_left 
+    ( fun (accu : size * (filename * size) list) fln -> find True fln du_aux accu ) 
+    (B 0.0, [])
+    fln_lst  
+    
 end
 ;;
 

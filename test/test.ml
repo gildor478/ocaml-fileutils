@@ -515,9 +515,8 @@ in
    ("Match",                        Match(dir_test),     dir_test,true );
    ("Is_owned_by_user_ID",          Is_owned_by_user_ID, dir_test,true );
    ("Is_owned_by_group_ID",         Is_owned_by_group_ID,dir_test,true );
-   ("Is_newer_than",                (Is_newer_than("test.ml",dir_test)),dir_test,true);
-   ("Is_older_than",                (Is_older_than("test.ml",dir_test)),dir_test,false);
-   ("Has_same_device_and_inode",    (Has_same_device_and_inode("test.ml","test.ml")),dir_test,true)
+   ("Is_newer_than",                (Is_newer_than("test.ml")),dir_test,true);
+   ("Is_older_than",                (Is_older_than("test.ml")),dir_test,false);
   ];
   
   Fort.test ~desc:"Touch in not existing subdir"
@@ -570,7 +569,7 @@ in
   	try
   		mkdir (make_filename [dir_test; "essai4"; "essai5"]);
   		Pass
-  	with MkdirMissingComponentPath ->
+  	with MkdirMissingComponentPath _ ->
   		XFail
   );
   
@@ -579,7 +578,7 @@ in
   	try
   		mkdir (make_filename [dir_test; "essai0"]);
   		Pass
-  	with MkdirDirnameAlreadyUsed ->
+  	with MkdirDirnameAlreadyUsed _ ->
   		XFail
   );
   
@@ -591,7 +590,7 @@ in
   
   expect_pass ~desc:"Find v1"
   ~body:(fun () ->
-  	let lst = find True dir_test 
+  	let lst = find True dir_test ( fun lst fln -> fln :: lst ) [] 
   	in
   	expect_equal_list_string 		
   		(
@@ -610,7 +609,7 @@ in
   
   expect_pass ~desc:"Find v2"
   ~body:(fun () ->
-  	let lst = find Is_dir dir_test
+  	let lst = find Is_dir dir_test ( fun lst fln -> fln :: lst ) []
   	in
   	expect_equal_list_string 
   		(
@@ -626,7 +625,7 @@ in
   			
   expect_pass ~desc:"Find v3"
   ~body:(fun () ->
-  	let lst = find Is_file dir_test
+  	let lst = find Is_file dir_test ( fun lst fln -> fln :: lst ) [] 
   	in
   	expect_equal_list_string 
   		(List.map (fun x -> make_filename [ dir_test ; x ]) [
@@ -638,34 +637,34 @@ in
   
   expect_pass ~desc:"Cp v1"
   ~body:(fun () ->
-  	cp (make_filename [dir_test ; "essai0"]) (make_filename [ dir_test ; "essai6" ]);
+  	cp [(make_filename [dir_test ; "essai0"])] (make_filename [ dir_test ; "essai6" ]);
   	expect_true (test (Exists) (make_filename [ dir_test ; "essai6" ]))
   );
   
   expect_pass ~desc:"Cp v2"
   ~body:(fun () ->
-  	cp (make_filename [dir_test ; "essai0"]) (make_filename [ dir_test ; "essai4" ]);
+  	cp [(make_filename [dir_test ; "essai0"])] (make_filename [ dir_test ; "essai4" ]);
   	expect_true (test (Exists) (make_filename [ dir_test ; "essai4" ; "essai0" ]))
   );
   
   expect_pass ~desc:"Rm v1"
   ~body:(fun () ->
-  	rm ~force:(Ask ask_user) (make_filename [dir_test  ; "essai2"]);
+  	rm ~force:(Ask ask_user) [(make_filename [dir_test  ; "essai2"])];
   	expect_true (test (Not Exists) (make_filename [ dir_test ; "essai2" ]))
   );
   
   Fort.test ~desc:"Rm v2"
   ~body:(fun () ->
   	try 
-  		rm ~force:(Ask ask_user) (make_filename [ dir_test ; "essai4" ]);
+  		rm ~force:(Ask ask_user) [(make_filename [ dir_test ; "essai4" ])];
   		Pass
-  	with RmDirNotEmpty ->
+  	with RmDirNotEmpty _ ->
   		XFail
   );
   
   expect_pass ~desc:"Rm v3"
   ~body:(fun () ->
-  	rm ~force:(Ask ask_user) ~recurse:true dir_test;
+  	rm ~force:(Ask ask_user) ~recurse:true [dir_test];
   	expect_true (test (Not Exists) dir_test)
   )
   end
