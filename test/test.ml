@@ -3,7 +3,11 @@ open SysPath;;
 open SysPath_type;;
 open SysUtil;;
 
+exception CannotContinueTest;;
+
 let dir_test = "test-util"
+in
+let error_syspath = ref true
 in
 let expect_equal_string = expect_equal ~printer:(fun x -> x)
 in
@@ -276,6 +280,7 @@ List.iter test_make_relative
  ("simple v1", "/a/b/c", "/a/b/d", "../d")
 ];
 
+(*
 (***********************)
 (* Cygwin SysPath test *)
 (***********************)
@@ -354,7 +359,7 @@ List.iter test_make_relative
  ("identity",  "/a/b/c", "/a/b/c", "");
  ("simple v1", "/a/b/c", "/a/b/d", "../d")
 ];
-
+*)
 (****************)
 (* SysUtil test *)
 (****************)

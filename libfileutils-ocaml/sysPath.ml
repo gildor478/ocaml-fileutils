@@ -247,7 +247,7 @@ struct
 				let last_cmp = Stack.pop stack_dir
 				in
 				match last_cmp with
-				  Root s -> Stack.push stack_dir (Root s)
+				  Root s -> Stack.push (Root s) stack_dir
 				| _ -> ()
 				end
 			| CurrentDir   -> ()
