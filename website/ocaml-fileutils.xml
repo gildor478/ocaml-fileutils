@@ -1,138 +1,135 @@
-<?xml version="1.0" encoding="ISO-8859-15"?>
-<!DOCTYPE webpage
-       PUBLIC "-//Norman Walsh//DTD Website V2.5.0//EN"
-       "http://docbook.sourceforge.net/release/website/2.5.0/schema/dtd/website.dtd">
-
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE webpage PUBLIC "-//Norman Walsh//DTD Website V2.5.0//EN"
+  "/usr/share/xml/docbook/custom/website/2.5.0/schema/dtd/website.dtd"> 
 <webpage id="ocaml-fileutils-project">
-<config param="rcsdate" value=""/>
-<head>
-  <title>Projet ocaml-fileutils</title>
-  <titleabbrev>ocaml-fileutils</titleabbrev>
-  <summary>Bibliothèque de fonctions de manipulation des fichiers en OCaml</summary>
-</head>
+  <head>
+    <title>Projet ocaml-fileutils</title>
+    <titleabbrev>ocaml-fileutils</titleabbrev>
+    <summary>BibliothÃšque de fonctions de manipulation des fichiers en OCaml</summary>
+  </head>
 
-<webtoc/>
-
-<section>
-  <title>But</title>
-  <para>Le but de ocaml-fileutils est de fournir un ensemble de fonction OCaml 
-  afin de permettre la manipulation de fichier directement en OCaml.</para>
-  <para>Les spécification de ce projets sont :</para>
-  <itemizedlist>
-    <listitem><para>ecrit entièrement en OCaml</para>
-    </listitem>
-    <listitem><para>la sémantique des fonctions est similaire à celle de GNU fileutils</para>
-    </listitem>
-    <listitem><para>les opérations ne portent que sur les ensembles commun Win32/POSIX</para>
-    </listitem>
-  </itemizedlist>
-</section>
-
-<section>
-  <title>Description</title>
-
-  <para>Cette version permet l'utilisation d'un ensemble de base des fonctions 
-  GNU fileutils :</para>
-  <itemizedlist>
-    <listitem><para>cp : copie de fichier</para>
-    </listitem>
-    <listitem><para>mv : déplacement de fichier</para>
-    </listitem>
-    <listitem><para>rm : destruction de fichier</para>
-    </listitem>
-    <listitem><para>test : test sur l'existence, les propriétés d'un fichier</para>
-    </listitem>
-    <listitem><para>find : recherche d'un ensemble de fichier sur la base d'un test</para>
-    </listitem>
-    <listitem><para>mkdir : création d'un répértoire ( et éventuellement de ses parents )</para>
-    </listitem>
-    <listitem><para>ls : liste le contenu d'un répertoire</para>
-    </listitem>
-    <listitem><para>touch : créé un fichier vide ( et met à jour son timestamp )</para>
-    </listitem>
-    <listitem><para>which : recherche d'un exécutable dans un ensemble de chemin</para>
-    </listitem>
-    <listitem><para>readlink : transformation d'un chemin qui contient des liens en chemin sans lien</para>
-    </listitem>
-    <listitem><para>du : retourne la taille d'un ensemble de fichier</para>
-    </listitem>
-    <listitem><para>stat : abstraction de la fonction Unix.stat</para>
-    </listitem>
-    <listitem><para>cmp : comparaison de deux fichiers</para>
-    </listitem>
-  </itemizedlist>
-
-  <para>De plus, en support de ces fonctionnalités, un ensemble de fonctions relatives
-  à la manipulation des noms de fichiers sous différents OS est fourni :</para>
-  <itemizedlist>
-    <listitem><para>OS supportés :</para>
-    <itemizedlist>
-      <listitem><para>Win32</para>
-      </listitem>
-      <listitem><para>Unix</para>
-      </listitem>
-      <listitem><para>MacOS</para>
-      </listitem>
-      <listitem><para>Cygwin</para>
-      </listitem>
-    </itemizedlist>
-    </listitem>
-    <listitem><para>Fonctions :</para>
-    <itemizedlist>
-      <listitem><para>Comparaison : is_subdir, is_updir, compare</para>
-      </listitem>
-      <listitem><para>Manipulation : make_absolute, make_relative, reduce</para>
-      </listitem>
-      <listitem><para>Extension : chop_extension, check_extension</para>
-      </listitem>
-      <listitem><para>Manipulation d'un ensemble de chemin encodé sous forme de chaine</para>
-      </listitem>
-    </itemizedlist>
-    </listitem>
-  </itemizedlist>
-</section>
-
-<section>
-  <title>Nouvelles</title>
+  <webtoc/>
 
   <section>
-    <title>Version 0.3</title>
-
-    <para>Ajout de quelques fonctionalité :</para>
+    <title>But</title>
+    <para>Le but de ocaml-fileutils est de fournir un ensemble de fonction OCaml 
+    afin de permettre la manipulation de fichier directement en OCaml.</para>
+    <para>Les spÃ©cification de ce projets sont :</para>
     <itemizedlist>
-      <listitem><para>Fonction : cmp, du, stat, readlink</para>
+      <listitem><para>ecrit entiÃšrement en OCaml</para>
       </listitem>
-      <listitem><para>Réecriture de la fonction find pour qu'elle puisse prendre une fonction a executer.
-        Cela simplifie l'ecriture d'autre fonction et donne une flexibilité plus importante à 
-        l'utilisateur.</para>
+      <listitem><para>la sÃ©mantique des fonctions est similaire Ã  celle de GNU fileutils</para>
       </listitem>
-      <listitem><para>Ajout de fonction pour le traitement des liens/boucle de récursion des systèmes 
-      de fichiers. Lors du parcours d'un ensemble de fichier, on vérifie désormais systèmatiquement que 
-      l'on ne se trouve pas dans un cycle ( cas classique de "ln -s . recurse" ).</para>
-      </listitem>
-      <listitem><para>Traitement de la taille, ajout d'opération sur la taille</para>
+      <listitem><para>les opÃ©rations ne portent que sur les ensembles commun Win32/POSIX</para>
       </listitem>
     </itemizedlist>
-  
   </section>
-  
+
   <section>
-    <title>Version 0.2.1</title>
+    <title>Description</title>
+
+    <para>Cette version permet l'utilisation d'un ensemble de base des fonctions 
+    GNU fileutils :</para>
+    <itemizedlist>
+      <listitem><para>cp : copie de fichier</para>
+      </listitem>
+      <listitem><para>mv : dÃ©placement de fichier</para>
+      </listitem>
+      <listitem><para>rm : destruction de fichier</para>
+      </listitem>
+      <listitem><para>test : test sur l'existence, les propriÃ©tÃ©s d'un fichier</para>
+      </listitem>
+      <listitem><para>find : recherche d'un ensemble de fichier sur la base d'un test</para>
+      </listitem>
+      <listitem><para>mkdir : crÃ©ation d'un rÃ©pÃ©rtoire ( et Ã©ventuellement de ses parents )</para>
+      </listitem>
+      <listitem><para>ls : liste le contenu d'un rÃ©pertoire</para>
+      </listitem>
+      <listitem><para>touch : crÃ©Ã© un fichier vide ( et met Ã  jour son timestamp )</para>
+      </listitem>
+      <listitem><para>which : recherche d'un exÃ©cutable dans un ensemble de chemin</para>
+      </listitem>
+      <listitem><para>readlink : transformation d'un chemin qui contient des liens en chemin sans lien</para>
+      </listitem>
+      <listitem><para>du : retourne la taille d'un ensemble de fichier</para>
+      </listitem>
+      <listitem><para>stat : abstraction de la fonction Unix.stat</para>
+      </listitem>
+      <listitem><para>cmp : comparaison de deux fichiers</para>
+      </listitem>
+    </itemizedlist>
+
+    <para>De plus, en support de ces fonctionnalitÃ©s, un ensemble de fonctions relatives
+    Ã  la manipulation des noms de fichiers sous diffÃ©rents OS est fourni :</para>
+    <itemizedlist>
+      <listitem><para>OS supportÃ©s :</para>
+      <itemizedlist>
+        <listitem><para>Win32</para>
+        </listitem>
+        <listitem><para>Unix</para>
+        </listitem>
+        <listitem><para>MacOS</para>
+        </listitem>
+        <listitem><para>Cygwin</para>
+        </listitem>
+      </itemizedlist>
+      </listitem>
+      <listitem><para>Fonctions :</para>
+      <itemizedlist>
+        <listitem><para>Comparaison : is_subdir, is_updir, compare</para>
+        </listitem>
+        <listitem><para>Manipulation : make_absolute, make_relative, reduce</para>
+        </listitem>
+        <listitem><para>Extension : chop_extension, check_extension</para>
+        </listitem>
+        <listitem><para>Manipulation d'un ensemble de chemin encodÃ© sous forme de chaine</para>
+        </listitem>
+      </itemizedlist>
+      </listitem>
+    </itemizedlist>
+  </section>
+
+  <section>
+    <title>Nouvelles</title>
+
+    <section>
+      <title>Version 0.3</title>
+
+      <para>Ajout de quelques fonctionalitÃ© :</para>
+      <itemizedlist>
+        <listitem><para>Fonction : cmp, du, stat, readlink</para>
+        </listitem>
+        <listitem><para>RÃ©ecriture de la fonction find pour qu'elle puisse prendre une fonction a executer.
+          Cela simplifie l'ecriture d'autre fonction et donne une flexibilitÃ© plus importante Ã  
+          l'utilisateur.</para>
+        </listitem>
+        <listitem><para>Ajout de fonction pour le traitement des liens/boucle de rÃ©cursion des systÃšmes 
+        de fichiers. Lors du parcours d'un ensemble de fichier, on vÃ©rifie dÃ©sormais systÃšmatiquement que 
+        l'on ne se trouve pas dans un cycle ( cas classique de "ln -s . recurse" ).</para>
+        </listitem>
+        <listitem><para>Traitement de la taille, ajout d'opÃ©ration sur la taille</para>
+        </listitem>
+      </itemizedlist>
     
-    <para>Version mineur qui met à jour le site web</para>
-  </section>
+    </section>
+    
+    <section>
+      <title>Version 0.2.1</title>
+      
+      <para>Version mineur qui met Ã  jour le site web</para>
+    </section>
 
-  <section>
-    <title>Version 0.2</title>
+    <section>
+      <title>Version 0.2</title>
 
-    <para>Cette première version publique, offre un ensemble de fonctionnalité assez complet.
-    Cette version est encore une phase de test de portabilité. Elle a été testé de façon 
-    importante sur un système Linux.</para>
+      <para>Cette premiÃšre version publique, offre un ensemble de fonctionnalitÃ© assez complet.
+      Cette version est encore une phase de test de portabilitÃ©. Elle a Ã©tÃ© testÃ© de faÃ§on 
+      importante sur un systÃšme Linux.</para>
 
-    <para>Tous les testeurs et utilisateurs potentiels sont invités à tester les fonctionnalités
-    de cette version pour valide la portabilité du code.</para>
+      <para>Tous les testeurs et utilisateurs potentiels sont invitÃ©s Ã  tester les fonctionnalitÃ©s
+      de cette version pour valide la portabilitÃ© du code.</para>
+      
+    </section>
     
   </section>
-  
-</section>
 </webpage>
