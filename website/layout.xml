@@ -16,7 +16,12 @@
         href="download/ocaml-fileutils-latest.tar.gz">
         <title>Download</title></tocentry>
       <tocentry id="ocaml-fileutils-bugs" 
-        href="http://www.gallu.homelinux.org/bugs/cgi/pkgreport.cgi?pkg=ocaml-fileutils">
+        href="bts/index.php?tasks=all&amp;project=3">
         <title>Bugs</title></tocentry></tocentry>
+      <!--
+      <tocentry id="ocaml-fileutils-blog" 
+        href="blog/index.php?Ocaml-fileutils">
+        <title>News</title></tocentry></tocentry>
+      -->
   </toc>
 </layout>
