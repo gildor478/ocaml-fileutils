@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE webpage PUBLIC "-//Norman Walsh//DTD Website V2.5.0//EN"
-  "/usr/share/xml/docbook/custom/website/2.5.0/schema/dtd/website.dtd"> 
+<!DOCTYPE webpage PUBLIC "-//Norman Walsh//DTD Website V2.6//EN"
+  "http://docbook.sourceforge.net/release/website/2.6/schema/dtd/website.dtd"> 
 <webpage id="home">
   <head>
     <title>Project ocaml-fileutils</title>

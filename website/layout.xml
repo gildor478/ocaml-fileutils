@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE layout PUBLIC "-//Norman Walsh//DTD Website Autolayout V2.5.0//EN"
-  "/usr/share/xml/docbook/custom/website/2.5.0/schema/dtd/layout.dtd"> 
+<!DOCTYPE layout PUBLIC "-//Norman Walsh//DTD Website Layout V2.6//EN"
+  "http://docbook.sourceforge.net/release/website/2.6/schema/dtd/layout.dtd"> 
 <layout>
   <copyright>
     <year>2003-2004</year>
