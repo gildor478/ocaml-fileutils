@@ -1,0 +1,22 @@
+To: caml-list@inria.fr
+Bcc: hump@caml.inria.fr
+Subject: [ANN] ocaml-fileutils v 0.3.0
+
+General :
+Ocaml fileutils is aimed to be a platform independent library to perform
+operation on file like :
+- mv
+- cp
+- rm
+- mkdir
+- touch
+- which...
+
+Comes also with a module to manipulate abstract filename :
+- classification
+- make_relative : made a filename relative to another
+- make_absolute :...
+
+
+Link :
+http://www.carva.org/sylvain.le-gall/ocaml-fileutils.html

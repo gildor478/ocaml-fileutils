@@ -55,3 +55,5 @@ mkdir-temp-clean:
 	$(RM) mkdir-temp-stamp
 	
 include TopMakefile
+
+.PHONY: all install uninstall clean doc 
