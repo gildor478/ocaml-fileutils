@@ -23,37 +23,46 @@
 #                                                                        #
 ##########################################################################
 
-all: mkdir-temp
-	cd libfileutils-ocaml && $(MAKE) all
+OCAMLBUILD=ocamlbuild
+OCAMLBUILD_FLAGS=-classic-display
 
-install:
-	cd libfileutils-ocaml && $(MAKE) install
+all:
+	$(OCAMLBUILD) $(OCAMLBUILDFLAGS) fileutils.otarget 
 
-uninstall:
-	cd libfileutils-ocaml && $(MAKE) uninstall
+clean:
+	$(OCAMLBUILD) $(OCAMLBUILDFLAGS) -clean 
 
-clean:: mkdir-temp-clean
-	cd libfileutils-ocaml && $(MAKE) clean
-	cd test               && $(MAKE) clean
-	cd website            && $(MAKE) clean
-
-doc: mkdir-temp
-	cd libfileutils-ocaml && $(MAKE) doc
-
-mkdir-temp: mkdir-temp-stamp
-mkdir-temp-stamp: 
-	mkdir $(TEMPBUILD)
-	mkdir $(TEMPBUILDLIB)
-	mkdir $(TEMPBUILDEXE)
-	mkdir $(TEMPBUILDDOC)
-	touch mkdir-temp-stamp
-mkdir-temp-clean:
-	$(RM) -r $(TEMPBUILDDOC)
-	$(RM) -r $(TEMPBUILDEXE)
-	$(RM) -r $(TEMPBUILDLIB)
-	$(RM) -r $(TEMPBUILD)
-	$(RM) mkdir-temp-stamp
-	
-include TopMakefile
-
-.PHONY: all install uninstall clean doc 
+#all: mkdir-temp
+#	cd libfileutils-ocaml && $(MAKE) all
+#
+#install:
+#	cd libfileutils-ocaml && $(MAKE) install
+#
+#uninstall:
+#	cd libfileutils-ocaml && $(MAKE) uninstall
+#
+#clean:: mkdir-temp-clean
+#	cd libfileutils-ocaml && $(MAKE) clean
+#	cd test               && $(MAKE) clean
+#	cd website            && $(MAKE) clean
+#
+#doc: mkdir-temp
+#	cd libfileutils-ocaml && $(MAKE) doc
+#
+#mkdir-temp: mkdir-temp-stamp
+#mkdir-temp-stamp: 
+#	mkdir $(TEMPBUILD)
+#	mkdir $(TEMPBUILDLIB)
+#	mkdir $(TEMPBUILDEXE)
+#	mkdir $(TEMPBUILDDOC)
+#	touch mkdir-temp-stamp
+#mkdir-temp-clean:
+#	$(RM) -r $(TEMPBUILDDOC)
+#	$(RM) -r $(TEMPBUILDEXE)
+#	$(RM) -r $(TEMPBUILDLIB)
+#	$(RM) -r $(TEMPBUILD)
+#	$(RM) mkdir-temp-stamp
+#	
+#include TopMakefile
+#
+#.PHONY: all install uninstall clean doc 

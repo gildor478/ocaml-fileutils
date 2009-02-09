@@ -46,6 +46,7 @@
 # where to install the binaries
 prefix=@prefix@
 exec_prefix=@exec_prefix@
+datarootdir=@datarootdir@
 BINDIR=@bindir@
 LIBDIR=@libdir@
 DOCDIR=@DOCDIR@

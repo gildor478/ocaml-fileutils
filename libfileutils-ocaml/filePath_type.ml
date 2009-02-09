@@ -26,16 +26,20 @@
 type current_dir_type = 
 	  Short 
 	| Long
+;;
 
 type filename_part =
 	  Root of string
 	| ParentDir 
 	| CurrentDir of current_dir_type
 	| Component of string
+;;
 
 type filename = string
+;;
 
 type extension = string
+;;
 
 (* Utility function to parse filename *)
 
