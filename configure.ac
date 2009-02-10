@@ -33,6 +33,10 @@ if test "$OCAMLC" = "no"; then
   AC_MSG_ERROR([You must install ocamlc])
 fi
 
+if test "$OCAMLBUILD" = "no"; then
+  AC_MSG_ERROR([You must install ocamlbuild])
+fi
+
 if test "$OCAMLDOC" = "no"; then
   AC_MSG_ERROR([You must install ocamldoc])
 fi
@@ -50,11 +54,6 @@ fi
 AC_PROG_OCAMLYACC
 if test "$OCAMLYACC" = "no"; then
   AC_MSG_ERROR([You must install ocamlyacc])
-fi
-
-AC_PROG_OCAMLBUILD
-if test "$OCAMLBUILD" = "no"; then
-  AC_MSG_ERROR([You must install ocamlbuild])
 fi
 
 if test "$OCAMLBEST" = "opt"; then
