@@ -23,46 +23,55 @@
 #                                                                        #
 ##########################################################################
 
-OCAMLBUILD=ocamlbuild
-OCAMLBUILD_FLAGS=-classic-display
+-include TopMakefile
+
+BUILDDIR=$(CURDIR)/_build/libfileutils-ocaml
+OCAMLBUILDFLAGS+=-classic-display
 
 all:
 	$(OCAMLBUILD) $(OCAMLBUILDFLAGS) fileutils.otarget 
 
 clean:
-	$(OCAMLBUILD) $(OCAMLBUILDFLAGS) -clean 
+	$(if $(OCAMLBUILD),-$(OCAMLBUILD) $(OCAMLBUILDFLAGS) -clean)
 
-#all: mkdir-temp
-#	cd libfileutils-ocaml && $(MAKE) all
-#
-#install:
-#	cd libfileutils-ocaml && $(MAKE) install
-#
-#uninstall:
-#	cd libfileutils-ocaml && $(MAKE) uninstall
-#
-#clean:: mkdir-temp-clean
-#	cd libfileutils-ocaml && $(MAKE) clean
-#	cd test               && $(MAKE) clean
-#	cd website            && $(MAKE) clean
-#
-#doc: mkdir-temp
-#	cd libfileutils-ocaml && $(MAKE) doc
-#
-#mkdir-temp: mkdir-temp-stamp
-#mkdir-temp-stamp: 
-#	mkdir $(TEMPBUILD)
-#	mkdir $(TEMPBUILDLIB)
-#	mkdir $(TEMPBUILDEXE)
-#	mkdir $(TEMPBUILDDOC)
-#	touch mkdir-temp-stamp
-#mkdir-temp-clean:
-#	$(RM) -r $(TEMPBUILDDOC)
-#	$(RM) -r $(TEMPBUILDEXE)
-#	$(RM) -r $(TEMPBUILDLIB)
-#	$(RM) -r $(TEMPBUILD)
-#	$(RM) mkdir-temp-stamp
-#	
-#include TopMakefile
-#
-#.PHONY: all install uninstall clean doc 
+distclean: clean
+	-$(RM) -r "$(CURDIR)/autom4te.cache"
+	-$(RM) "$(CURDIR)/aclocal.m4"
+	-$(RM) "$(CURDIR)/config.cache"
+	-$(RM) "$(CURDIR)/config.log"
+	-$(RM) "$(CURDIR)/config.status"
+	-$(RM) "$(CURDIR)/fileutils.itarget"
+	-$(RM) "$(CURDIR)/TopMakefile"
+	-$(RM) "$(CURDIR)/libfileutils-ocaml/META"
+
+install: all
+	$(INSTALL) -d $(htmldir)/api
+	$(INSTALL_DATA) -t $(htmldir)/api \
+	  $(wildcard $(BUILDDIR)/fileutils.docdir/*)
+	$(OCAMLFIND) install \
+	  fileutils \
+	  "$(CURDIR)/libfileutils-ocaml/META" \
+	  "$(BUILDDIR)/fileutils.cma" \
+	  "$(BUILDDIR)/fileUtil.cmi" \
+	  "$(BUILDDIR)/fileUtil.ml" \
+	  "$(BUILDDIR)/filePath.cmi" \
+	  "$(BUILDDIR)/filePath.mli" \
+	  $(wildcard $(BUILDDIR)/fileutils.cmxa) \
+	  $(wildcard $(BUILDDIR)/*.cmx) 
+
+uninstall:
+	-$(RM) -r $(htmldir)/api
+	-$(OCAMLFIND) remove fileutils
+
+DISTDIR=$(PACKAGE_TARNAME)-$(PACKAGE_VERSION)
+dist:
+	svn export "$(CURDIR)" "$(CURDIR)/$(DISTDIR)"
+	# TODO: fix this ocaml.m4 copy
+	cp -L "$(CURDIR)/m4/ocaml.m4" "$(CURDIR)/$(DISTDIR)/m4/ocaml.m4"
+	cd "$(CURDIR)/$(DISTDIR)" && ./autogen.sh
+	tar czf "$(DISTDIR).tar.gz" "$(DISTDIR)"
+	$(RM) -r "$(CURDIR)/$(DISTDIR)"
+	gpg -s -a -b "$(DISTDIR).tar.gz"
+	echo Don't forget to tag version $(PACKAGE_VERSION)
+
+.PHONY: all clean distclean install uninstall dist

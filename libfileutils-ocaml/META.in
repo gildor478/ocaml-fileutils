@@ -1,0 +1,4 @@
+requires = "unix"
+version = "@PACKAGE_VERSION@"
+archive(byte) = "fileutils.cma"
+archive(native) = "fileutils.cmxa"

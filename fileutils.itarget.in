@@ -1,0 +1,4 @@
+libfileutils-ocaml/fileutils.cma
+libfileutils-ocaml/fileutils.@ocamlbuild_best_library@
+libfileutils-ocaml/fileutils.docdir/index.html
+#test/test.@ocamlbuild_best_program@

@@ -5,7 +5,7 @@ ocaml-fileutils.
 Prerequisite :
 
 In order to install you will need :
-- ocaml ( >= 3.07 )
+- ocaml ( >= 3.10.0 )
 	http://caml.inria.fr/
 - make
 
@@ -26,13 +26,10 @@ With the same value you use to install
 1) Go in the untared source directory
 2) make uninstall
 
-To enable the ocamlfind extension :
-in step 2) of the install procedure use --enable-ocamlfind
-
 To test your library :
 Before doing the step 4) of the install procedure 
 go in the test directory and type "make test"...
 
 You should have all test going fine...
 
-Sylvain LE GALL
+Sylvain Le Gall
