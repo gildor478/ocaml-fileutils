@@ -85,21 +85,7 @@ let _ =
       function
         | After_rules as e ->
             dispatch_ocamlfind e;
-
-            ocaml_lib "src/libuname-ocaml/uname";
-
-            flag 
-              ["link"; "library"; "ocaml"; "byte"; "use_libuname"]
-              (S[A"-dllib"; A"-luname"; A"-cclib"; A"-luname"]);
-
-            flag 
-              ["link"; "library"; "ocaml"; "native"; "use_libuname"]
-              (S[A"-cclib"; A"-luname"]);
-
-            dep 
-              ["link"; "ocaml"; "use_libuname"] 
-              ["src/libuname-ocaml/libuname.a"];
-
+            ocaml_lib "libfileutils-ocaml";
         | e ->
             dispatch_ocamlfind e
     end

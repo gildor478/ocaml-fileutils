@@ -25,9 +25,7 @@
 
 open OUnit;;
 open FilePath;;
-open DefaultPath;;
 open FileUtil;;
-open StrUtil;;
 
 module SetFilename = Set.Make (struct
     type t = FilePath.DefaultPath.filename
@@ -602,7 +600,7 @@ let test_fileutil =
       try 
         let file = make_filename [dir_test;"doesntexist";"essai0"]
         in
-        FileUtil.StrUtil.touch (make_filename [dir_test;"doesntexist";"essai0"]);
+        touch file;
         assert_failure "Touch should have failed, since directory is missing"
       with _ ->
         ()
@@ -824,17 +822,25 @@ let test_filepath =
       test_cygwin;
     ]
 in
-let _ = 
-  print_endline ("Test            : fileutils "^(Version.version));
-  print_endline ("Test build date : "^(Version.date));
-  print_endline ("OS              : "^(Sys.os_type));
-  print_endline ("Running...")
-in
-let count_filepath = 
+let result_filepath = 
   run_test_tt_main test_filepath
 in
-if was_successful count_filepath then
+let filepath_was_successful =
+  List.fold_left
+    (fun success tst ->
+       if success then
+         (
+           match tst with 
+             | RSuccess _ | RSkip _ | RTodo _ -> true
+             | RFailure _ | RError _ -> false
+         )
+       else
+         success)
+    true
+    result_filepath
+in
+if filepath_was_successful then
   ignore (run_test_tt_main test_fileutil)
 else
-  print_endline "FileUtil module test skipped ( correct FilePath error first )"
+  print_endline "FileUtil module test skipped (correct FilePath error first)"
 

@@ -36,7 +36,6 @@ clean:
 
 distclean: clean
 	-$(RM) -r "$(CURDIR)/autom4te.cache"
-	-$(RM) "$(CURDIR)/aclocal.m4"
 	-$(RM) "$(CURDIR)/config.cache"
 	-$(RM) "$(CURDIR)/config.log"
 	-$(RM) "$(CURDIR)/config.status"
@@ -74,4 +73,8 @@ dist:
 	gpg -s -a -b "$(DISTDIR).tar.gz"
 	echo Don't forget to tag version $(PACKAGE_VERSION)
 
-.PHONY: all clean distclean install uninstall dist
+test: all
+	cd "$(CURDIR)/_build/test" && ./test.$(ocamlbuild_best_program)
+
+
+.PHONY: all clean distclean install uninstall dist test

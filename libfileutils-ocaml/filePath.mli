@@ -295,19 +295,19 @@ end
   *)
 
 (** Default operating system. *)
-module DefaultPath: PATH_SPECIFICATION;;
+module DefaultPath: PATH_STRING_SPECIFICATION;;
 
 (** Unix operating system. *)
-module UnixPath: PATH_SPECIFICATION;;
+module UnixPath: PATH_STRING_SPECIFICATION;;
 
 (** MacOS operating system. *)
-module MacOSPath: PATH_SPECIFICATION;;
+module MacOSPath: PATH_STRING_SPECIFICATION;;
 
 (** Win32 operating system. *)
-module Win32Path: PATH_SPECIFICATION;;
+module Win32Path: PATH_STRING_SPECIFICATION;;
 
 (** Cygwin operating system. *)
-module CygwinPath: PATH_SPECIFICATION;;
+module CygwinPath: PATH_STRING_SPECIFICATION;;
 
 (** Before v0.4.0, operation on filename was handled through many more modules,
     you can still use it through this module.
