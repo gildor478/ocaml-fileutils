@@ -2,3 +2,9 @@ requires = "unix"
 version = "@PACKAGE_VERSION@"
 archive(byte) = "fileutils.cma"
 archive(native) = "fileutils.cmxa"
+
+package "str" {
+  requires = "fileutils str"
+  archive(byte) = "fileutils-str.cma"
+  archive(native) = "fileutils-str.cmxa"
+}

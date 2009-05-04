@@ -760,7 +760,17 @@ let test_fileutil =
     )
 
     @ [
-  
+
+    "Test with FileUtilStr.Match" >::
+    (fun () ->
+       assert_bool 
+         "FileUtilStr.Match = true"
+         (FileUtilStr.test (Match ".*fileutil-") dir_test);
+       assert_bool
+         "FileUtilStr.Match = false"
+         (not (FileUtilStr.test (Match "fileutil") dir_test))
+    );
+
     "Touch in not existing subdir" >::
     (fun () ->
       try 

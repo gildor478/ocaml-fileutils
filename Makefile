@@ -28,6 +28,8 @@
 BUILDDIR=$(CURDIR)/_build/libfileutils-ocaml
 OCAMLBUILDFLAGS+=-classic-display
 
+test:
+
 all:
 	$(OCAMLBUILD) $(OCAMLBUILDFLAGS) fileutils.otarget 
 
@@ -51,11 +53,19 @@ install: all
 	  fileutils \
 	  "$(CURDIR)/libfileutils-ocaml/META" \
 	  "$(BUILDDIR)/fileutils.cma" \
+	  "$(BUILDDIR)/fileutils-str.cma" \
 	  "$(BUILDDIR)/fileUtil.cmi" \
 	  "$(BUILDDIR)/fileUtil.ml" \
+	  "$(BUILDDIR)/fileUtilStr.cmi" \
+	  "$(BUILDDIR)/fileUtilStr.ml" \
 	  "$(BUILDDIR)/filePath.cmi" \
 	  "$(BUILDDIR)/filePath.mli" \
 	  $(wildcard $(BUILDDIR)/fileutils.cmxa) \
+	  $(wildcard $(BUILDDIR)/fileutils.a) \
+	  $(wildcard $(BUILDDIR)/fileutils.lib) \
+	  $(wildcard $(BUILDDIR)/fileutils-str.cmxa) \
+	  $(wildcard $(BUILDDIR)/fileutils-str.a) \
+	  $(wildcard $(BUILDDIR)/fileutils-str.lib) \
 	  $(wildcard $(BUILDDIR)/*.cmx) 
 
 uninstall:

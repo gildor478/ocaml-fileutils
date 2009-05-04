@@ -151,7 +151,7 @@ type test_file =
 | And of test_file * test_file (** Result of TEST1 and TEST2 *)
 | Or of test_file * test_file  (** Result of TEST1 or TEST2 *)
 | Not of test_file             (** Result of not TEST *)
-| Match of string              (** Match regexp *)
+| Match of string              (** Compilable match (Str or PCRE or ...) *)
 | True                         (** Always true *)
 | False                        (** Always false *)
 | Has_extension of extension   (** Check extension *)
@@ -439,133 +439,146 @@ let stat (filename: filename): stat =
 ;;
 
 (**/**)
-let rec compile_filter flt =
-  let wrapper f fln =
+let compile_filter 
+      ?(match_compile=(fun s fn -> s = fn)) 
+      flt =
+
+  let fn (fn, _) =
+    fn
+  in
+
+  let wrapper f (_, st) =
     try 
-      let stats = stat fln
-      in
-      f stats
+      f (Lazy.force st)
     with FileDoesntExist ->
       false
   in
-  let res_filter =
-    match flt with
-      Is_dev_block    -> wrapper (fun st -> st.kind = Dev_block)
-    | Is_dev_char     -> wrapper (fun st -> st.kind = Dev_char)
-    | Is_dir          -> wrapper (fun st -> st.kind = Dir)
-    | Is_file         -> wrapper (fun st -> st.kind = File)
-    | Is_socket       -> wrapper (fun st -> st.kind = Socket)
-    | Is_pipe         -> wrapper (fun st -> st.kind = Fifo)
-    | Is_link         -> wrapper (fun st -> st.is_link)
-    | Exists          -> wrapper (fun st -> true) 
-    | Is_set_group_ID -> wrapper (fun st -> st.permission.group.sticky)
-    | Has_sticky_bit  -> wrapper (fun st -> st.permission.other.sticky)
-    | Has_set_user_ID -> wrapper (fun st -> st.permission.user.sticky)
-    | Is_readable     -> wrapper (
-      fun st -> st.permission.user.read  || st.permission.group.read  || st.permission.other.read
-     )
-    | Is_writeable    -> wrapper (
-      fun st -> st.permission.user.write || st.permission.group.write || st.permission.other.write
-     )
-    | Is_exec         -> wrapper (
-      fun st -> st.permission.user.exec  || st.permission.group.exec  || st.permission.other.exec
-     )
-    | Size_not_null          -> wrapper (
-      fun st -> (size_compare st.size (B 0L)) > 0
-     )
-    | Size_bigger_than sz    -> wrapper (
-      fun st -> (size_compare st.size sz) > 0
-     )
-    | Size_smaller_than sz   -> wrapper (
-      fun st -> (size_compare st.size sz) < 0
-     )
-    | Size_equal_to sz       -> wrapper (
-      fun st -> (size_compare st.size sz) = 0
-     )
-    | Size_fuzzy_equal_to sz -> wrapper (
-      fun st -> (size_compare ~fuzzy:true st.size sz) = 0 
-     )
-    | True            -> fun x -> true
-    | False           -> fun x -> false
-    | Is_owned_by_user_ID  -> wrapper (
-      fun st -> Unix.geteuid () = st.owner
-     )
-    | Is_owned_by_group_ID -> wrapper (
-      fun st -> Unix.getegid () = st.group_owner
-     )
-    | Is_newer_than(f1)    -> 
-	begin
-	  try 
-	    let st1 = stat f1
-	    in
-	    wrapper (fun st2 -> st1.modification_time > st2.modification_time)
-	  with FileDoesntExist ->
-	    fun x -> false
-	end
-    | Is_older_than(f1)    -> 
-	begin
-	  try 
-	    let st1 = stat f1
-	    in
-	    wrapper (fun st2 -> st1.modification_time < st2.modification_time)
-	  with FileDoesntExist ->
-	    fun x -> false
-	end
-    | Is_newer_than_date(dt) -> wrapper (fun st -> st.modification_time > dt)
-    | Is_older_than_date(dt) -> wrapper (fun st -> st.modification_time < dt)
-    | And(flt1,flt2) ->
-      let cflt1 = (compile_filter flt1)
-      in
-      let cflt2 = (compile_filter flt2)
-      in
-      fun x -> (cflt1 x) && (cflt2 x)
-    | Or(flt1,flt2) ->
-      let cflt1 = (compile_filter flt1)
-      in
-      let cflt2 = (compile_filter flt2)
-      in
-      fun x -> (cflt1 x) || (cflt2 x)
-    | Not(flt1) ->
-      let cflt1 = (compile_filter flt1)
-      in
-      fun x -> not (cflt1 x)
-    | Match(r) ->
-        (* TODO: regexp compile *)
-        failwith "Not implemented"
-    | Has_extension(ext) ->
-      begin
-	fun x -> 
-	  try 
-	    check_extension x ext
-	  with FilePath.NoExtension ->
-	    false
-      end
-    | Has_no_extension ->
-      begin
-	fun x -> 
-	  try
-	    let _ = chop_extension x 
-	    in 
-	    false
-	  with FilePath.NoExtension ->
-	    true
-      end
-    | Is_current_dir ->
-      fun x -> (is_current (basename x))
-    | Is_parent_dir ->
-      fun x -> (is_parent  (basename x))
-    | Basename_is s ->
-      let rs = reduce s
-      in
-      fun x -> (reduce (basename x)) = rs
-    | Dirname_is s ->
-      let rs = reduce s
-      in
-      fun x -> (reduce (dirname x)) = rs
-    | Custom f ->
-	f
-  in
-  fun x -> res_filter x 
+
+  let rec compile_filter_aux =
+    function
+      | True -> (fun _ -> true)
+      | False -> (fun _ -> false)
+      | Is_dev_block    -> wrapper (fun st -> st.kind = Dev_block)
+      | Is_dev_char     -> wrapper (fun st -> st.kind = Dev_char)
+      | Is_dir          -> wrapper (fun st -> st.kind = Dir)
+      | Is_file         -> wrapper (fun st -> st.kind = File)
+      | Is_socket       -> wrapper (fun st -> st.kind = Socket)
+      | Is_pipe         -> wrapper (fun st -> st.kind = Fifo)
+      | Is_link         -> wrapper (fun st -> st.is_link)
+      | Exists          -> wrapper (fun st -> true) 
+      | Is_set_group_ID -> wrapper (fun st -> st.permission.group.sticky)
+      | Has_sticky_bit  -> wrapper (fun st -> st.permission.other.sticky)
+      | Has_set_user_ID -> wrapper (fun st -> st.permission.user.sticky)
+      | Is_readable -> 
+          wrapper 
+            (fun st -> 
+               st.permission.user.read  || 
+               st.permission.group.read || 
+               st.permission.other.read)
+      | Is_writeable -> 
+          wrapper 
+            (fun st -> 
+               st.permission.user.write  || 
+               st.permission.group.write || 
+               st.permission.other.write)
+      | Is_exec -> 
+          wrapper 
+            (fun st -> 
+               st.permission.user.exec  || 
+               st.permission.group.exec || 
+               st.permission.other.exec)
+      | Size_not_null -> 
+          wrapper (fun st -> (size_compare st.size (B 0L)) > 0)
+      | Size_bigger_than sz -> 
+          wrapper (fun st -> (size_compare st.size sz) > 0)
+      | Size_smaller_than sz -> 
+          wrapper (fun st -> (size_compare st.size sz) < 0)
+      | Size_equal_to sz -> 
+          wrapper (fun st -> (size_compare st.size sz) = 0)
+      | Size_fuzzy_equal_to sz -> 
+          wrapper (fun st -> (size_compare ~fuzzy:true st.size sz) = 0)
+      | Is_owned_by_user_ID  -> 
+          wrapper (fun st -> Unix.geteuid () = st.owner)
+      | Is_owned_by_group_ID -> 
+          wrapper (fun st -> Unix.getegid () = st.group_owner)
+      | Is_newer_than(f1) -> 
+          begin
+            try 
+              let st1 = stat f1
+              in
+              wrapper (fun st2 -> st1.modification_time > st2.modification_time)
+            with FileDoesntExist ->
+              fun x -> false
+          end
+      | Is_older_than(f1) -> 
+          begin
+            try 
+              let st1 = stat f1
+              in
+              wrapper (fun st2 -> st1.modification_time < st2.modification_time)
+            with FileDoesntExist ->
+              fun x -> false
+          end
+      | Is_newer_than_date(dt) -> 
+          wrapper (fun st -> st.modification_time > dt)
+      | Is_older_than_date(dt) -> 
+          wrapper (fun st -> st.modification_time < dt)
+      | And(flt1,flt2) ->
+          let cflt1 = 
+            compile_filter_aux flt1
+          in
+          let cflt2 = 
+            compile_filter_aux flt2
+          in
+            fun t -> (cflt1 t) && (cflt2 t)
+      | Or(flt1,flt2) ->
+          let cflt1 = 
+            compile_filter_aux flt1
+          in
+          let cflt2 = 
+            compile_filter_aux flt2
+          in
+            fun t -> (cflt1 t) || (cflt2 t)
+      | Not(flt1) ->
+          let cflt1 = 
+            compile_filter_aux flt1
+          in
+            fun t -> not (cflt1 t)
+      | Match(str) ->
+          fun t -> match_compile str (fn t)
+      | Has_extension(ext) ->
+          begin
+            fun t -> 
+              try 
+                check_extension (fn t) ext
+              with FilePath.NoExtension ->
+                false
+          end
+      | Has_no_extension ->
+          begin
+            fun t -> 
+              try
+                let _ = chop_extension (fn t)
+                in 
+                  false
+              with FilePath.NoExtension ->
+                true
+          end
+      | Is_current_dir ->
+          fun t -> is_current (basename (fn t))
+      | Is_parent_dir ->
+          fun t -> is_parent (basename (fn t))
+      | Basename_is s ->
+          fun t -> (basename (fn t)) = s
+      | Dirname_is s ->
+          fun t -> (dirname (fn t)) = s
+      | Custom f ->
+          fun t -> f (fn t)
+    in
+    let res_filter =
+      compile_filter_aux flt
+    in
+      (fun fn -> res_filter (fn, lazy (stat fn)))
 ;;
 
 let all_upper_dir fln = 
@@ -584,8 +597,8 @@ let all_upper_dir fln =
 (**/**)
 
 (** Test the existence of the file... *)
-let test tst =
-  let ctst = compile_filter tst
+let test ?match_compile tst =
+  let ctst = compile_filter ?match_compile tst
   in
   fun fln -> ctst (solve_dirname fln)
 ;;
@@ -701,10 +714,15 @@ from the given filename and using the test provided to find what is looking
 for. You cannot match current_dir and parent_dir. For every file found, 
 the action exec is done, using the accu to start. For a simple file
 listing, you can use find True "." (fun x y -> x :: y) [] *)
-let find ?(follow = Skip) tst fln exec accu =
-  let ctest = compile_filter (And(tst,Not(Or(Is_parent_dir,Is_current_dir))))
+let find ?(follow = Skip) ?match_compile tst fln exec accu =
+  let ctest = 
+    compile_filter 
+      ?match_compile
+      (And(tst,Not(Or(Is_parent_dir,Is_current_dir))))
   in
-  let cdir  = compile_filter (And(Is_dir,Not(Or(Is_parent_dir,Is_current_dir))))
+  let cdir  = 
+    compile_filter 
+      (And(Is_dir,Not(Or(Is_parent_dir,Is_current_dir))))
   in
   let clink = fun fln ->
     if test Is_link fln then
@@ -953,15 +971,3 @@ let du fln_lst =
 (** For future release : 
    - pathchk : filename -> boolean * string 
   *)
-
-(** {2 Deprecated } *)
-
-(* TODO: replace this 
-(** Implementation using regexp *)
-module StrUtil : FILE_UTILS = GenericUtil(struct 
-  type t = Str.regexp
-  let  compile = Str.regexp
-  let  test    = fun r x -> Str.string_match r x 0
-end)
-;;
-*)
