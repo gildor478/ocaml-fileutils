@@ -394,10 +394,10 @@ let solve_dirname dirname =
 (** stat fln : Returns information about the file (like Unix.stat) *)
 let stat (filename: filename): stat =
   try
-    let stats = Unix.stat filename
+    let stats = Unix.LargeFile.stat filename
     in
     let kind = 
-      match stats.Unix.st_kind with
+      match stats.Unix.LargeFile.st_kind with
 	Unix.S_REG -> File 
       | Unix.S_DIR -> Dir 
       | Unix.S_CHR -> Dev_char 
@@ -407,20 +407,20 @@ let stat (filename: filename): stat =
       | Unix.S_SOCK -> Socket
     in
     let is_link = 
-      let stats = Unix.lstat filename 
+      let stats = Unix.LargeFile.lstat filename 
       in
-      stats.Unix.st_kind = Unix.S_LNK
+      stats.Unix.LargeFile.st_kind = Unix.S_LNK
     in
     {
       kind              = kind;
       is_link           = is_link;
-      permission        = permission_of_int stats.Unix.st_perm;
-      size              = B (float_of_int stats.Unix.st_size);
-      owner             = stats.Unix.st_uid;
-      group_owner       = stats.Unix.st_gid;
-      access_time       = stats.Unix.st_atime;
-      modification_time = stats.Unix.st_mtime;
-      creation_time     = stats.Unix.st_ctime;
+      permission        = permission_of_int stats.Unix.LargeFile.st_perm;
+      size              = B (Int64.to_float stats.Unix.LargeFile.st_size);
+      owner             = stats.Unix.LargeFile.st_uid;
+      group_owner       = stats.Unix.LargeFile.st_gid;
+      access_time       = stats.Unix.LargeFile.st_atime;
+      modification_time = stats.Unix.LargeFile.st_mtime;
+      creation_time     = stats.Unix.LargeFile.st_ctime;
     }
   with Unix.Unix_error(_) ->
     raise FileDoesntExist 
