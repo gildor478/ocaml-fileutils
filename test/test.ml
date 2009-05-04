@@ -640,7 +640,7 @@ let test_fileutil =
       Unix.mkdir fn 0o700;
       at_exit
         (fun () ->
-           if Sys.is_directory fn then
+           if Sys.file_exists fn then
              try
                Unix.rmdir fn
              with _ ->
@@ -672,17 +672,27 @@ let test_fileutil =
   let auto_ask_user fn = 
     if not (SafeFS.is_special_file fn) then
       (
-        dbug_print
-         (fun () -> "Removing file '"^fn^"'");
-        SafeFS.assert_removable fn;
-        if Sys.is_directory fn then
+        if Sys.file_exists fn then
           (
-            SafeFS.dir_unmark fn;
-            dirs := SetFilename.remove fn !dirs
+            SafeFS.assert_removable fn;
+            if Sys.is_directory fn then
+              (
+                dbug_print
+                 (fun () -> "Removing directory '"^fn^"'");
+                SafeFS.dir_unmark fn;
+                dirs := SetFilename.remove fn !dirs
+              )
+            else
+              (
+                dbug_print
+                 (fun () -> "Removing file '"^fn^"'");
+                files := SetFilename.remove fn !files
+              )
           )
         else
           (
-            files := SetFilename.remove fn !files
+            dbug_print
+              (fun () -> "Allow to remove not existing file '"^fn^"'");
           );
         true
       )
@@ -939,7 +949,7 @@ let test_fileutil =
       add_fn file
     );
    
-    "Rm v1" >::
+    "Rm simple" >::
     (fun () ->
       let file = (make_filename [dir_test  ; "essai0"])
       in
@@ -947,18 +957,50 @@ let test_fileutil =
       assert_bool "rm" (test (Not Exists) file)
     );
     
-    "Rm v2" >::
+    "Rm no recurse" >::
     (fun () ->
-      try 
-        let file = (make_filename [dir_test; "essai4"])
-        in
-        rm ~force:(Ask auto_ask_user) [file];
-        assert_failure ("rm should have failed because "^file^" is not empty")
-      with RmDirNotEmpty _ ->
-        ()
+      let file = (make_filename [dir_test; "essai4"])
+      in
+        try 
+          rm ~force:(Ask auto_ask_user) [file];
+          assert_failure ("rm should have failed because "^file^" is a directory")
+        with RmDirNoRecurse _ ->
+          (* Need to mark again essai4 *)
+          add_fn file
+    );
+
+    "Rm ask duplicate" >::
+    (fun () ->
+       let dir =
+         make_filename [dir_test; "ask-duplicate"]
+       in
+       let fn =
+         make_filename [dir; "toto.txt"]
+       in
+       let set_asked = 
+         ref SetFilename.empty
+       in
+       let set_duplicated =
+         ref SetFilename.empty
+       in
+       let ask_register fn =
+         if SetFilename.mem fn !set_asked then
+           set_duplicated := SetFilename.add fn !set_duplicated;
+         set_asked := SetFilename.add fn !set_asked;
+         auto_ask_user fn
+       in
+         mkdir dir;
+         touch fn;
+         add_fn dir;
+         add_fn fn;
+         rm ~force:(Ask ask_register) ~recurse:true [dir];
+         assert_equal 
+           ~msg:"duplicate file asked when removing"
+           SetFilename.empty
+           !set_duplicated
     );
     
-    "Rm v3" >::
+    "Rm final" >::
     (fun () ->
       rm ~force:(Ask auto_ask_user) ~recurse:true [dir_test];
       assert_bool "rm" (test (Not Exists) dir_test)

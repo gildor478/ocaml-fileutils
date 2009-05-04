@@ -40,6 +40,7 @@ exception SizeInvalid;;
 exception FileDoesntExist
 exception RecursiveLink of filename
 exception RmDirNotEmpty of filename
+exception RmDirNoRecurse of filename
 exception MkdirMissingComponentPath of filename
 exception MkdirDirnameAlreadyUsed of filename
 exception CpCannotCopy of filename
@@ -612,15 +613,15 @@ let readlink fln =
 (** List the content of a directory *)
 let ls dirname =
   let real_dirname = 
-  	solve_dirname dirname
+    solve_dirname dirname
   in
   let array_dir = Sys.readdir real_dirname
   in
   let list_dir  = Array.to_list array_dir
   in
-	List.map (fun x -> 
-    concat dirname x
-   )  list_dir
+    List.map 
+      (fun x -> concat dirname x) 
+      list_dir
 ;;
 
 (** Apply a filtering pattern to a filename *)
@@ -733,36 +734,47 @@ let find ?(follow = Skip) tst fln exec accu =
 ;;
 
 (** Remove the filename provided. Turn recurse to true in order to 
-completely delete a directory *)
+    completely delete a directory 
+  *)
 let rm ?(force=Force) ?(recurse=false) fln_lst =
-  let cfile = (And(Custom (doit force),Or(Not(Is_dir),Is_link)))
+  let test_dir = 
+    test (And(Is_dir, Not(Is_link)))
   in
-  let cdir  = (And(Custom (doit force),Is_dir))
-  in
-  let rmdir () fln =
+
+  let rmdir fn =
     try 
-        Unix.rmdir fln
+      Unix.rmdir fn
     with Unix.Unix_error(Unix.ENOTEMPTY,_,_) ->
-      raise (RmDirNotEmpty fln)
+      raise (RmDirNotEmpty fn)
   in
-  let rmfile () fln =
-      Unix.unlink fln
+
+  let rec rm_aux lst = 
+    List.iter 
+      (fun fn ->
+         if test Exists fn && (doit force fn) then
+           (
+             if test_dir fn then
+               (
+                 if recurse then
+                   (
+                     rm_aux (ls fn);
+                     rmdir fn
+                   )
+                 else
+                   (
+                     raise (RmDirNoRecurse fn)
+                   )
+               )
+             else
+               (
+                 Unix.unlink fn
+               )
+           )
+      )
+      lst
   in
-  let rmfull fln = 
-    find cfile fln rmfile ();
-    let set_dir = 
-      find cdir fln 
-      (fun set fln -> SetFilename.add fln set) SetFilename.empty
-    in
-    List.iter (rmdir ()) (SetFilename.elements set_dir)
-  in
-  if recurse then
-    List.iter rmfull fln_lst 
-  else
-    begin
-    List.iter (rmfile ()) (filter cfile fln_lst);
-    List.iter (rmdir  ()) (filter cdir fln_lst)
-    end
+
+    rm_aux fln_lst
 ;;
 
 (** Copy the hierarchy of files/directory to another destination *)
