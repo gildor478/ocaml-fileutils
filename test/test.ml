@@ -238,6 +238,14 @@ module TestCygwin = Test(CygwinPath)
 TestCygwin.os_string := "Cygwin"
 ;;
 
+(** Static test *)
+let _ = 
+  assert(CygwinPath.get_extension "test.txt" = "txt");
+  assert(UnixPath.get_extension "test.txt" = "txt");
+  assert(MacOSPath.get_extension "test.txt" = "txt");
+  assert(Win32Path.get_extension "test.txt" = "txt");
+;;
+
 (*********************)
 (* Unix FilePath test*)
 (*********************)
