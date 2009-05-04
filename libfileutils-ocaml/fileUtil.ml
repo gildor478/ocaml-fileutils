@@ -70,17 +70,14 @@ type interactive =
   | Ask of (filename -> bool)
   (** Promp the user *)
 
+(** File size 
+  *)
 type size = 
-    TB of float
-    (** Terra bytes *)
-  | GB of float
-    (** Giga bytes *)
-  | MB of float
-    (** Mega bytes *)
-  | KB of float
-    (** Kilo bytes *)
-  | B  of float
-    (** Bytes *)
+    TB of int64 (** Tera bytes *)
+  | GB of int64 (** Giga bytes *)
+  | MB of int64 (** Mega bytes *)
+  | KB of int64 (** Kilo bytes *)
+  | B  of int64 (** Bytes *)
     
 (** Kind of file. This set is a combination of all POSIX file, some of them
     doesn't exist at all on certain file system *)
@@ -223,141 +220,156 @@ let int_of_permission pr =
   
 (** {2 Size operation} *)
 
-(** Convert to the upper unit a size *)
-let size_convert_down sz =
-  match sz with
-    TB f -> GB (f *. 1024.0)
-  | GB f -> MB (f *. 1024.0)
-  | MB f -> KB (f *. 1024.0)
-  | KB f -> B  (f *. 1024.0)
-  | B  f -> B f
-
-(** Convert to the smaller unit a size *)
-let size_convert_up sz = 
-  match sz with 
-    TB f -> TB f
-  | GB f -> TB (f /. 1024.0)
-  | MB f -> GB (f /. 1024.0)
-  | KB f -> MB (f /. 1024.0)
-  | B  f -> KB (f /. 1024.0)
-
-(** Compare two units of size : classification of size is 
-  [ To, Go, Mo, Ko, O ], with To being the bigger unit *)
-let size_compare_unit sz1 sz2 =
-  let value_unit sz = 
-    match sz with
-      TB _ -> 4
-    | GB _ -> 3
-    | MB _ -> 2
-    | KB _ -> 1
-    |  B _ -> 0
-  in
-  (value_unit sz1) - (value_unit sz2)
- 
-(** size_to_same_unit sz1 sz2 : convert sz2 to the unit of sz1 *)
-let size_to_same_unit sz1 sz2 =
-  let rec size_to_same_unit_aux sz = 
-    if (size_compare_unit sz1 sz) < 0 then
-      size_to_same_unit_aux (size_convert_down sz)
-    else if (size_compare_unit sz1 sz) > 0 then
-      size_to_same_unit_aux (size_convert_up sz)
-    else
-      sz
-  in
-  size_to_same_unit_aux sz2
-      
-(** Convert a size to To *)
-let size_to_To sz = size_to_same_unit (TB 0.0) sz
-
-(** Convert a size to Go *)
-let size_to_Go sz = size_to_same_unit (GB 0.0) sz
-
-(** Convert a size to Mo *)
-let size_to_Mo sz = size_to_same_unit (MB 0.0) sz
-
-(** Convert a size to Ko *)
-let size_to_Ko sz = size_to_same_unit (KB 0.0) sz
-
-(** Convert a size to O*)
-let size_to_O  sz = size_to_same_unit (B  0.0) sz
-
-(** Apply an operation to a size : the two size are converted
-     to the same unit and the function is applied to their value 
+(** Convert size to bytes 
   *)
-let size_apply_operation f sz1 sz2 = 
-  let sz2p = size_to_same_unit sz1 sz2
+let byte_of_size sz =
+  let rec mul_1024 n i =
+    if n > 0 then
+      mul_1024
+        (n - 1)
+        (Int64.mul 1024L i)
+    else
+      i
   in
-  match sz1,sz2p with
-    TB f1, TB f2 -> TB (f f1 f2)
-  | GB f1, GB f2 -> GB (f f1 f2)
-  | MB f1, MB f2 -> MB (f f1 f2)
-  | KB f1, KB f2 -> KB (f f1 f2)
-  | B  f1, B  f2 -> B  (f f1 f2)
-  |     _ ,    _ -> raise SizeInvalid
+    match sz with
+      | B i  -> i
+      | KB i -> mul_1024 1 i
+      | MB i -> mul_1024 2 i
+      | GB i -> mul_1024 3 i
+      | TB i -> mul_1024 4 i
+;;
 
-(** Compare two size, using the classical compare function. The two size
-    are converted to the same unit before. If fuzzy is set to true, the 
-    comparison is done on the floor value of the two size. 
+(** Add two size
+  *)
+let size_add sz1 sz2 = 
+  B (Int64.add (byte_of_size sz1) (byte_of_size sz2))
+;;
+
+(** Compare two size, using the classical compare function. If fuzzy is set to
+    true, the comparison is done on the most significant size unit of both
+    value.
   *)
 let size_compare ?(fuzzy=false) sz1 sz2 = 
-  let sz2p = size_to_same_unit sz1 sz2
+  let by1 = 
+    byte_of_size sz1
   in
-  match sz1,sz2p with
-    TB f1, TB f2
-  | GB f1, GB f2 
-  | MB f1, MB f2 
-  | KB f1, KB f2 
-  | B  f1, B  f2 -> 
-      if fuzzy then 
-        Pervasives.compare (floor f1) (floor f2)
-      else
-        Pervasives.compare f1 f2
-  |     _ ,    _ -> raise SizeInvalid
-
-(** size_add sz1 sz2 : add sz1 to sz2, result is in the unit of sz1 *)
-let size_add sz1 sz2 = size_apply_operation (+.) sz1 sz2
-
-(** size_sub sz1 sz2 : substract sz1 to sz2, result is in the unit of sz1 *)
-let size_sub sz1 sz2 = size_apply_operation (-.) sz1 sz2
+  let by2 = 
+    byte_of_size sz2
+  in
+    if fuzzy then
+      (
+        let rec fuzzy_comp n1 n2 =
+          if n1 = n2 then
+            0
+          else
+            (
+              let up_unit_n1 =
+                Int64.div n1 1024L
+              in
+              let up_unit_n2 =
+                Int64.div n2 1024L
+              in
+                if up_unit_n1 <> 0L && up_unit_n2 <> 0L then
+                  fuzzy_comp up_unit_n1 up_unit_n2
+                else
+                  Int64.compare n1 n2
+            )
+        in
+          fuzzy_comp by1 by2
+      )
+    else
+      (
+        Int64.compare by1 by2
+      )
+;;
 
 (** Convert a value to a string representation. If fuzzy is set to true, only
-* consider the most significant unit *)
+    consider the most significant unit 
+  *)
 let string_of_size ?(fuzzy=false) sz = 
-  let buffer = Buffer.create 16
+  let szstr i unt (cur_i, cur_unt, tl) = 
+    let tl =
+      (cur_i, cur_unt) :: tl
+    in
+      i, unt, tl
   in
-  let append_unit unt vl =
-    begin
-      if Buffer.length buffer = 0 then
-        ()
-      else
-        Buffer.add_char buffer ' '
-    end;
-    Printf.bprintf buffer "%d %s" (truncate vl) unt;
-    vl -. (float_of_int (truncate vl))
-  in
-  let rec string_of_size_aux sz =
-    if fuzzy && (Buffer.length buffer > 0) then
-      Buffer.contents buffer
+
+  let rec decomp_continue fup i unt acc =
+    if i = 0L then
+      (
+        szstr i unt acc
+      )
     else
-      begin
-        match sz with
-          TB f when f > 1.0 -> 
-            string_of_size_aux (TB (append_unit "TB" f))
-        | GB f when f > 1.0 ->
-            string_of_size_aux (GB (append_unit "GB" f))
-        | MB f when f > 1.0 ->
-            string_of_size_aux (MB (append_unit "MB" f))
-        | KB f when f > 1.0 ->
-            string_of_size_aux (KB (append_unit "KB" f))
-        | B  f when f > 1.0 ->
-            string_of_size_aux (B  (append_unit "B"  f))
-        | B  f ->
-            Buffer.contents buffer
-        | sz ->
-            string_of_size_aux (size_convert_down sz)
-      end
+      (
+        (** Continue with upper unit *)
+        let r =
+          Int64.rem i 1024L
+        in
+        let q =
+          Int64.div i 1024L
+        in
+          decomp_start (szstr r unt acc) (fup q)
+      )
+
+  and decomp_start acc sz =
+    (* Decompose size for current unit and try
+     * to use upper unit
+     *)
+    match sz with 
+      | TB i ->
+          szstr i "TB" acc
+      | GB i ->
+          decomp_continue (fun n -> TB n) i "GB" acc
+      | MB i ->
+          decomp_continue (fun n -> GB n) i "MB" acc
+      | KB i ->
+          decomp_continue (fun n -> MB n) i "KB" acc
+      | B i ->
+          decomp_continue (fun n -> KB n) i "B" acc
   in
-  string_of_size_aux sz
+      
+  (* Only accumulate significant unit in tail *)
+  let only_significant_unit (cur_i, cur_unt, lst) = 
+    let significant_lst =
+      List.filter 
+        (fun (i, _) -> i <> 0L)
+        ((cur_i, cur_unt) :: lst)
+    in
+      match significant_lst with
+        | [] -> cur_i, cur_unt, []
+        | (cur_i, cur_unt) :: tl -> (cur_i, cur_unt, tl)
+  in
+
+  let main_i, main_unt, rem_lst =
+    only_significant_unit (decomp_start (0L, "B", []) sz)
+  in
+
+    if fuzzy then
+      (
+        let (_, rem) = 
+          List.fold_left
+            (fun (div, acc) (i, _unt) ->
+               let acc = 
+                 acc +. ((Int64.to_float i) /. div)
+               in
+                 div *. 1024.0,
+                 acc)
+            (1024.0, 0.0)
+            rem_lst
+        in
+          Printf.sprintf "%.2f %s" 
+            ((Int64.to_float main_i) +. rem) 
+            main_unt
+      )
+    else
+      (
+        String.concat 
+          " "
+          (List.map
+             (fun (i, unt) -> Printf.sprintf "%Ld %s" i unt)
+             ((main_i, main_unt) :: rem_lst))
+      )
+
 ;;
         
 (** {2 Operations on files and directories} *)
@@ -415,7 +427,7 @@ let stat (filename: filename): stat =
       kind              = kind;
       is_link           = is_link;
       permission        = permission_of_int stats.Unix.LargeFile.st_perm;
-      size              = B (Int64.to_float stats.Unix.LargeFile.st_size);
+      size              = B stats.Unix.LargeFile.st_size;
       owner             = stats.Unix.LargeFile.st_uid;
       group_owner       = stats.Unix.LargeFile.st_gid;
       access_time       = stats.Unix.LargeFile.st_atime;
@@ -459,7 +471,7 @@ let rec compile_filter flt =
       fun st -> st.permission.user.exec  || st.permission.group.exec  || st.permission.other.exec
      )
     | Size_not_null          -> wrapper (
-      fun st -> (size_compare st.size (B 0.0)) > 0
+      fun st -> (size_compare st.size (B 0L)) > 0
      )
     | Size_bigger_than sz    -> wrapper (
       fun st -> (size_compare st.size sz) > 0
@@ -934,7 +946,7 @@ let du fln_lst =
   in
   List.fold_left 
   (fun (accu : size * (filename * size) list) fln -> find True fln du_aux accu) 
-  (B 0.0, [])
+  (B 0L, [])
   fln_lst  
 ;;
 

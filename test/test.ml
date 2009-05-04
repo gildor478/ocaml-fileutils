@@ -1004,7 +1004,144 @@ let test_fileutil =
     (fun () ->
       rm ~force:(Ask auto_ask_user) ~recurse:true [dir_test];
       assert_bool "rm" (test (Not Exists) dir_test)
-    )
+    );
+
+    "Size" >:::
+    [
+
+      "string_of_size" >:::
+      (
+        let i64_unit = 
+          1025L
+        in
+        let i64_unit2 =
+          Int64.succ (Int64.mul 1024L 1024L)
+        in
+        let test_of_vector fuzzy (str, sz) =
+          TestCase 
+            (fun () -> 
+               assert_equal 
+                 ~printer:(fun s -> s)
+                 str
+                 (string_of_size ~fuzzy:fuzzy sz))
+        in
+
+          [ 
+            "exact" >:::
+            (
+              List.map
+                (test_of_vector false)
+                [
+                  "0 TB", TB 0L;
+                  "0 GB", GB 0L;
+                  "0 MB", MB 0L;
+                  "0 KB", KB 0L;
+                  "0 B",  B  0L;
+                  "1 TB", TB 1L;
+                  "1 GB", GB 1L;
+                  "1 MB", MB 1L;
+                  "1 KB", KB 1L;
+                  "1 B",  B  1L;
+                  "1025 TB",   TB i64_unit;
+                  "1 TB 1 GB", GB i64_unit;
+                  "1 GB 1 MB", MB i64_unit;
+                  "1 MB 1 KB", KB i64_unit;
+                  "1 KB 1 B",  B  i64_unit;
+                  "1024 TB 1 GB", GB i64_unit2;
+                  "1 TB 1 MB",    MB i64_unit2;
+                  "1 GB 1 KB",    KB i64_unit2;
+                  "1 MB 1 B",     B  i64_unit2;
+                  "97 MB 728 KB 349 B", B 102457693L;
+                ]
+            );
+
+            "fuzzy" >:::
+            (
+              List.map
+                (test_of_vector true)
+                [
+                  "0.00 TB", TB 0L;
+                  "0.00 GB", GB 0L;
+                  "0.00 MB", MB 0L;
+                  "0.00 KB", KB 0L;
+                  "0.00 B",  B  0L;
+                  "1.00 TB", TB 1L;
+                  "1.00 GB", GB 1L;
+                  "1.00 MB", MB 1L;
+                  "1.00 KB", KB 1L;
+                  "1.00 B",  B  1L;
+                  "1025.00 TB", TB i64_unit;
+                  "1.00 TB",    GB i64_unit;
+                  "1.00 GB",    MB i64_unit;
+                  "1.00 MB",    KB i64_unit;
+                  "1.00 KB",    B  i64_unit;
+                  "1024.00 TB", GB i64_unit2;
+                  "1.00 TB",    MB i64_unit2;
+                  "1.00 GB",    KB i64_unit2;
+                  "1.00 MB",    B  i64_unit2;
+                  "97.71 MB", B 102457693L;
+                ]
+            );
+          ]
+      );
+
+      "size_add" >:::
+      (
+        let test_of_vector (str, szs) = 
+          TestCase 
+            (fun () ->
+               assert_equal 
+                 ~printer:(fun s -> s)
+                 str
+                 (string_of_size
+                    (List.fold_left size_add (B 0L) szs)))
+        in
+          List.map 
+            test_of_vector
+            [ 
+              "1 TB 10 MB 12 KB", [TB 1L; KB 12L; MB 10L];
+              "2 MB 976 KB",      [KB 2000L; MB 1L]                                
+            ]
+      );
+
+      "size_compare" >:::
+      (
+        let test_of_vector (sz1, sz2, res) = 
+          TestCase 
+            (fun () ->
+               let cmp =
+                 size_compare sz1 sz2
+               in
+               let norm i =
+                 if i < 0 then 
+                   -1
+                 else if i > 0 then
+                   1
+                 else
+                   0
+               in
+                 assert_equal 
+                   ~printer:string_of_int
+                   (norm res)
+                   cmp
+            )
+        in
+          List.map 
+            test_of_vector
+            [ 
+              TB 1L, TB 1L, 0;
+              GB 1L, GB 1L, 0;
+              MB 1L, MB 1L, 0;
+              KB 1L, KB 1L, 0;
+               B 1L,  B 1L, 0;
+              TB 1L,  B 1L, 1;
+              GB 1L,  B 1L, 1;
+              MB 1L,  B 1L, 1;
+              KB 1L,  B 1L, 1;
+               B 2L,  B 1L, 1;
+            ]
+      );
+    ];
   ]
 in
 
