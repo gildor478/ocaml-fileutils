@@ -33,69 +33,179 @@ module SetFilename = Set.Make (struct
 end)
 ;;
 
+let verbose = 
+  ref false
+;;
+
+let dbug_print f =
+  if !verbose then
+    prerr_endline (f ())
+;;
+
 let assert_equal_string ~msg = 
   assert_equal ~printer:(fun x -> x) ~msg:msg
 ;;  
 
-let expect_equal_list_string lst1 lst2= 
-  assert_equal ~printer:(fun lst -> String.concat ";" lst) lst1 lst2
-;;  
+(** Check that two set of file are equal *)
+let assert_equal_set_filename st_ref st =
+  let to_file_list_string lst =
+    String.concat ", " 
+      (List.map 
+         (Printf.sprintf "%S")
+         lst)
+  in
+  let msg_difference = 
+    let file_not_expected =
+      SetFilename.elements (SetFilename.diff st st_ref)
+    in
+    let file_not_found =
+      SetFilename.elements (SetFilename.diff st_ref st)
+    in
+      match file_not_expected, file_not_found with 
+        | [], [] ->
+            "No difference"
+        | _, [] ->
+            Printf.sprintf 
+              "Files %s are not expected in result" 
+              (to_file_list_string file_not_expected)
+        | [], _ ->
+            Printf.sprintf 
+              "Files %s are not found in result" 
+              (to_file_list_string file_not_found)
+        | _, _ ->
+            Printf.sprintf
+              "File %s are not found and %s are not expected in result"
+              (to_file_list_string file_not_found)
+              (to_file_list_string file_not_expected)
+  in
+    assert_equal 
+      ~cmp:SetFilename.equal 
+      ~msg:msg_difference
+      ~printer:(fun st -> to_file_list_string (SetFilename.elements st))
+      st_ref
+      st
+;;
 
-let expect_equal_bool b1 b2= 
-  assert_equal ~printer:(string_of_bool) b1 b2
+(** Ensure that we are dealing with generated file (and not random
+    file on the filesystem
+  *)
+module SafeFS =
+struct
+  let magic =
+    Random.self_init ();
+    Random.bits ()
+
+  let file_mark fn =
+    let chn =
+      open_out_bin fn
+    in
+      output_binary_int chn magic;
+      close_out chn
+
+  let file_check fn =
+    try
+      let chn =
+        open_in_bin fn
+      in
+      let magic =
+        input_binary_int chn
+      in
+        close_in chn;
+        magic = magic
+    with _ ->
+      false
+
+  let dir_marker fn =
+    Filename.concat fn "_mark"
+
+  let is_special_file fn =
+    (Filename.basename fn) = "_mark"
+
+  let dir_mark fn =
+    file_mark (dir_marker fn)
+
+  let dir_check fn =
+    file_check (dir_marker fn)
+
+  let dir_unmark fn =
+    if dir_check fn then
+      Sys.remove (dir_marker fn)
+    
+  let assert_removable fn =
+    if Sys.file_exists fn then
+      (
+        if Sys.is_directory fn then
+          (
+            assert_bool
+              (Printf.sprintf "%S directory cannot be removed" fn)
+              (dir_check fn)
+          )
+        else
+          (
+            assert_bool
+              (Printf.sprintf "%S file cannot be removed" fn)
+              (file_check fn)
+          )
+      )
+    else
+      (
+        assert_failure 
+          (Printf.sprintf "%S doesn't exist" fn)
+      )
+end
 ;;
 
 module Test = 
-functor ( OsPath : PATH_STRING_SPECIFICATION ) ->
+functor (OsPath : PATH_STRING_SPECIFICATION) ->
 struct
   let os_string = ref ""
   
   let test_label s value = (!os_string)^" : "^s^" \""^value^"\""
 
-  let test_label_list s lst = test_label s ("[ "^(String.concat ";" lst)^"]")
+  let test_label_list s lst = test_label s ("["^(String.concat ";" lst)^"]")
 
   let test_label_pair s (a,b) = test_label s (a^"\" \""^b)
 
   let test_name s = (s)
   
   let reduce (exp,res) =
-    (test_name "reduce") >:: ( fun () ->
+    (test_name "reduce") >:: (fun () ->
       assert_equal_string ~msg:(test_label "reduce" exp)
       res (OsPath.reduce exp)
     )
     
   let make_path (exp,res) =
-    (test_name "make_path") >:: ( fun () ->
+    (test_name "make_path") >:: (fun () ->
       assert_equal_string ~msg:(test_label_list "make_path" exp)
       res (OsPath.string_of_path exp)
     )
     
   let make_absolute (base,rela,res) =
-    (test_name "make_absolute") >:: ( fun () ->
+    (test_name "make_absolute") >:: (fun () ->
       assert_equal_string ~msg:(test_label_pair "make_absolute" (base,rela))
       res (OsPath.make_absolute base rela)
     )
     
   let make_relative (base,abs,res) =
-    (test_name "make_relative") >:: ( fun () ->
+    (test_name "make_relative") >:: (fun () ->
       assert_equal_string ~msg:(test_label_pair "make_relative" (base,abs))
       res (OsPath.make_relative base abs)
     )
     
   let valid (exp) =
-    (test_name "valid") >:: ( fun () ->
+    (test_name "valid") >:: (fun () ->
       assert_bool (test_label "is_valid" exp)
       (OsPath.is_valid exp)
     )
     
   let identity (exp) = 
-    (test_name "identity") >:: ( fun () ->
+    (test_name "identity") >:: (fun () ->
       assert_equal_string ~msg:(test_label "identity" exp)
       exp (OsPath.identity exp)
     )
 
   let extension (filename,basename,extension) = 
-    (test_name "extension") >:: ( fun () ->
+    (test_name "extension") >:: (fun () ->
       assert_equal_string ~msg:(test_label "chop_extension" filename)
       (OsPath.chop_extension filename) basename;
       
@@ -105,7 +215,7 @@ struct
       assert_bool (test_label "check_extension" filename)
       (OsPath.check_extension filename (OsPath.extension_of_string extension));
       
-      assert_bool (test_label "check_extension ( false ) " filename)
+      assert_bool (test_label "check_extension (false) " filename)
       (not (OsPath.check_extension filename (OsPath.extension_of_string "dummy")))
     )
 end
@@ -197,7 +307,7 @@ let test_unix =
     )
 
     (* Convert to absolute *)
-    @ ( 
+    @ (
       List.map TestUnix.make_absolute
       [
        ("/a/b/c", ".",    "/a/b/c");
@@ -292,7 +402,7 @@ let test_win32 =
       )
 
       (* Create path *)
-      @ ( 
+      @ (
         List.map TestWin32.make_path
         [
          (["c:/a";"b";"c:/c\\d"], "c:/a;b;c:/c\\d");
@@ -360,7 +470,7 @@ let test_macos =
       )
 
       (* Identity *)
-      @ ( 
+      @ (
         List.map TestMacOS.identity test_path
       )
 
@@ -486,7 +596,7 @@ let test_cygwin =
       )
 
       (* Convert to absolute *)
-      @ ( 
+      @ (
         List.map TestCygwin.make_absolute
         [
          ("c:/a/b/c", ".",    "c:/a/b/c");
@@ -496,7 +606,7 @@ let test_cygwin =
       )
 
       (* Convert to relative *)
-      @ ( 
+      @ (
         List.map TestCygwin.make_relative 
         [
          ("c:/a/b/c", "c:/a/b/c", "");
@@ -516,89 +626,128 @@ let test_cygwin =
     )
 in
 
-(****************)
-(* FileUtil test*)
-(****************)
+(*****************)
+(* FileUtil test *)
+(*****************)
 
 (* Test to be performed *)
 let test_fileutil = 
-  let dir_test = "test-util"
-  in
-  let dirs = ref (SetFilename.singleton dir_test)
-  in
-  let files = ref SetFilename.empty
-  in
-  let test_test (stest,expr,file,res) =
-    "test" >:: ( fun () ->
-      assert_bool ("Test "^stest^" on "^file) 
-      (res = (test expr file))
-    )
-  in
-  let ask_user file = 
-    let answer =
-      print_string ("Delete file : "^file^" (y/n) ? ");
-      read_line ()
+  let dir_test = 
+    let fn =
+      Filename.temp_file "fileutil-" ""
     in
-    if answer = "y" then
-      if test Is_dir file then
-        begin
-          dirs := SetFilename.remove file !dirs;
-          true
-        end
-      else
-        begin
-          files := SetFilename.remove file !files;
-          true
-        end
-    else
-      false
+      Sys.remove fn;
+      Unix.mkdir fn 0o700;
+      at_exit
+        (fun () ->
+           if Sys.is_directory fn then
+             try
+               Unix.rmdir fn
+             with _ ->
+               ());
+      fn
   in
+
+  let dirs = 
+    ref SetFilename.empty 
+  in
+  let files = 
+    ref SetFilename.empty
+  in
+
+  let add_fn fn = 
+    if Sys.is_directory fn then
+      (
+        SafeFS.dir_mark fn;
+        files := SetFilename.add (SafeFS.dir_marker fn) !files;
+        dirs := SetFilename.add fn !dirs
+      )
+    else
+      (
+        SafeFS.file_mark fn;
+        files := SetFilename.add fn !files;
+      )
+  in
+
+  let auto_ask_user fn = 
+    if not (SafeFS.is_special_file fn) then
+      (
+        dbug_print
+         (fun () -> "Removing file '"^fn^"'");
+        SafeFS.assert_removable fn;
+        if Sys.is_directory fn then
+          (
+            SafeFS.dir_unmark fn;
+            dirs := SetFilename.remove fn !dirs
+          )
+        else
+          (
+            files := SetFilename.remove fn !files
+          );
+        true
+      )
+    else
+      (
+        dbug_print 
+          (fun () -> "Skipping special file '"^fn^"'");
+        false
+      )
+  in
+
   "FileUtil" >:::
     [
       "Creation of base dir" >::
-      ( fun () ->
+      (fun () ->
         mkdir dir_test;
+        add_fn dir_test;
         assert_bool "base dir" (test Is_dir dir_test)
       )
     ]
     
     @ (
+      let test_test (stest,expr,file,res) =
+        "test" >:: (fun () ->
+          assert_bool ("Test "^stest^" on "^file) 
+          (res = (test expr file))
+        )
+      in
       List.map test_test
       [
-       ("True",                         True,                dir_test,true );
+       ("True",                         True,                dir_test,true);
        ("False",                        False,               dir_test,false);
-       ("Is_dir",                       Is_dir,              dir_test,true );
+       ("Is_dir",                       Is_dir,              dir_test,true);
        ("Not Is_dir",                   (Not Is_dir),        dir_test,false);
        ("Is_dev_block",                 Is_dev_block,        dir_test,false);
        ("Is_dev_char",                  Is_dev_char,         dir_test,false);
-       ("Exists",                       Exists,              dir_test,true );
+       ("Exists",                       Exists,              dir_test,true);
        ("Is_file",                      Is_file,             dir_test,false);
        ("Is_set_group_ID",              Is_set_group_ID,     dir_test,false);
        ("Has_sticky_bit",               Has_sticky_bit,      dir_test,false);
        ("Is_link",                      Is_link,             dir_test,false);
        ("Is_pipe",                      Is_pipe,             dir_test,false);
-       ("Is_readable",                  Is_readable,         dir_test,true );
-       ("Is_writeable",                 Is_writeable,        dir_test,true );
-       ("Size_not_null",                Size_not_null,       dir_test,true );
+       ("Is_readable",                  Is_readable,         dir_test,true);
+       ("Is_writeable",                 Is_writeable,        dir_test,true);
+       ("Size_not_null",                Size_not_null,       dir_test,true);
        ("Is_socket",                    Is_socket,           dir_test,false);
        ("Has_set_user_ID",              Has_set_user_ID,     dir_test,false);
-       ("Is_exec",                      Is_exec,             dir_test,true );
+       ("Is_exec",                      Is_exec,             dir_test,true);
        ("And of test_file * test_file", And(True,False),     dir_test,false);
-       ("Or of test_file * test_file",  Or(True,False),      dir_test,true );
-       ("Match",                        Match(dir_test),     dir_test,true );
-       ("Is_owned_by_user_ID",          Is_owned_by_user_ID, dir_test,true );
-       ("Is_owned_by_group_ID",         Is_owned_by_group_ID,dir_test,true );
-       ("Is_newer_than",                (Is_newer_than("test.ml")),dir_test,true);
-       ("Is_older_than",                (Is_older_than("test.ml")),dir_test,false);
+       ("Or of test_file * test_file",  Or(True,False),      dir_test,true);
+       ("Match",                        Match(dir_test),     dir_test,true);
+       ("Is_owned_by_user_ID",          Is_owned_by_user_ID, dir_test,true);
+       ("Is_owned_by_group_ID",         Is_owned_by_group_ID,dir_test,true);
+       ("Is_newer_than",                (Is_newer_than dir_test),dir_test,false);
+       ("Is_older_than",                (Is_older_than dir_test),dir_test,false);
       ]
     )
 
     @ [
   
     "Touch in not existing subdir" >::
-    ( fun () ->
+    (fun () ->
       try 
-        let file = make_filename [dir_test;"doesntexist";"essai0"]
+        let file = 
+          make_filename [dir_test;"doesntexist";"essai0"]
         in
         touch file;
         assert_failure "Touch should have failed, since directory is missing"
@@ -607,16 +756,18 @@ let test_fileutil =
     ) ;
     
     "Touch in existing dir v1" >::
-    ( fun () ->
-      let file = make_filename [dir_test;"essai0"]
+    (fun () ->
+      let file = 
+        make_filename [dir_test;"essai0"]
       in
       touch file;
+      Unix.sleep 1;
       assert_bool "touch" (test Exists (make_filename [dir_test;"essai0"]));
-      files := SetFilename.add file !files
+      add_fn file
     );
   
     "Touch in existing dir with no create" >::
-    ( fun () ->
+    (fun () ->
       let file = make_filename [dir_test;"essai2"]
       in
       touch ~create:false file;
@@ -624,43 +775,39 @@ let test_fileutil =
     );
     
     "Touch in existing dir v2" >::
-    ( fun () ->
+    (fun () ->
       let file = make_filename [dir_test;"essai1"]
       in
       touch file;
       assert_bool "touch" (test Exists (make_filename [dir_test;"essai1"]));
-      files := SetFilename.add file !files
+      add_fn file
     );
    
-    (* Too fast : creation time is different less than 1 sec 
     "Touch precedence" >::
-    ( fun () ->
-          let stat_fln1 = stat (make_filename [ dir_test ; "essai0" ])
-          in
-          let stat_fln2 = stat (make_filename [ dir_test ; "essai1" ])
-          in
-          print_endline ("Modification time of \"essai0\" : "^(string_of_float stat_fln1.modification_time));
-          print_endline ("Modification time of \"essai1\" : "^(string_of_float stat_fln2.modification_time));
-          assert_bool "touch precendence" (test (Is_newer_than (make_filename [ dir_test ; "essai0" ]))
-          (make_filename [dir_test; "essai1"]))
-    );*)
+    (fun () ->
+      assert_bool 
+        "touch precedence" 
+        (test 
+           (Is_newer_than (make_filename [dir_test ; "essai1"]))
+           (make_filename [dir_test; "essai0"]))
+    );
     
     "Mkdir simple v1" >::
-    ( fun () ->
+    (fun () ->
       let dir = make_filename [dir_test;"essai2"]
       in
       mkdir dir;
       assert_bool "mkdir" (test Is_dir dir);
-      dirs := SetFilename.add dir !dirs
+      add_fn dir
     );
     
     "Mkdir simple && mode 700" >::
-    ( fun () ->
-      let dir = make_filename [ dir_test ; "essai3" ]
+    (fun () ->
+      let dir = make_filename [dir_test ; "essai3"]
       in
       mkdir ~mode:0o0700 dir;
       assert_bool "mkdir" (test Is_dir dir);
-      dirs := SetFilename.add dir !dirs
+      add_fn dir
     );
     
     "Mkdir recurse v2" >::
@@ -693,71 +840,80 @@ let test_fileutil =
       in
       mkdir ~parent:true dir2;
       assert_bool "mkdir" (test Is_dir dir2);
-      dirs := SetFilename.add dir1 ( SetFilename.add dir2 !dirs )
+      add_fn dir1; 
+      add_fn dir2
     );
     
     "Find v1" >::
     (fun () ->
-      let set = find True dir_test ( fun set fln -> SetFilename.add fln set ) SetFilename.empty
+      let set = find True dir_test (fun set fln -> SetFilename.add fln set) SetFilename.empty
       in
-      assert_bool "find" (SetFilename.equal set (SetFilename.union !dirs !files))
+      assert_equal_set_filename 
+        (SetFilename.union !dirs !files)
+        set 
     );
     
     "Find v2" >::
     (fun () ->
-      let set = find Is_dir dir_test ( fun set fln -> SetFilename.add fln set ) SetFilename.empty
+      let set = find Is_dir dir_test (fun set fln -> SetFilename.add fln set) SetFilename.empty
       in
-      assert_bool "find" (SetFilename.equal set !dirs)
+      assert_equal_set_filename
+        !dirs
+        set 
     );
           
     "Find v3" >::
     (fun () ->
-      let set = find Is_file dir_test ( fun set fln -> SetFilename.add fln set ) SetFilename.empty
+      let set = find Is_file dir_test (fun set fln -> SetFilename.add fln set) SetFilename.empty
       in
-      assert_bool "find" (SetFilename.equal set !files)
+      assert_equal_set_filename 
+        !files
+        set 
     );
 
     "Find v4" >::
-    ( fun () ->
-      let set = find Is_file (Filename.concat dir_test "") ( fun set fln ->
+    (fun () ->
+      let set = find Is_file (Filename.concat dir_test "") (fun set fln ->
         SetFilename.add fln set) SetFilename.empty
       in
-      assert_bool "find" (SetFilename.equal set !files)
+      assert_equal_set_filename 
+        !files
+        set 
     );
 
     "Unix specific" >:::
     (
-      let symlink = make_filename [ dir_test ; "recurse" ]
+      let symlink = make_filename [dir_test ; "recurse"]
       in
       match Sys.os_type with
         "Unix" ->
           [
             "Unix symlink" >::
-            ( fun () ->
+            (fun () ->
               Unix.symlink current_dir symlink;
               assert_bool "symlink is not a link" (test Is_link symlink);
               assert_bool "symlink is not a dir" (test Is_dir symlink)
             );
             
-            "Find v4 ( link follow )" >::
+            "Find v4 (link follow)" >::
             (fun () ->
               try 
-                find ~follow:Follow Is_dir dir_test ( fun () fln -> () ) ();
+                find ~follow:Follow Is_dir dir_test (fun () fln -> ()) ();
                 assert_failure "find follow should have failed, since there is recursive symlink"
               with RecursiveLink _ ->
                 ()
             );
 
-            "Find v5 ( no link follow )" >::
+            "Find v5 (no link follow)" >::
             (fun () ->
-              let set = find ~follow:Skip Is_dir dir_test ( fun set fln -> SetFilename.add fln set ) SetFilename.empty
+              let set = find ~follow:Skip Is_dir dir_test (fun set fln -> SetFilename.add fln set) SetFilename.empty
               in
-              assert_bool "find symlink skip fails" ( SetFilename.equal set (SetFilename.add symlink !dirs) )
+              assert_bool "find symlink skip fails" (SetFilename.equal set (SetFilename.add symlink !dirs))
             );
 
             "Unix delete symlink" >::
-            ( fun () ->
-              rm [ symlink ];
+            (fun () ->
+              rm [symlink];
               assert_bool "rm symlink failed" (test (Not Exists) symlink)
             )
           ]
@@ -767,38 +923,36 @@ let test_fileutil =
 
     "Cp v1" >::
     (fun () ->
-      let file = make_filename [ dir_test ; "essai6" ]
+      let file = make_filename [dir_test ; "essai6"]
       in
       cp [(make_filename [dir_test ; "essai0"])] file;
       assert_bool "cp" (test Exists file);
-      files := SetFilename.add file !files
+      add_fn file
     );
     
     "Cp v2" >::
     (fun () ->
-      let file = make_filename [ dir_test ; "essai4" ]
+      let file = make_filename [dir_test ; "essai4"]
       in
       cp [(make_filename [dir_test ; "essai0"])] file;
       assert_bool "cp" (test (Exists) file);
-      files := SetFilename.add file !files
+      add_fn file
     );
    
     "Rm v1" >::
     (fun () ->
       let file = (make_filename [dir_test  ; "essai0"])
       in
-      print_newline ();
-      rm ~force:(Ask ask_user) [file];
+      rm ~force:(Ask auto_ask_user) [file];
       assert_bool "rm" (test (Not Exists) file)
     );
     
     "Rm v2" >::
     (fun () ->
       try 
-        let file = (make_filename [ dir_test ; "essai4" ])
+        let file = (make_filename [dir_test; "essai4"])
         in
-        print_newline ();
-        rm ~force:(Ask ask_user) [file];
+        rm ~force:(Ask auto_ask_user) [file];
         assert_failure ("rm should have failed because "^file^" is not empty")
       with RmDirNotEmpty _ ->
         ()
@@ -806,41 +960,25 @@ let test_fileutil =
     
     "Rm v3" >::
     (fun () ->
-      print_newline ();
-      rm ~force:(Ask ask_user) ~recurse:true [dir_test];
+      rm ~force:(Ask auto_ask_user) ~recurse:true [dir_test];
       assert_bool "rm" (test (Not Exists) dir_test)
     )
   ]
 in
 
-let test_filepath =
-  "Test FilePath" >:::
+let tests =
+  "ocaml-fileutils" >:::
+  [
+    "FilePath" >:::
     [
       test_unix;
       test_win32;
       test_macos;
       test_cygwin;
-    ]
+    ];
+
+    test_fileutil;
+  ]
 in
-let result_filepath = 
-  run_test_tt_main test_filepath
-in
-let filepath_was_successful =
-  List.fold_left
-    (fun success tst ->
-       if success then
-         (
-           match tst with 
-             | RSuccess _ | RSkip _ | RTodo _ -> true
-             | RFailure _ | RError _ -> false
-         )
-       else
-         success)
-    true
-    result_filepath
-in
-if filepath_was_successful then
-  ignore (run_test_tt_main test_fileutil)
-else
-  print_endline "FileUtil module test skipped (correct FilePath error first)"
+  ignore (run_test_tt_main tests)
 
