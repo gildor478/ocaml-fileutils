@@ -1,3 +1,24 @@
+dnl ********************************************************************************
+dnl *  ocaml-fileutils: files and filenames common operations                      *
+dnl *                                                                              *
+dnl *  Copyright (C) 2003-2009, Sylvain Le Gall                                    *
+dnl *                                                                              *
+dnl *  This library is free software; you can redistribute it and/or modify it     *
+dnl *  under the terms of the GNU Lesser General Public License as published by    *
+dnl *  the Free Software Foundation; either version 2.1 of the License, or (at     *
+dnl *  your option) any later version, with the OCaml static compilation           *
+dnl *  exception.                                                                  *
+dnl *                                                                              *
+dnl *  This library is distributed in the hope that it will be useful, but         *
+dnl *  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY  *
+dnl *  or FITNESS FOR A PARTICULAR PURPOSE. See the file COPYING for more          *
+dnl *  details.                                                                    *
+dnl *                                                                              *
+dnl *  You should have received a copy of the GNU Lesser General Public License    *
+dnl *  along with this library; if not, write to the Free Software Foundation,     *
+dnl *  Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA               *
+dnl ********************************************************************************
+
 #######################################################################
 # Ocaml-fileutils                                                     #
 #                                                                     #
