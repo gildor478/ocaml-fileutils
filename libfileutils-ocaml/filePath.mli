@@ -42,32 +42,30 @@
     @author Sylvain Le Gall
   *)
 
-open FilePath_type;;
-
-(** {2 Exceptions and types} *)
-
-(** Cannot pass a base filename which is relative. *)
-exception BaseFilenameRelative;;
-
-(** We do not have recognized any OS, please contact upstream. *)
-exception UnrecognizedOS of string;;
-
-(** The filename use was empty. *)
-exception Empty;;
-
-(** The last component of the filename does not support extension (Root,
-     ParentDir...)
-  *)
-exception NoExtension;;
-
-(** The filename used is invalid. *)
-exception InvalidFilename;;  
-
 (** Filename type. *)
 type filename = string;;
 
 (** Extension type. *)
 type extension = string;;
+
+(** {2 Exceptions and types} *)
+
+(** Cannot pass a base filename which is relative. *)
+exception BaseFilenameRelative of filename;;
+
+(** We do not have recognized any OS, please contact upstream. *)
+exception UnrecognizedOS of string;;
+
+(** The filename use was empty. *)
+exception EmptyFilename;;
+
+(** The last component of the filename does not support extension (Root,
+     ParentDir...)
+  *)
+exception NoExtension of filename;;
+
+(** The filename used is invalid. *)
+exception InvalidFilename of filename;;  
 
 (** {2 Ordering} *)
 

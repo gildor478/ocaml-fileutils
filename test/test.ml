@@ -640,22 +640,6 @@ in
 
 (* Test to be performed *)
 let test_fileutil = 
-  let dir_test = 
-    let fn =
-      Filename.temp_file "fileutil-" ""
-    in
-      Sys.remove fn;
-      Unix.mkdir fn 0o700;
-      at_exit
-        (fun () ->
-           if Sys.file_exists fn then
-             try
-               Unix.rmdir fn
-             with _ ->
-               ());
-      fn
-  in
-
   let dirs = 
     ref SetFilename.empty 
   in
@@ -712,50 +696,91 @@ let test_fileutil =
       )
   in
 
+  let dir_test = 
+    let fn =
+      Filename.temp_file "fileutil-" ""
+    in
+      Sys.remove fn;
+      Unix.mkdir fn 0o700;
+      at_exit
+        (fun () ->
+           if Sys.file_exists fn then
+             try
+               Unix.rmdir fn
+             with _ ->
+               ());
+      add_fn fn;
+      fn
+  in
+  let file_test =
+    let fn =
+      make_filename [dir_test; "essai99"]
+    in
+      touch fn;
+      at_exit
+        (fun () ->
+           try
+             if Sys.file_exists fn then
+               Sys.remove fn
+           with _ ->
+             ());
+      add_fn fn;
+      fn
+  in
+
   "FileUtil" >:::
     [
       "Creation of base dir" >::
       (fun () ->
-        mkdir dir_test;
-        add_fn dir_test;
-        assert_bool "base dir" (test Is_dir dir_test)
+        assert_bool "base dir" (test Is_dir dir_test);
+        assert_bool "file test" (test Is_file file_test)
       )
     ]
     
     @ (
-      let test_test (stest,expr,file,res) =
-        "test" >:: (fun () ->
-          assert_bool ("Test "^stest^" on "^file) 
-          (res = (test expr file))
+      let test_test (stest,expr,file,res, cond) =
+        "test" >:: 
+        (fun () ->
+           cond ();
+           assert_bool 
+             ("Test "^stest^" on "^file) 
+             (res = (test expr file))
         )
+      in
+      let all () =
+        ()
+      in
+      let not_win32 () =
+        skip_if (Sys.os_type = "Win32") "Test not available on win32"
       in
       List.map test_test
       [
-       ("True",                         True,                dir_test,true);
-       ("False",                        False,               dir_test,false);
-       ("Is_dir",                       Is_dir,              dir_test,true);
-       ("Not Is_dir",                   (Not Is_dir),        dir_test,false);
-       ("Is_dev_block",                 Is_dev_block,        dir_test,false);
-       ("Is_dev_char",                  Is_dev_char,         dir_test,false);
-       ("Exists",                       Exists,              dir_test,true);
-       ("Is_file",                      Is_file,             dir_test,false);
-       ("Is_set_group_ID",              Is_set_group_ID,     dir_test,false);
-       ("Has_sticky_bit",               Has_sticky_bit,      dir_test,false);
-       ("Is_link",                      Is_link,             dir_test,false);
-       ("Is_pipe",                      Is_pipe,             dir_test,false);
-       ("Is_readable",                  Is_readable,         dir_test,true);
-       ("Is_writeable",                 Is_writeable,        dir_test,true);
-       ("Size_not_null",                Size_not_null,       dir_test,true);
-       ("Is_socket",                    Is_socket,           dir_test,false);
-       ("Has_set_user_ID",              Has_set_user_ID,     dir_test,false);
-       ("Is_exec",                      Is_exec,             dir_test,true);
-       ("And of test_file * test_file", And(True,False),     dir_test,false);
-       ("Or of test_file * test_file",  Or(True,False),      dir_test,true);
-       ("Match",                        Match(dir_test),     dir_test,true);
-       ("Is_owned_by_user_ID",          Is_owned_by_user_ID, dir_test,true);
-       ("Is_owned_by_group_ID",         Is_owned_by_group_ID,dir_test,true);
-       ("Is_newer_than",                (Is_newer_than dir_test),dir_test,false);
-       ("Is_older_than",                (Is_older_than dir_test),dir_test,false);
+       "True",            True,            dir_test,  true,  all;
+       "False",           False,           dir_test,  false, all;
+       "Is_dir",          Is_dir,          dir_test,  true,  all;
+       "Not Is_dir",      (Not Is_dir),    dir_test,  false, all;
+       "Is_dev_block",    Is_dev_block,    dir_test,  false, all;
+       "Is_dev_char",     Is_dev_char,     dir_test,  false, all;
+       "Exists",          Exists,          dir_test,  true,  all;
+       "Is_file",         Is_file,         dir_test,  false, all;
+       "Is_set_group_ID", Is_set_group_ID, dir_test,  false, all;
+       "Has_sticky_bit",  Has_sticky_bit,  dir_test,  false, all;
+       "Is_link",         Is_link,         dir_test,  false, all;
+       "Is_pipe",         Is_pipe,         dir_test,  false, all;
+       "Is_readable",     Is_readable,     dir_test,  true,  all;
+       "Is_writeable",    Is_writeable,    dir_test,  true,  all;
+       "Size_not_null",   Size_not_null,   file_test, true,  all;
+       "Is_socket",       Is_socket,       dir_test,  false, all;
+       "Has_set_user_ID", Has_set_user_ID, dir_test,  false, all;
+       "Is_exec",         Is_exec,         dir_test,  true,  all;
+       "Match",           Match(dir_test), dir_test,  true,  all;
+
+       "And of test_file * test_file", And(True,False), dir_test, false, all;
+       "Or of test_file * test_file", Or(True,False), dir_test, true, all;
+       "Is_owned_by_user_ID", Is_owned_by_user_ID, dir_test, true, not_win32;
+       "Is_owned_by_group_ID", Is_owned_by_group_ID,dir_test,true, not_win32;
+       "Is_newer_than", (Is_newer_than dir_test), dir_test, false, all;
+       "Is_older_than", (Is_older_than dir_test), dir_test, false, all;
       ]
     )
 

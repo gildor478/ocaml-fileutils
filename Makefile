@@ -26,11 +26,17 @@
 -include TopMakefile
 
 BUILDDIR=$(CURDIR)/_build/libfileutils-ocaml
-OCAMLBUILDFLAGS+=-classic-display
+OCAMLBUILDFLAGS+=-classic-display -no-log
 
 test:
 
-all:
+_build/myocamlbuild: myocamlbuild.ml
+	$(OCAMLBUILD) $(OCAMLBUILDFLAGS) -just-plugin
+	-cp $@.exe $@
+
+myocamlbuild: _build/myocamlbuild
+
+all: myocamlbuild
 	$(OCAMLBUILD) $(OCAMLBUILDFLAGS) fileutils.otarget 
 
 clean:
@@ -87,4 +93,4 @@ test: all
 	cd "$(CURDIR)/_build/test" && ./test.$(ocamlbuild_best_program)
 
 
-.PHONY: all clean distclean install uninstall dist test
+.PHONY: all clean distclean install uninstall dist test myocamlbuild

@@ -551,7 +551,7 @@ let compile_filter
             fun t -> 
               try 
                 check_extension (fn t) ext
-              with FilePath.NoExtension ->
+              with FilePath.NoExtension _ ->
                 false
           end
       | Has_no_extension ->
@@ -561,7 +561,7 @@ let compile_filter
                 let _ = chop_extension (fn t)
                 in 
                   false
-              with FilePath.NoExtension ->
+              with FilePath.NoExtension _ ->
                 true
           end
       | Is_current_dir ->

@@ -25,11 +25,11 @@
 
 open FilePath_type;;
 
-exception BaseFilenameRelative;;
+exception BaseFilenameRelative of filename;;
 exception UnrecognizedOS of string;;
-exception Empty;;
-exception NoExtension;;
-exception InvalidFilename;;
+exception EmptyFilename;;
+exception NoExtension of filename;;
+exception InvalidFilename of filename;;
 
 module type OS_SPECIFICATION =
 sig
@@ -103,7 +103,7 @@ struct
       in
       OsOperation.dir_reader lexbuf
     with Parsing.Parse_error ->
-      raise InvalidFilename
+      raise (InvalidFilename str)
 
   (* String_from_filename *)
 
@@ -164,7 +164,7 @@ struct
       | ([], updir) ->
         UpDir
     in
-    relation_of_filename_aux (reduce path1) (reduce path2)
+    relation_of_filename_aux path1 path2
     
   let is_subdir path1 path2 =
     match relation_of_filename path1 path2 with
@@ -244,7 +244,7 @@ struct
       hd :: tl ->
       [hd]
     | [] ->
-      raise Empty
+      raise EmptyFilename
 
   (* Dirname *)
 
@@ -253,7 +253,7 @@ struct
       hd :: tl ->
       List.rev tl
     | [] ->
-      raise Empty
+      raise EmptyFilename
 
   (* Extension manipulation *)
 
@@ -267,11 +267,11 @@ struct
           GenericPath_lexer.token_extension
           lexbuf
         with Parsing.Parse_error ->
-          raise NoExtension
+          raise (NoExtension (string_of_filename path))
       in
       ((dirname path) @ [Component base], ext)
     | _ ->
-      raise NoExtension
+      raise (NoExtension (string_of_filename path))
 
   let check_extension path ext = 
     let (real_path, real_ext) = split_extension path
@@ -293,7 +293,7 @@ struct
       Component str :: tl ->
         List.rev ( Component (str^"."^ext) :: tl )
     | _ ->
-      raise NoExtension
+      raise (NoExtension (string_of_filename path))
 
 
   let extension_of_string x = x
@@ -304,11 +304,11 @@ struct
 
   let make_absolute path_base path_path =
     if is_relative path_base then
-      raise BaseFilenameRelative
+      raise (BaseFilenameRelative (string_of_filename path_base))
     else if is_relative path_path then
-      reduce (path_base @ path_path)
+      path_base @ path_path
     else
-      reduce (path_path)
+      path_path
 
   (* Make_relative *)
 
@@ -325,12 +325,11 @@ struct
         back_to_base @ lst_path
     in
     if is_relative path_base then
-      raise BaseFilenameRelative
+      raise (BaseFilenameRelative (string_of_filename path_base))
     else if is_relative path_path then
-      reduce path_path
+      path_path
     else
-      make_relative_aux (reduce path_base) (reduce path_path)
-
+      make_relative_aux path_base path_path
 
   (* Make_filename *)
 
@@ -360,7 +359,7 @@ struct
       in
       List.map filename_of_string (OsOperation.path_reader lexbuf)
     with Parsing.Parse_error ->
-      raise InvalidFilename
+      raise (InvalidFilename str)
 
   (* Generic filename component *)
 
@@ -439,7 +438,7 @@ struct
   let is_valid path =
     try
       Abstract.is_valid (s2f path)
-    with InvalidFilename ->
+    with InvalidFilename _ ->
       false
 
   let is_relative path = 
