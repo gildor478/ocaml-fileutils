@@ -214,6 +214,13 @@ struct
       assert_bool (test_label "check_extension (false) " filename)
       (not (OsPath.check_extension filename (OsPath.extension_of_string "dummy")))
     )
+
+  let is_relative (filename, res) =
+    (test_name "is_relative") >::
+     (fun () ->
+        assert_equal 
+          res
+          (OsPath.is_relative filename))
 end
 ;;
 
@@ -353,11 +360,11 @@ in
 let test_win32 = 
   let test_path = 
   [
-   ("c:/");
-   ("c:/a\\b");
-   ("c:/a\\b\\c\\");
-   ("c:/a\\..\\b\\c");
-   ("c:/a\\..\\b\\..\\c");
+   ("c:\\");
+   ("c:\\a\\b");
+   ("c:\\a\\b\\c\\");
+   ("c:\\a\\..\\b\\c");
+   ("c:\\a\\..\\b\\..\\c");
    ("a\\b\\c\\");
    ("..\\a\\b");
    ("");
@@ -383,19 +390,19 @@ let test_win32 =
       @ (
         List.map TestWin32.reduce
         [
-         ("c:/a\\b\\c",                           "c:/a\\b\\c");
-         ("c:/a\\b\\c\\",                         "c:/a\\b\\c");
-         ("c:/a\\b\\c\\d\\..",                    "c:/a\\b\\c");
-         ("c:/a\\b\\c\\.",                        "c:/a\\b\\c");
-         ("c:/a\\d\\..\\b\\c",                    "c:/a\\b\\c");
-         ("c:/a\\.\\b\\c",                        "c:/a\\b\\c");
-         ("c:/a\\b\\c\\d\\.\\..",                 "c:/a\\b\\c");
-         ("c:/a\\b\\c\\d\\..\\.",                 "c:/a\\b\\c");
-         ("c:/a\\b\\d\\.\\..\\c",                 "c:/a\\b\\c");
-         ("c:/a\\b\\d\\..\\.\\c",                 "c:/a\\b\\c");
-         ("c:/a\\b\\..\\d\\..\\b\\c",             "c:/a\\b\\c");
-         ("c:/a\\.\\.\\.\\b\\.\\c",               "c:/a\\b\\c");
-         ("c:/a\\..\\a\\.\\b\\..\\c\\..\\b\\.\\c","c:/a\\b\\c");
+         ("c:\\a\\b\\c",                           "c:\\a\\b\\c");
+         ("c:\\a\\b\\c\\",                         "c:\\a\\b\\c");
+         ("c:\\a\\b\\c\\d\\..",                    "c:\\a\\b\\c");
+         ("c:\\a\\b\\c\\.",                        "c:\\a\\b\\c");
+         ("c:\\a\\d\\..\\b\\c",                    "c:\\a\\b\\c");
+         ("c:\\a\\.\\b\\c",                        "c:\\a\\b\\c");
+         ("c:\\a\\b\\c\\d\\.\\..",                 "c:\\a\\b\\c");
+         ("c:\\a\\b\\c\\d\\..\\.",                 "c:\\a\\b\\c");
+         ("c:\\a\\b\\d\\.\\..\\c",                 "c:\\a\\b\\c");
+         ("c:\\a\\b\\d\\..\\.\\c",                 "c:\\a\\b\\c");
+         ("c:\\a\\b\\..\\d\\..\\b\\c",             "c:\\a\\b\\c");
+         ("c:\\a\\.\\.\\.\\b\\.\\c",               "c:\\a\\b\\c");
+         ("c:\\a\\..\\a\\.\\b\\..\\c\\..\\b\\.\\c","c:\\a\\b\\c");
          ("a\\..\\b",                             "b");
          ("",                                     "");
          (".",                                    "");
@@ -409,7 +416,7 @@ let test_win32 =
       @ (
         List.map TestWin32.make_path
         [
-         (["c:/a";"b";"c:/c\\d"], "c:/a;b;c:/c\\d");
+         (["c:/a";"b";"c:/c\\d"], "c:\\a;b;c:\\c\\d");
          ([],                     "");
         ]
       )
@@ -418,14 +425,14 @@ let test_win32 =
       @ (
         List.map TestWin32.make_absolute
         [
-         ("c:/a\\b\\c", ".",     "c:/a\\b\\c");
-         ("c:/a\\b\\c", ".\\d",  "c:/a\\b\\c\\d");
-         ("c:/a\\b\\c", "..\\d", "c:/a\\b\\d");
-         ("c:/a\\b\\c", "",      "c:/a\\b\\c");
-         ("c:/a\\b\\c", ".",     "c:/a\\b\\c");
-         ("c:/a\\b\\c", ".\\",   "c:/a\\b\\c");
-         ("c:/a\\b\\c", "..",    "c:/a\\b");
-         ("c:/a\\b\\c", "..\\",  "c:/a\\b");
+         ("c:\\a\\b\\c", ".",     "c:\\a\\b\\c");
+         ("c:\\a\\b\\c", ".\\d",  "c:\\a\\b\\c\\d");
+         ("c:\\a\\b\\c", "..\\d", "c:\\a\\b\\d");
+         ("c:\\a\\b\\c", "",      "c:\\a\\b\\c");
+         ("c:\\a\\b\\c", ".",     "c:\\a\\b\\c");
+         ("c:\\a\\b\\c", ".\\",   "c:\\a\\b\\c");
+         ("c:\\a\\b\\c", "..",    "c:\\a\\b");
+         ("c:\\a\\b\\c", "..\\",  "c:\\a\\b");
         ]
       )
 
@@ -433,8 +440,8 @@ let test_win32 =
       @ (
         List.map TestWin32.make_relative 
         [
-         ("c:/a\\b\\c", "c:/a\\b\\c", "");
-         ("c:/a\\b\\c", "c:/a\\b\\d", "..\\d")
+         ("c:\\a\\b\\c", "c:/a\\b\\c", "");
+         ("c:\\a\\b\\c", "c:/a\\b\\d", "..\\d")
         ]
       )
 
@@ -442,11 +449,24 @@ let test_win32 =
       @ (
         List.map TestWin32.extension
         [
-         ("c:/a\\b\\c.d",   "c:/a\\b\\c",   "d");
-         ("c:/a\\b.c\\d.e", "c:/a\\b.c\\d", "e");
+         ("c:\\a\\b\\c.d",   "c:\\a\\b\\c",   "d");
+         ("c:\\a\\b.c\\d.e", "c:\\a\\b.c\\d", "e");
          ("a.",         "a",        "");
         ]
       )
+
+      @ (
+        List.map TestWin32.is_relative
+          [
+            "c:/a",  false;
+            "c:\\a", false;
+            "./a",   true;
+            ".\\a",  true;
+            "../a",  true;
+            "..\\a",  true;
+          ]
+      )
+
     )
 in
 
@@ -708,6 +728,11 @@ let test_fileutil =
       add_fn fn;
       fn
   in
+
+  let dir_otherfs = 
+    pwd ()
+  in
+
   let file_test =
     let fn =
       make_filename [dir_test; "essai99"]
@@ -987,6 +1012,48 @@ let test_fileutil =
       assert_bool "cp" (test (Exists) file);
       add_fn file
     );
+
+    "Cp with space" >::
+    (fun () ->
+       let dirspace = make_filename [dir_test; "essai 7"]
+       in
+       let file = make_filename [dirspace; "essai0"]
+       in
+         mkdir dirspace;
+         cp [(make_filename [dir_test ; "essai0"])] file;
+         assert_bool "cp" (test (Exists) file);
+         add_fn dirspace;
+         add_fn file
+    );
+
+    "Mv simple" >::
+    (fun () ->
+       let file0 = make_filename [dir_test; "essai0"]
+       in
+       let file1 = make_filename [dir_test; "essai10"]
+       in
+       let file2 = make_filename [dir_test; "essai9"]
+       in
+         cp [file0] file1;
+         mv file1 file2;
+         cp [file0] file1;
+         mv file1 file2;
+         add_fn file2;
+         assert_bool "mv" (test Exists file2);
+    );
+
+    "Mv otherfs" >::
+    (fun () ->
+       let file_test = make_filename [dir_test; "essai12"]
+       in
+       let file = make_filename [dir_otherfs; "essai11"]
+       in
+         touch file_test;
+         SafeFS.file_mark file_test;
+         mv file_test file;
+         assert_bool "mv" (test Exists file);
+         rm ~force:(Ask auto_ask_user) [file]
+    );
    
     "Rm simple" >::
     (fun () ->
@@ -1044,6 +1111,18 @@ let test_fileutil =
       rm ~force:(Ask auto_ask_user) ~recurse:true [dir_test];
       assert_bool "rm" (test (Not Exists) dir_test)
     );
+
+    "Which ocamlc" >::
+    (fun () ->
+       try 
+         let _str : string = 
+           which "ocamlc"
+         in
+           ()
+       with Not_found ->
+         assert_failure "Cannot find ocamlc"
+    );
+
 
     "Size" >:::
     [

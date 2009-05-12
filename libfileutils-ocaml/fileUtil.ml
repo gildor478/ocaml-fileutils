@@ -395,7 +395,7 @@ let solve_dirname dirname =
   if is_current dirname then
     current_dir
   else
-    dirname
+    (reduce dirname)
   
 (**/**)
   
@@ -651,23 +651,89 @@ let filter flt lst =
 ;;
 
 (** Try to find the executable in the PATH. Use environement variable
-PATH if none is provided *)
+    PATH if none is provided 
+  *)
 let which ?(path) fln =
   let real_path =
     match path with
-      None ->
-      path_of_string (Sys.getenv "PATH")
-    | Some x ->
-      x
+      | None ->
+          path_of_string 
+            (try
+               Sys.getenv "PATH"
+             with Not_found ->
+               "")
+      | Some x ->
+        x
   in
-  let ctst x = 
-    test (And(Is_exec,Not(Is_dir))) 
-      (concat x fln)
+
+  let exec_test = 
+    test (And(Is_exec,Is_file))
   in
+
   let which_path =
-    List.find ctst real_path
+    match Sys.os_type with
+      | "Win32" ->
+          (
+            let real_ext =
+              List.map 
+                (fun dot_ext ->
+                   (* Remove leading "." if it exists *)
+                   if (String.length dot_ext) >= 1 && dot_ext.[0] = '.' then
+                     String.sub dot_ext 1 ((String.length dot_ext) - 1)
+                   else
+                     dot_ext)
+                (* Extract possible extension from PATHEXT *)
+                (path_of_string 
+                   (try
+                      Sys.getenv "PATHEXT"
+                    with Not_found ->
+                      ""))
+            in
+
+            let to_filename dirname ext =
+              add_extension (concat dirname fln) ext
+            in
+
+            let ctst dirname ext = 
+              exec_test (to_filename dirname ext)
+            in
+
+              List.fold_left
+                (fun found dirname ->
+                   if found = None then 
+                     (
+                       try 
+                         let ext =
+                           List.find (ctst dirname) real_ext
+                         in
+                           Some (to_filename dirname ext)
+                       with Not_found -> 
+                         None
+                     )
+                   else
+                     found)
+                None
+                real_path
+          )
+      | _ ->
+          (
+            let to_filename dirname =
+              concat dirname fln
+            in
+
+            try
+              Some 
+                (to_filename 
+                   (List.find 
+                      (fun dirname -> 
+                         exec_test (to_filename dirname)) real_path))
+            with Not_found ->
+              None
+          )
   in
-  concat which_path fln
+    match which_path with 
+      | Some fn -> fn
+      | None -> raise Not_found 
 ;;
 
 (** Create the directory which name is provided. Turn parent to true
@@ -756,7 +822,7 @@ let find ?(follow = Skip) ?match_compile tst fln exec accu =
     else
       (already_read,new_accu)
   in
-  snd(find_simple (SetFilename.empty,accu) fln)
+  snd(find_simple (SetFilename.empty,accu) (reduce fln))
 ;;
 
 (** Remove the filename provided. Turn recurse to true in order to 
@@ -888,29 +954,42 @@ let rec mv ?(force=Force) fln_src fln_dst =
   let fln_dst_abs =  make_absolute (pwd ()) fln_dst
   in
   if compare fln_src_abs fln_dst_abs <> 0 then
-    if test Exists fln_dst_abs then
-      if doit force fln_dst then
-      (
-        rm [fln_dst_abs];
-        mv fln_src_abs fln_dst_abs
-     )
+    (
+      if test Exists fln_dst_abs && doit force fln_dst then
+        (
+          rm [fln_dst_abs];
+          mv fln_src_abs fln_dst_abs
+        )
+      else if test Is_dir fln_dst_abs then
+        (
+          mv ~force
+            fln_src_abs
+            (make_absolute 
+               fln_dst_abs 
+               (basename fln_src_abs))
+        )
+      else if test Exists fln_src_abs then
+        (
+          try 
+            Sys.rename fln_src_abs fln_dst_abs
+          with Sys_error _ ->
+            (
+              cp ~force ~recurse:true [fln_src_abs] fln_dst_abs;
+              rm ~force ~recurse:true [fln_src_abs]
+            )
+        )
       else
-        ()
-    else if test Is_dir fln_dst_abs then
-      mv ~force:force 
-        fln_src_abs
-        (make_absolute fln_dst_abs (basename fln_src_abs))
-    else if test Exists fln_src_abs then
-      Sys.rename fln_src_abs fln_src_abs
-    else
-      raise MvNoSourceFile
-  else
-    ()
+        (
+          raise MvNoSourceFile
+        )
+    )
 ;;
 
-(** cmp skip1 fln1 skip2 fln2 : Compare files fln1 fln2 starting at pos skip1 
-* skip2 and returning the first octect where a difference occurs. Returns 
-* (Some -1) if one of the file is not readable or if it is not a file. *) 
+(** [cmp skip1 fln1 skip2 fln2] Compare files [fln1] and [fln2] starting at pos
+    [skip1] [skip2] and returning the first octect where a difference occurs.
+    Returns [Some -1] if one of the file is not readable or if it is not a
+    file. 
+  *) 
 let cmp ?(skip1 = 0) fln1 ?(skip2 = 0) fln2 =
   if (reduce fln1) = (reduce fln2) then
     None

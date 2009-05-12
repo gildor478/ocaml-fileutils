@@ -24,7 +24,7 @@ open FilePath_type;;
 let rec dir_writer lst = 
 	match lst with 
 	  Root s :: tl ->
-	  	(s^":/")^(dir_writer tl)
+	  	(s^":\\")^(dir_writer tl)
 	| [ CurrentDir Short ] ->
 		""
 	| lst ->

@@ -28,11 +28,13 @@ open Win32Path_parser;;
 rule 
 token_filename = parse  
   ":/"		 { ROOT_SEPARATOR }
-| "\\"           { SEPARATOR }
+| ":\\"		 { ROOT_SEPARATOR }
+| '\\'           { SEPARATOR }
+| '/'            { SEPARATOR }
 | ".."           { DOUBLE_DOT }
-| "."            { DOT }
-| ':'[^'/'] as cmp
-| [^'\\'':']* as cmp { (IDENT cmp) }
+| '.'            { DOT }
+| ':'[^'/''\\'] as cmp
+| [^'\\''/'':']* as cmp { (IDENT cmp) }
 | eof            { EOF }
 and
 token_path_variable = parse
