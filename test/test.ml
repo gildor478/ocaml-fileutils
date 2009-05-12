@@ -167,7 +167,7 @@ struct
   let reduce (exp,res) =
     (test_name "reduce") >:: (fun () ->
       assert_equal_string ~msg:(test_label "reduce" exp)
-      res (OsPath.reduce exp)
+      res (OsPath.reduce ~no_symlink:true exp)
     )
     
   let make_path (exp,res) =
@@ -179,7 +179,7 @@ struct
   let make_absolute (base,rela,res) =
     (test_name "make_absolute") >:: (fun () ->
       assert_equal_string ~msg:(test_label_pair "make_absolute" (base,rela))
-      res (OsPath.make_absolute base rela)
+      res (OsPath.reduce ~no_symlink:true (OsPath.make_absolute base rela))
     )
     
   let make_relative (base,abs,res) =

@@ -52,7 +52,7 @@ sig
   val basename: filename -> filename
   val dirname: filename -> filename
   val concat: filename -> filename -> filename
-  val reduce: filename -> filename
+  val reduce: ?no_symlink:bool -> filename -> filename
   val make_absolute: filename -> filename -> filename
   val make_relative: filename -> filename -> filename
   val reparent: filename -> filename -> filename -> filename 
@@ -108,32 +108,35 @@ struct
 
   (* Reduce *)
 
-  let reduce path =
+  let reduce ?(no_symlink=false) path =
+    (* TODO: not tail recursive ! *)
     let rec reduce_aux lst = 
       match lst with 
-        ParentDir :: tl ->
-          begin
-        match reduce_aux tl with
-            Root s :: tl ->
-            Root s :: tl 
+        | ParentDir :: tl when no_symlink ->
+            begin
+              match reduce_aux tl with
+                | Root s :: tl ->
+                    Root s :: tl 
+                | ParentDir :: tl ->
+                    ParentDir :: ParentDir :: tl
+                | [] ->
+                    ParentDir :: tl 
+                | _ :: tl ->
+                    tl                  
+            end
         | ParentDir :: tl ->
-          ParentDir :: ParentDir :: tl
+            ParentDir :: (reduce_aux tl)
+        | CurrentDir _ :: tl 
+        | Component "" :: tl ->
+            (reduce_aux tl)
+        | Component s :: tl ->
+            Component s :: (reduce_aux tl)
+        | Root s :: tl ->
+            Root s :: (reduce_aux tl)
         | [] ->
-          ParentDir :: tl 
-        | _ :: tl ->
-          tl
-        end
-      | (CurrentDir _) :: tl 
-      | Component "" :: tl ->
-        (reduce_aux tl)
-      | Component s :: tl ->
-        Component s :: (reduce_aux tl)
-      | Root s :: tl ->
-        Root s :: (reduce_aux tl)
-      | [] ->
-        []
+            []
     in
-    List.rev (reduce_aux (List.rev path))
+      List.rev (reduce_aux (List.rev path))
 
 
   (* Compare, subdir, updir *)
@@ -191,11 +194,12 @@ struct
   (* Concat *)
 
   let concat lst_path1 lst_path2 =
-    match lst_path2 with
-      CurrentDir Short :: tl_path2 ->
-        lst_path1 @ tl_path2  
-    | _ ->
-        lst_path1 @ lst_path2
+    reduce 
+      (match lst_path2 with
+         | CurrentDir Short :: tl_path2 ->
+             lst_path1 @ tl_path2
+         | _ ->
+             lst_path1 @ lst_path2)
 
 
   (* Is_relative *)
@@ -298,13 +302,14 @@ struct
     
   (* Make_asbolute *)
 
-  let make_absolute path_base path_path =
-    if is_relative path_base then
-      raise (BaseFilenameRelative (string_of_filename path_base))
-    else if is_relative path_path then
-      path_base @ path_path
-    else
-      path_path
+  let make_absolute path_base path_path =    
+    reduce 
+      (if is_relative path_base then
+         raise (BaseFilenameRelative (string_of_filename path_base))
+       else if is_relative path_path then
+         path_base @ path_path
+       else
+         path_path)
 
   (* Make_relative *)
 
@@ -318,19 +323,20 @@ struct
           (fun x -> ParentDir)
           lst_base
         in
-        back_to_base @ lst_path
+          back_to_base @ lst_path
     in
-    if is_relative path_base then
-      raise (BaseFilenameRelative (string_of_filename path_base))
-    else if is_relative path_path then
-      path_path
-    else
-      make_relative_aux path_base path_path
+      reduce 
+        (if is_relative path_base then
+           raise (BaseFilenameRelative (string_of_filename path_base))
+         else if is_relative path_path then
+           path_path
+         else
+           make_relative_aux path_base path_path)
 
   (* Make_filename *)
 
   let make_filename lst_path =
-    List.flatten (List.map filename_of_string lst_path)
+    reduce (List.flatten (List.map filename_of_string lst_path))
     
   (* Reparent *)
 
@@ -338,7 +344,7 @@ struct
     let path_relative =
       make_relative path_src path
     in
-    make_absolute path_dst path_relative
+      make_absolute path_dst path_relative
 
   (* Identity *)
   
@@ -416,8 +422,8 @@ struct
   let make_filename path_lst =
     f2s (Abstract.make_filename path_lst)
 
-  let reduce path =
-    f2s (Abstract.reduce (s2f path))
+  let reduce ?no_symlink path =
+    f2s (Abstract.reduce ?no_symlink (s2f path))
 
   let make_absolute base_path path =
     f2s (Abstract.make_absolute (s2f base_path) (s2f path))

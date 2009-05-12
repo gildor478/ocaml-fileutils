@@ -98,11 +98,12 @@ val dirname: filename -> filename
 (** Append a filename to a filename. *)
 val concat: filename -> filename -> filename
 
-(** Return the shortest filename which is equal to the filename given. This operation
-    doesn't take into account possible symlink. This can lead to a different path
-    than the real one with symlink.
+(** Return the shortest filename which is equal to the filename given. It remove the 
+    "." in Unix filename, for example.
+    If [no_symlink] flag is set, consider that the path doesn't contain symlink
+    and in this case ".." for Unix filename are also reduced.
   *)
-val reduce: filename -> filename
+val reduce: ?no_symlink:bool -> filename -> filename
 
 (** Create an absolute filename from a filename relative and an absolute base
     filename. 
@@ -218,7 +219,7 @@ sig
   val concat: filename -> filename -> filename
 
   (** See {!FilePath.reduce} *)
-  val reduce: filename -> filename
+  val reduce: ?no_symlink:bool -> filename -> filename
 
   (** See {!FilePath.make_absolute} *)
   val make_absolute: filename -> filename -> filename
