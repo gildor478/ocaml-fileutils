@@ -224,7 +224,7 @@ struct
 end
 ;;
 
-module TestUnix  = Test(UnixPath)
+module TestUnix  = Test(UnixOptPath)
 ;;
 TestUnix.os_string := "Unix"
 ;;

@@ -32,7 +32,7 @@ win32Path
 cygwinPath_parser
 cygwinPath_lexer
 cygwinPath
-genericPath_parser
-genericPath_lexer
+UnixOpt
+CommonPath
 filePath
 fileUtil

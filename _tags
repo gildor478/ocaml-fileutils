@@ -23,3 +23,4 @@
 <test/*.ml>: pkg_oUnit
 "libfileutils-ocaml": include
 <test/test.{byte,native}>: use_libfileutils_ocaml, pkg_unix, pkg_oUnit, pkg_str
+<test/BenchFind.{byte,native}>: use_libfileutils_ocaml, pkg_unix

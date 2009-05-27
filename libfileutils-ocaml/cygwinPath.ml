@@ -21,6 +21,8 @@
 
 open FilePath_type;;
 
+include CommonPath;;
+
 let rec dir_writer lst = 
 	match lst with 
 	  Root s :: tl ->
@@ -39,8 +41,10 @@ let rec dir_writer lst =
 		String.concat "/" (List.map dir_writer_aux lst)
 ;;
 
-let dir_reader     = CygwinPath_parser.main_filename 
-	CygwinPath_lexer.token_filename
+let dir_reader str = 
+  CygwinPath_parser.main_filename 
+    CygwinPath_lexer.token_filename
+    (Lexing.from_string str)
 ;;
 
 let path_writer lst = String.concat ";" lst
@@ -49,4 +53,3 @@ let path_writer lst = String.concat ";" lst
 let path_reader    = CygwinPath_parser.main_path_variable 
 	CygwinPath_lexer.token_path_variable
 ;;
-

@@ -29,10 +29,16 @@ exception InvalidFilename of filename;;
 
 module type OS_SPECIFICATION =
 sig
-  val dir_writer  : (filename_part list) -> string
-  val dir_reader  : Lexing.lexbuf -> (filename_part list)
-  val path_writer : (filename list) -> string
-  val path_reader : Lexing.lexbuf -> (filename list)
+  val dir_writer: (filename_part list) -> filename 
+  val dir_reader: filename -> (filename_part list)
+  val path_writer: (filename list) -> string
+  val path_reader: Lexing.lexbuf -> (filename list)
+  val fast_concat: filename -> filename -> filename 
+  val fast_basename: filename -> filename
+  val fast_dirname: filename -> filename 
+  val fast_is_relative: filename -> bool
+  val fast_is_current: filename -> bool
+  val fast_is_parent: filename -> bool
 end
 ;;
 
@@ -66,6 +72,7 @@ sig
   val get_extension: filename -> extension 
   val check_extension: filename -> extension -> bool
   val add_extension: filename -> extension -> filename
+  val replace_extension: filename -> extension -> filename
   val string_of_path: filename list -> string
   val path_of_string: string -> filename list
   val current_dir: filename
@@ -95,9 +102,7 @@ struct
 
   let filename_of_string str = 
     try 
-      let lexbuf = Lexing.from_string str
-      in
-      OsOperation.dir_reader lexbuf
+      OsOperation.dir_reader str
     with Parsing.Parse_error ->
       raise (InvalidFilename str)
 
@@ -257,44 +262,46 @@ struct
 
   (* Extension manipulation *)
 
-  let split_extension path = 
-    match basename path with
-      (Component str) :: []->
-      let lexbuf = Lexing.from_string str
-      in
-      let (base,ext) =  try 
-        GenericPath_parser.main_extension
-          GenericPath_lexer.token_extension
-          lexbuf
-        with Parsing.Parse_error ->
+  let wrap_extension f path =
+    match basename path with 
+      | [Component fn] ->
+          f fn
+      | _ ->
           raise (NoExtension (string_of_filename path))
-      in
-      ((dirname path) @ [Component base], ext)
-    | _ ->
-      raise (NoExtension (string_of_filename path))
 
   let check_extension path ext = 
-    let (real_path, real_ext) = split_extension path
-    in
-    ext = real_ext 
+    wrap_extension
+      (fun fn -> ExtensionPath.check fn ext)
+      path
 
   let get_extension path = 
-    let (real_path, real_ext) = split_extension path
-    in
-    real_ext
+    wrap_extension
+      (fun fn -> ExtensionPath.get fn)
+      path
 
-  let chop_extension  path =
-    let (real_path, real_ext) = split_extension path
-    in
-    real_path
+  let chop_extension path =
+    wrap_extension 
+      (fun fn -> 
+         concat
+           (dirname path)
+           [Component (ExtensionPath.chop fn)])
+      path
 
   let add_extension path ext =
-    match List.rev path with
-      Component str :: tl ->
-        List.rev ( Component (str^"."^ext) :: tl )
-    | _ ->
-      raise (NoExtension (string_of_filename path))
+    wrap_extension 
+      (fun fn -> 
+         concat
+           (dirname path)
+           [Component (ExtensionPath.add fn ext)])
+      path
 
+  let replace_extension path ext =
+    wrap_extension 
+      (fun fn -> 
+         concat 
+           (dirname path)
+           [Component (ExtensionPath.replace fn ext)])
+      path
 
   let extension_of_string x = x
 
@@ -411,13 +418,22 @@ struct
     Abstract.compare   (s2f path1) (s2f path2)
 
   let basename path =
-    f2s (Abstract.basename (s2f path))
+    try 
+      OsOperation.fast_basename path
+    with CommonPath.CannotHandleFast ->
+      f2s (Abstract.basename (s2f path))
 
   let dirname path = 
-    f2s (Abstract.dirname  (s2f path))
+    try
+      OsOperation.fast_dirname path
+    with CommonPath.CannotHandleFast ->
+      f2s (Abstract.dirname  (s2f path))
 
   let concat path1 path2 = 
-    f2s (Abstract.concat (s2f path1) (s2f path2))
+    try
+      OsOperation.fast_concat path1 path2
+    with CommonPath.CannotHandleFast ->
+      f2s (Abstract.concat (s2f path1) (s2f path2))
     
   let make_filename path_lst =
     f2s (Abstract.make_filename path_lst)
@@ -444,28 +460,85 @@ struct
       false
 
   let is_relative path = 
-    Abstract.is_relative (s2f path)
+    try 
+      OsOperation.fast_is_relative path
+    with CommonPath.CannotHandleFast ->
+      Abstract.is_relative (s2f path)
 
   let is_implicit path =
     Abstract.is_implicit (s2f path)
 
   let is_current path =
-    Abstract.is_current (s2f path)
+    try
+      OsOperation.fast_is_current path
+    with CommonPath.CannotHandleFast ->
+      Abstract.is_current (s2f path)
 
   let is_parent path =
-    Abstract.is_parent (s2f path)
+    try
+      OsOperation.fast_is_parent path
+    with CommonPath.CannotHandleFast ->
+      Abstract.is_parent (s2f path)
+
+  let wrap_extension f path =
+    let bfn =
+      OsOperation.fast_basename path
+    in
+      if OsOperation.fast_is_parent bfn ||
+         OsOperation.fast_is_current bfn ||
+         not (OsOperation.fast_is_relative bfn) then
+        raise (NoExtension path)
+      else
+        (f bfn)
 
   let chop_extension path =
-    f2s (Abstract.chop_extension (s2f path))
+    try
+      wrap_extension 
+        (fun fn -> 
+           OsOperation.fast_concat 
+             (OsOperation.fast_dirname path)
+             (ExtensionPath.chop fn))
+        path
+    with CommonPath.CannotHandleFast ->
+      f2s (Abstract.chop_extension (s2f path))
 
   let get_extension path =
-    e2s (Abstract.get_extension (s2f path))
+    try
+      wrap_extension 
+        (fun fn -> ExtensionPath.get fn)
+        path
+    with CommonPath.CannotHandleFast ->
+      e2s (Abstract.get_extension (s2f path))
 
   let check_extension path ext =
-    Abstract.check_extension (s2f path) (s2e ext)
+    try
+      wrap_extension
+        (fun fn -> ExtensionPath.check fn ext)
+        path
+    with CommonPath.CannotHandleFast ->
+      Abstract.check_extension (s2f path) (s2e ext)
 
   let add_extension path ext =
-    f2s (Abstract.add_extension (s2f path) (s2e ext))
+    try
+      wrap_extension
+        (fun fn -> 
+           OsOperation.fast_concat 
+             (OsOperation.fast_dirname path)
+             (ExtensionPath.add fn ext))
+        path
+    with CommonPath.CannotHandleFast ->
+      f2s (Abstract.add_extension (s2f path) (s2e ext))
+
+  let replace_extension path ext =
+    try
+      wrap_extension
+        (fun fn -> 
+           OsOperation.fast_concat 
+             (OsOperation.fast_dirname path)
+             (ExtensionPath.replace fn ext))
+        path
+    with CommonPath.CannotHandleFast ->
+      f2s (Abstract.replace_extension (s2f path) (s2e ext))
 
   let string_of_path path_lst =
     Abstract.string_of_path (List.map s2f path_lst)
@@ -493,54 +566,95 @@ module DefaultPath = GenericStringPath(struct
     
   let dir_writer  = 
     os_depend 
-      UnixPath.dir_writer  
+      UnixOpt.dir_writer  
+      (*UnixPath.dir_writer*)
       MacOSPath.dir_writer  
       Win32Path.dir_writer  
       CygwinPath.dir_writer
 
   let dir_reader  = 
     os_depend 
-      UnixPath.dir_reader  
+      UnixOpt.dir_reader 
+      (*UnixPath.dir_reader*)
       MacOSPath.dir_reader  
       Win32Path.dir_reader  
       CygwinPath.dir_reader
 
   let path_writer = 
     os_depend 
-      UnixPath.path_writer 
+      UnixOpt.path_writer 
+      (*UnixPath.path_writer*)
       MacOSPath.path_writer 
       Win32Path.path_writer 
       CygwinPath.path_writer
 
   let path_reader = 
     os_depend 
-      UnixPath.path_reader 
+      UnixOpt.path_reader 
+      (*UnixPath.path_reader*)
       MacOSPath.path_reader 
       Win32Path.path_reader 
       CygwinPath.path_reader
+
+  let fast_concat = 
+    os_depend 
+      UnixOpt.fast_concat 
+      (*UnixPath.fast_concat*)
+      MacOSPath.fast_concat 
+      Win32Path.fast_concat 
+      CygwinPath.fast_concat
+
+  let fast_basename = 
+    os_depend 
+      UnixOpt.fast_basename 
+      (*UnixPath.fast_basename*)
+      MacOSPath.fast_basename 
+      Win32Path.fast_basename 
+      CygwinPath.fast_basename
+
+  let fast_dirname = 
+    os_depend 
+      UnixOpt.fast_dirname 
+      (*UnixPath.fast_dirname*)
+      MacOSPath.fast_dirname 
+      Win32Path.fast_dirname 
+      CygwinPath.fast_dirname
+
+  let fast_is_relative =
+    os_depend 
+      UnixOpt.fast_is_relative 
+      (*UnixPath.fast_is_relative*)
+      MacOSPath.fast_is_relative 
+      Win32Path.fast_is_relative 
+      CygwinPath.fast_is_relative
+
+  let fast_is_current = 
+    os_depend 
+      UnixOpt.fast_is_current 
+      (*UnixPath.fast_is_current*)
+      MacOSPath.fast_is_current 
+      Win32Path.fast_is_current 
+      CygwinPath.fast_is_current
+
+  let fast_is_parent = 
+    os_depend 
+      UnixOpt.fast_is_parent 
+      (*UnixPath.fast_is_parent*)
+      MacOSPath.fast_is_parent 
+      Win32Path.fast_is_parent 
+      CygwinPath.fast_is_parent
+
 end)
 ;;
 
 module UnixPath =  GenericStringPath(UnixPath);;
+
+module UnixOptPath =  GenericStringPath(UnixOpt);;
 
 module MacOSPath = GenericStringPath(MacOSPath);;
 
 module Win32Path = GenericStringPath(Win32Path);;
 
 module CygwinPath = GenericStringPath(CygwinPath);;
-
-module Deprecated =
-struct
-  module AbstractDefaultPath = DefaultPath.Abstract;;
-
-  module AbstractUnixPath    = UnixPath.Abstract;;
-
-  module AbstractMacOSPath   = MacOSPath.Abstract;;
-
-  module AbstractWin32Path   = Win32Path.Abstract;;
-
-  module AbstractCygwinPath  = CygwinPath.Abstract;;
-end
-;;
 
 include DefaultPath;;

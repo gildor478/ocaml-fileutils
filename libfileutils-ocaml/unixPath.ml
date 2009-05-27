@@ -21,6 +21,8 @@
 
 open FilePath_type;;
 
+include CommonPath;;
+
 let rec dir_writer lst = 
 	match lst with 
 	  Root s :: tl ->
@@ -38,8 +40,10 @@ let rec dir_writer lst =
 		String.concat "/" ( List.map dir_writer_aux lst )
 ;;
 
-let dir_reader  = UnixPath_parser.main_filename 
-	UnixPath_lexer.token_filename
+let dir_reader str = 
+  UnixPath_parser.main_filename 
+    UnixPath_lexer.token_filename
+    (Lexing.from_string str)
 ;;
 
 let path_writer lst = 

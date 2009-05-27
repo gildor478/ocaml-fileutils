@@ -33,7 +33,7 @@ open FilePath
 (** {2 Types and exceptions }*)
 
 exception SizeInvalid;;
-exception FileDoesntExist
+exception FileDoesntExist of filename
 exception RecursiveLink of filename
 exception RmDirNotEmpty of filename
 exception RmDirNoRecurse of filename
@@ -59,7 +59,8 @@ type action_link =
       
 (** For certain command, you should need to ask the user wether
     or not he does want to do some action. Provide the function 
-    to Ask or Force the action *)
+    to Ask or Force the action.
+  *)
 type interactive =
     Force
   (** Do it anyway *)
@@ -76,17 +77,18 @@ type size =
   | B  of int64 (** Bytes *)
     
 (** Kind of file. This set is a combination of all POSIX file, some of them
-    doesn't exist at all on certain file system *)
+    doesn't exist at all on certain file system.
+  *)
 type kind = 
     Dir  
   | File 
   | Dev_char
   | Dev_block
-  | Link
   | Fifo
   | Socket
   
-(** Base permission. This is the base type for one set of permission *)
+(** Base permission. This is the base type for one set of permission.
+  *)
 type base_permission = 
   {
     sticky : bool;
@@ -95,7 +97,8 @@ type base_permission =
     read   : bool;
   }
 
-(** Permission. All the base permission of a file *)
+(** Permission. All the base permission of a file.
+  *)
 type permission =
   {
     user  : base_permission;
@@ -103,7 +106,8 @@ type permission =
     other : base_permission;
   }
   
-(** Information about a file. This type is derived from Unix.stat *)
+(** Information about a file. This type is derived from Unix.stat 
+  *)
 type stat =
   {
     kind              : kind;
@@ -117,7 +121,8 @@ type stat =
     creation_time     : float;
   }
 
-(** Pattern you can use to test file *)
+(** Pattern you can use to test file 
+  *)
 type test_file =
 | Is_dev_block                 (** FILE exists and is block special *)
 | Is_dev_char                  (** FILE exists and is character special *)
@@ -152,8 +157,8 @@ type test_file =
 | False                        (** Always false *)
 | Has_extension of extension   (** Check extension *)
 | Has_no_extension             (** Check absence of extension *)
-| Is_parent_dir                (** Is it the parent dir *)
-| Is_current_dir               (** Is it the current dir *)
+| Is_parent_dir                (** Basename is the parent dir *)
+| Is_current_dir               (** Basename is the current dir *)
 | Basename_is of filename      (** Check the basename *)
 | Dirname_is of filename       (** Check the dirname *)
 | Custom of (filename -> bool) (** Custom operation on filename *)
@@ -161,7 +166,8 @@ type test_file =
 
 (** {2 Classical permission } *)
 
-(** Understand the POSIX permission integer norm *)
+(** Understand the POSIX permission integer norm 
+  *)
 let permission_of_int pr =
   let perm_match oct = 
     (pr land oct) <> 0
@@ -399,39 +405,65 @@ let solve_dirname dirname =
   
 (**/**)
   
-(** stat fln : Returns information about the file (like Unix.stat) *)
-let stat (filename: filename): stat =
+(** [stat fln] Returns information about the file (like Unix.stat) 
+  *)
+let stat (fln: filename) =
   try
-    let stats = Unix.LargeFile.stat filename
+    let ustat = 
+      Unix.LargeFile.lstat fln
     in
-    let kind = 
-      match stats.Unix.LargeFile.st_kind with
-	Unix.S_REG -> File 
-      | Unix.S_DIR -> Dir 
-      | Unix.S_CHR -> Dev_char 
-      | Unix.S_BLK -> Dev_block
-      | Unix.S_LNK -> Link
-      | Unix.S_FIFO -> Fifo 
-      | Unix.S_SOCK -> Socket
+    let stat_of_kind knd = 
+      {
+        kind              = knd;
+        is_link           = false;
+        permission        = permission_of_int ustat.Unix.LargeFile.st_perm;
+        size              = B ustat.Unix.LargeFile.st_size;
+        owner             = ustat.Unix.LargeFile.st_uid;
+        group_owner       = ustat.Unix.LargeFile.st_gid;
+        access_time       = ustat.Unix.LargeFile.st_atime;
+        modification_time = ustat.Unix.LargeFile.st_mtime;
+        creation_time     = ustat.Unix.LargeFile.st_ctime;
+      }
     in
-    let is_link = 
-      let stats = Unix.LargeFile.lstat filename 
-      in
-      stats.Unix.LargeFile.st_kind = Unix.S_LNK
-    in
-    {
-      kind              = kind;
-      is_link           = is_link;
-      permission        = permission_of_int stats.Unix.LargeFile.st_perm;
-      size              = B stats.Unix.LargeFile.st_size;
-      owner             = stats.Unix.LargeFile.st_uid;
-      group_owner       = stats.Unix.LargeFile.st_gid;
-      access_time       = stats.Unix.LargeFile.st_atime;
-      modification_time = stats.Unix.LargeFile.st_mtime;
-      creation_time     = stats.Unix.LargeFile.st_ctime;
-    }
+      match ustat.Unix.LargeFile.st_kind with
+        | Unix.S_REG -> 
+            stat_of_kind File 
+        | Unix.S_DIR -> 
+            stat_of_kind Dir 
+        | Unix.S_CHR -> 
+            stat_of_kind Dev_char 
+        | Unix.S_BLK -> 
+            stat_of_kind Dev_block
+        | Unix.S_FIFO -> 
+            stat_of_kind Fifo 
+        | Unix.S_SOCK -> 
+            stat_of_kind Socket
+        | Unix.S_LNK -> 
+            (
+              let stat_of_kind knd =
+                {(stat_of_kind knd) with is_link = true}
+              in
+                match (Unix.stat fln).Unix.st_kind with
+                  | Unix.S_REG -> 
+                      stat_of_kind File 
+                  | Unix.S_DIR -> 
+                      stat_of_kind Dir 
+                  | Unix.S_CHR -> 
+                      stat_of_kind Dev_char 
+                  | Unix.S_BLK -> 
+                      stat_of_kind Dev_block
+                  | Unix.S_FIFO -> 
+                      stat_of_kind Fifo 
+                  | Unix.S_SOCK -> 
+                      stat_of_kind Socket
+                  | Unix.S_LNK -> 
+                      failwith 
+                        (Printf.sprintf 
+                           "Unix.stat of file '%s' return a link"
+                           fln)
+            )
   with Unix.Unix_error(_) ->
-    raise FileDoesntExist 
+    raise (FileDoesntExist fln)
 ;;
 
 (**/**)
@@ -446,7 +478,7 @@ let compile_filter
   let wrapper f (_, st) =
     try 
       f (Lazy.force st)
-    with FileDoesntExist ->
+    with FileDoesntExist _ ->
       false
   in
 
@@ -503,7 +535,7 @@ let compile_filter
               let st1 = stat f1
               in
               wrapper (fun st2 -> st1.modification_time > st2.modification_time)
-            with FileDoesntExist ->
+            with FileDoesntExist _ ->
               fun x -> false
           end
       | Is_older_than(f1) -> 
@@ -512,7 +544,7 @@ let compile_filter
               let st1 = stat f1
               in
               wrapper (fun st2 -> st1.modification_time < st2.modification_time)
-            with FileDoesntExist ->
+            with FileDoesntExist _ ->
               fun x -> false
           end
       | Is_newer_than_date(dt) -> 
@@ -574,7 +606,15 @@ let compile_filter
     let res_filter =
       compile_filter_aux flt
     in
-      (fun fn -> res_filter (fn, lazy (stat fn)))
+      fun ?pre_stat fn -> 
+        let lazy_stat =
+          match pre_stat with 
+            | Some st ->
+                Lazy.lazy_from_val st
+            | None ->
+                lazy (stat fn)
+        in
+          res_filter (fn, lazy_stat)
 ;;
 
 let all_upper_dir fln = 
@@ -594,9 +634,10 @@ let all_upper_dir fln =
 
 (** Test the existence of the file... *)
 let test ?match_compile tst =
-  let ctst = compile_filter ?match_compile tst
+  let ctst = 
+    compile_filter ?match_compile tst
   in
-  fun fln -> ctst (solve_dirname fln)
+    fun fln -> ctst (solve_dirname fln)
 ;;
 
 (** Return the currend dir *) 
@@ -606,46 +647,55 @@ let pwd () =
 
 (** Return the real filename of a filename which could have link *) 
 let readlink fln =
-  let ctst = compile_filter Is_link
+  let ctst = 
+    compile_filter Is_link
   in
   let rec readlink_aux already_read fln = 
-    let newly_read = prevent_recursion already_read fln
+    let newly_read = 
+      prevent_recursion already_read fln
     in
-    let dirs = all_upper_dir fln
-    in
-    try 
-      let src_link = List.find ctst (List.rev dirs)
-      in
-      let dst_link = Unix.readlink src_link 
-      in
-      let real_link = 
-        if is_relative dst_link then
-          reduce (concat (dirname src_link) dst_link)
-        else
-          reduce dst_link
-      in
-      readlink_aux newly_read (reparent src_link real_link fln)
-    with Not_found ->
-      fln
+    let dirs = 
+      all_upper_dir fln
+    in    
+      try 
+        let src_link = 
+          List.find ctst (List.rev dirs)
+        in
+        let dst_link = 
+          Unix.readlink src_link 
+        in
+        let real_link = 
+          if is_relative dst_link then
+            reduce (concat (dirname src_link) dst_link)
+          else
+            reduce dst_link
+        in
+          readlink_aux newly_read (reparent src_link real_link fln)
+      with Not_found ->
+        fln
   in 
-  readlink_aux SetFilename.empty (make_absolute (pwd ()) fln)
+    readlink_aux SetFilename.empty (make_absolute (pwd ()) fln)
 ;;
 
-(** List the content of a directory *)
+(** List the content of a directory 
+  *)
 let ls dirname =
   let real_dirname = 
     solve_dirname dirname
   in
-  let array_dir = Sys.readdir real_dirname
+  let array_dir = 
+    Sys.readdir real_dirname
   in
-  let list_dir  = Array.to_list array_dir
+  let list_dir = 
+    Array.to_list array_dir
   in
     List.map 
       (fun x -> concat dirname x) 
       list_dir
 ;;
 
-(** Apply a filtering pattern to a filename *)
+(** Apply a filtering pattern to a filename 
+  *)
 let filter flt lst =
   List.filter (test flt) lst
 ;;
@@ -737,8 +787,9 @@ let which ?(path) fln =
 ;;
 
 (** Create the directory which name is provided. Turn parent to true
-if you also want to create every topdir of the path. Use mode to 
-provide some specific right (default 755). *)
+    if you also want to create every topdir of the path. Use mode to 
+    provide some specific right (default 755). 
+  *)
 let mkdir ?(parent=false) ?(mode=0o0755) fln =
   let mkdir_simple fln =
     if test Exists fln then
@@ -762,7 +813,8 @@ let mkdir ?(parent=false) ?(mode=0o0755) fln =
 ;;
 
 (** Modify the time stamp of the given filename. Turn create to false
-if you don't want to create the file *)
+    if you don't want to create the file 
+  *)
 (* TODO: check that it doesn't set the filesize to 0 *)
 let touch ?(create=true) fln =
   if (test (And(Exists,Is_file)) fln) || create then
@@ -771,58 +823,86 @@ let touch ?(create=true) fln =
     ()
 ;;
 
-(** find ~follow:fol tst fln exec accu : Descend the directory tree starting 
-from the given filename and using the test provided to find what is looking 
-for. You cannot match current_dir and parent_dir. For every file found, 
-the action exec is done, using the accu to start. For a simple file
-listing, you can use find True "." (fun x y -> x :: y) [] *)
-let find ?(follow = Skip) ?match_compile tst fln exec accu =
-  let ctest = 
-    compile_filter 
-      ?match_compile
-      (And(tst,Not(Or(Is_parent_dir,Is_current_dir))))
+(** [find ~follow:fol tst fln exec accu] Descend the directory tree starting 
+    from the given filename and using the test provided. You cannot match
+    [current_dir] and [parent_dir]. For every file found, the action [exec] is
+    done, using the [accu] to start. For a simple file listing, you can use 
+    [find True "." (fun x y -> x :: y) []] 
+  *)
+let find ?(follow = Skip) ?match_compile tst fln exec user_acc =
+
+  let user_test =
+    compile_filter ?match_compile tst
   in
-  let cdir  = 
-    compile_filter 
-      (And(Is_dir,Not(Or(Is_parent_dir,Is_current_dir))))
-  in
-  let clink = fun fln ->
-    if test Is_link fln then
-      match follow with
-        Follow -> true
-      | Skip   -> false
-      | SkipInform f -> f fln; false
-      | AskFollow f -> f fln
+
+  let process_file ((user_acc, already_read) as acc) st fln = 
+    if user_test ~pre_stat:st fln then
+      (exec user_acc fln), already_read
     else
-      true    
+      acc
   in
-  let rec find_dir (already_read,accu) fln =
-    let newly_read = prevent_recursion already_read (make_absolute (pwd ()) (readlink fln))
-    in
-    let dir_content = ls fln
-    in
-    let new_accu = List.fold_left exec accu (List.filter ctest dir_content)
-    in
-    let directories = List.filter clink (List.filter cdir dir_content)
-    in
-    if directories = [] then
-      (newly_read,new_accu)
-    else
-      List.fold_left find_dir (newly_read,new_accu) directories
+
+  let skip_action =
+    match follow with 
+      | Skip | AskFollow _ | Follow ->
+          ignore 
+      | SkipInform f ->
+          f
   in
-  let find_simple (already_read,accu) fln =
-    let new_accu = 
-      if ctest fln then
-        exec accu fln
-      else
-        accu
-    in
-    if test Is_dir fln then
-      find_dir (already_read,new_accu) fln
-    else
-      (already_read,new_accu)
+
+  let should_skip =
+    match follow with 
+      | Skip | SkipInform _ ->  (fun _ -> true)
+      | AskFollow f -> f 
+      | Follow -> (fun _ -> false)
   in
-  snd(find_simple (SetFilename.empty,accu) (reduce fln))
+
+  let rec find_aux acc fln =
+    try
+      (
+        (* TODO: prevent recursion with symlink *)
+        let st = 
+          stat fln
+        in
+          if st.kind = Dir then
+            (
+              if st.is_link && should_skip fln then
+                (
+                  skip_action fln;
+                  acc
+                )
+              else
+                (
+                  find_in_dir
+                    (process_file acc st fln)
+                    fln
+                )
+            )
+          else
+            (
+              process_file acc st fln
+            )
+      )
+    with FileDoesntExist _ ->
+      acc
+
+  and find_in_dir acc drn = 
+    Array.fold_left
+      (fun acc rfln ->
+         if is_parent rfln || is_current rfln then
+           acc
+         else
+           find_aux acc (concat drn rfln))
+      acc
+      (Sys.readdir drn)
+  in
+
+  let user_acc, _ = 
+    find_aux 
+      (user_acc, SetFilename.empty) 
+      (reduce fln)
+  in
+    user_acc
 ;;
 
 (** Remove the filename provided. Turn recurse to true in order to 
@@ -869,7 +949,8 @@ let rm ?(force=Force) ?(recurse=false) fln_lst =
     rm_aux fln_lst
 ;;
 
-(** Copy the hierarchy of files/directory to another destination *)
+(** Copy the hierarchy of files/directory to another destination 
+  *)
 let cp ?(follow=Skip) ?(force=Force) ?(recurse=false) fln_src_lst fln_dst = 
   let cpfile fln_src fln_dst =
     let cpfile () = 
@@ -896,10 +977,6 @@ let cp ?(follow=Skip) ?(force=Force) ?(recurse=false) fln_src_lst fln_dst =
        cpfile ()
     | Dir ->
       mkdir fln_dst
-    (* We do not accept to copy this kind of files *)
-    (* It is too POSIX specific, should not be     *)
-    (* implemented on other platform               *)
-    | Link 
     | Fifo 
     | Dev_char 
     | Dev_block
@@ -915,7 +992,8 @@ let cp ?(follow=Skip) ?(force=Force) ?(recurse=false) fln_src_lst fln_dst =
      ) ()
   in
   (* Test sur l'existence des fichiers source et création des noms de fichiers
-  * absolu *)
+     absolu 
+   *)
   let real_fln_src_lst = 
     List.map (
       fun x -> 
@@ -947,7 +1025,8 @@ let cp ?(follow=Skip) ?(force=Force) ?(recurse=false) fln_src_lst fln_dst =
    )
 ;;
 
-(** Move files/directory to another destination *)
+(** Move files/directory to another destination 
+  *)
 let rec mv ?(force=Force) fln_src fln_dst =
   let fln_src_abs =  make_absolute (pwd ()) fln_src
   in
@@ -1028,9 +1107,10 @@ let cmp ?(skip1 = 0) fln1 ?(skip2 = 0) fln2 =
     (Some (-1))
 ;;
 
-(** du fln_lst : Returns the amount of space of all the file 
-* which are subdir of fln_lst. Also returns details for each 
-* file scanned *)
+(** [du fln_lst] : Returns the amount of space of all the file 
+    which are subdir of fln_lst. Also returns details for each 
+    file scanned 
+  *)
 let du fln_lst = 
   let du_aux (sz, lst) fln = 
     let st = stat fln

@@ -158,6 +158,9 @@ val check_extension: filename -> extension -> bool
 (** Add an extension with a "." before. *)
 val add_extension: filename -> extension -> filename
 
+(** Replace extension. *)
+val replace_extension: filename -> extension -> filename
+
 (** {2 PATH-like operation}*)
 
 (** PATH-like refers the environment variable PATH. This variable holds a list
@@ -260,6 +263,9 @@ sig
   (** See {!FilePath.add_extension} *)
   val add_extension: filename -> extension -> filename
 
+  (** See {!FilePath.replace_extension} *)
+  val replace_extension: filename -> extension -> filename
+
   (** See {!FilePath.string_of_path} *)
   val string_of_path: filename list -> string
 
@@ -295,6 +301,9 @@ module DefaultPath: PATH_STRING_SPECIFICATION;;
 (** Unix operating system. *)
 module UnixPath: PATH_STRING_SPECIFICATION;;
 
+(** Unix operating system (optimized). *)
+module UnixOptPath: PATH_STRING_SPECIFICATION;;
+
 (** MacOS operating system. *)
 module MacOSPath: PATH_STRING_SPECIFICATION;;
 
@@ -303,35 +312,3 @@ module Win32Path: PATH_STRING_SPECIFICATION;;
 
 (** Cygwin operating system. *)
 module CygwinPath: PATH_STRING_SPECIFICATION;;
-
-(** Before v0.4.0, operation on filename was handled through many more modules,
-    you can still use it through this module.
-  *)
-module Deprecated:
-sig
-  (** Abstract operation for default operating system.
-      @deprecated since v0.4.0
-    *)
-  module AbstractDefaultPath : PATH_SPECIFICATION;;
-
-  (** Abstract operation for unix operating system.
-      @deprecated since v0.4.0
-    *)
-  module AbstractUnixPath : PATH_SPECIFICATION;;
-      
-  (** Abstract operation for MacOS operating system.
-      @deprecated since v0.4.0
-    *)
-  module AbstractMacOSPath : PATH_SPECIFICATION;;
-
-  (** Abstract operation for win32 operating system.
-      @deprecated since v0.4.0
-    *)
-  module AbstractWin32Path : PATH_SPECIFICATION;;
-
-  (** Abstract operation for cygwin operating system.
-      @deprecated since v0.4.0
-    *)
-  module AbstractCygwinPath : PATH_SPECIFICATION;;
-end
-;;

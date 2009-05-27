@@ -24,7 +24,13 @@
 BUILDDIR=$(CURDIR)/_build/libfileutils-ocaml
 OCAMLBUILDFLAGS+=-classic-display -no-log
 
-test:
+bench-find: all
+	_build/test/BenchFind.native
+
+#test: TESTFLAGS+=-only-test "ocaml-fileutils:0:FilePath:0:Unix FilePath"
+#test:
+
+all:
 
 _build/myocamlbuild: myocamlbuild.ml
 	$(OCAMLBUILD) $(OCAMLBUILDFLAGS) -just-plugin
@@ -86,7 +92,7 @@ dist:
 	echo Don't forget to tag version $(PACKAGE_VERSION)
 
 test: all
-	cd "$(CURDIR)/_build/test" && ./test.$(ocamlbuild_best_program)
+	cd "$(CURDIR)/_build/test" && ./test.$(ocamlbuild_best_program) $(TESTFLAGS)
 
 headache:
 	find ./ -name .svn -prune -false -o -name _build -prune -false -o -type f | xargs headache -h .header -c .headache.config

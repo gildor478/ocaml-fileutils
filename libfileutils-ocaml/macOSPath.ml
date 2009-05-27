@@ -21,6 +21,8 @@
 
 open FilePath_type;;
 
+include CommonPath;;
+
 let rec dir_writer lst =
 	let buffer = Buffer.create path_length
 	in
@@ -55,8 +57,10 @@ let rec dir_writer lst =
 		dir_writer_aux lst
 ;;
 
-let dir_reader      = MacOSPath_parser.main_filename 
-	MacOSPath_lexer.token_filename
+let dir_reader str = 
+  MacOSPath_parser.main_filename 
+    MacOSPath_lexer.token_filename
+    (Lexing.from_string str)
 ;;
 
 let path_writer lst = 
