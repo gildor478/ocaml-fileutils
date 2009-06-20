@@ -1,10 +1,6 @@
 
 Must :
 
-- is_relative and is_implicit seems to be related, check if it is possible to 
-  remove one of this function.
-- make more easy to use FileUtil by including directly one default command directly
-  into FileUtil and not in a submodule
 - implement a basic glob function to replace the Str implementation (*, ?). 
 - add more test to the test.ml file ( should have at least 200 test - only 133
   at the time I am writing this line )
@@ -17,10 +13,6 @@ Must :
 
 Wishlist :
 - Create a libtar-ocaml, to handle the tar format
-- Create a libzip-ocaml, to handle the ZIP compression format (investigate on
-  the other actual work on this theme). Maybe, create an interface to make more
-  easy the switch between a pure ocaml implementation and a possible
-  C binding... 
 - Investigate on the different UNIX command that should be great to have...
   Maybe go and see if some interesting command exist on other OS...
 

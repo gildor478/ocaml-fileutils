@@ -24,8 +24,9 @@
 BUILDDIR=$(CURDIR)/_build/libfileutils-ocaml
 OCAMLBUILDFLAGS+=-classic-display -no-log
 
-bench-find: all
-	_build/test/BenchFind.native
+test:
+#bench-find: all
+#	_build/test/BenchFind.native
 
 #test: TESTFLAGS+=-only-test "ocaml-fileutils:0:FilePath:0:Unix FilePath"
 #test:

@@ -1124,5 +1124,11 @@ let du fln_lst =
 ;;
 
 (** For future release : 
-   - pathchk : filename -> boolean * string 
+   - [val pathchk: filename -> boolean * string], check whether file names are valid or portable
+   - [val chmod: filename -> permission -> unit], change file mode bits (only UNIX bit mask)
+   - [val setfacl: filename -> permission -> unit], set file access control lists (UNIX + extended attribute)
+   - [val getfacl: filename -> permission], get file access control lists 
+
+   ACL related function will be handled through a plugin system to handle at runtime which 
+   attribute can be read/write (i.e. Win32 ACL, NFS acl, Linux ACL -- or none). 
   *)

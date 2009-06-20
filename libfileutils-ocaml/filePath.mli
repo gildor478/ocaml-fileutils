@@ -129,10 +129,6 @@ val is_valid: filename -> bool
   *)
 val is_relative: filename -> bool
 
-(** Check if the filename is an absolute one or not.
-  *)
-val is_implicit: filename -> bool
-
 (** Check if the filename is the current directory. 
   *)
 val is_current: filename -> bool
@@ -241,9 +237,6 @@ sig
 
   (** See {!FilePath.is_relative} *)
   val is_relative: filename -> bool
-
-  (** See {!FilePath.is_implicit} *)
-  val is_implicit: filename -> bool
 
   (** See {!FilePath.is_current} *)
   val is_current: filename -> bool

@@ -65,7 +65,6 @@ sig
   val identity: filename -> filename
   val is_valid: filename -> bool
   val is_relative: filename -> bool
-  val is_implicit: filename -> bool
   val is_current: filename -> bool
   val is_parent: filename -> bool
   val chop_extension: filename -> filename
@@ -215,15 +214,6 @@ struct
     | _            -> true
 
   
-  (* Is_implicit *)
-  
-  let is_implicit lst_path  = 
-    match lst_path with
-      ParentDir :: _ 
-    | (CurrentDir _) :: _ 
-    | Component _ :: _ -> true
-    | _                -> false
-
   (* Is_valid *)
   
   let is_valid path = 
@@ -464,9 +454,6 @@ struct
       OsOperation.fast_is_relative path
     with CommonPath.CannotHandleFast ->
       Abstract.is_relative (s2f path)
-
-  let is_implicit path =
-    Abstract.is_implicit (s2f path)
 
   let is_current path =
     try
