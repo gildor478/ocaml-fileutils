@@ -3,17 +3,26 @@ open FilePath_type;;
 
 include CommonPath;;
 
-let rec dir_writer = 
-  UnixPath.dir_writer
+let rec dir_writer lst = 
+  match lst with 
+      Root s :: tl ->
+        "/"^(dir_writer tl)
+    | [ CurrentDir Short ] ->
+        ""
+    | lst ->
+        let rec dir_writer_aux cmp =
+          match cmp with
+              Root _ -> ""
+            | ParentDir -> ".."
+            | CurrentDir _ -> "."
+            | Component s -> s
+        in
+          String.concat "/" ( List.map dir_writer_aux lst )
 ;;
 
 let dir_reader fn =
   let sep =
     '/'
-  in
-
-  let fn_len = 
-    String.length fn
   in
 
   let fn_part_of_string =
@@ -23,63 +32,20 @@ let dir_reader fn =
       | str -> Component str
   in
 
-  let fn_sub pos_start pos_sep = 
-    if pos_start < pos_sep then
-      (
-        let part_str =
-          String.sub fn pos_start (pos_sep - pos_start) 
-        in
-          fn_part_of_string part_str
-      )
-    else
-      (
-        assert(pos_start = pos_sep);
-        Component ""
-      )
-  in
-
-  let rec split_aux acc pos_start =
-    if pos_start < fn_len then
-      (
-        let pos_sep = 
-          try
-            String.index_from fn pos_start sep
-          with Not_found ->
-            fn_len
-        in
-        let part = 
-          fn_sub pos_start pos_sep
-        in
-        let acc = 
-          part :: acc
-        in
-          if pos_sep >= fn_len then
-            (
-              (* Nothing more in the filename *)
-              List.rev acc
-            )
-          else if pos_sep = (fn_len - 1) then
-            (
-              (* Filename end with '/' *)
-              List.rev (Component "" :: acc)
-            )
-          else
-            (
-              split_aux acc (pos_sep + 1)
-            )
-      )
-    else
-      (
-        List.rev acc
-      )
-  in
-
-    if fn_len > 0 then
+    if (String.length fn) > 0 then
       (
         if fn.[0] = sep then
-          split_aux [Root ""] 1
+          StringExt.split
+            ~start_acc:[Root ""] 
+            ~start_pos:1
+            ~map:fn_part_of_string
+            sep 
+            fn
         else
-          split_aux [] 0
+          StringExt.split 
+            ~map:fn_part_of_string
+            sep 
+            fn
       )
     else
       (
@@ -87,12 +53,12 @@ let dir_reader fn =
       )
 ;;
 
-let path_writer =
-  UnixPath.path_writer
+let path_writer lst = 
+  String.concat ":" lst
 ;;
 
-let path_reader =
-  UnixPath.path_reader
+let path_reader str = 
+  StringExt.split ~map:(fun s -> s) ':' str
 ;;
 
 let fast_concat fn1 fn2 =

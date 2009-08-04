@@ -19,20 +19,10 @@
 #  Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA               #
 ################################################################################
 
-filePath_type
-unixPath_parser
-unixPath_lexer
-unixPath
-macOSPath_parser
-macOSPath_lexer
-macOSPath
-win32Path_parser
-win32Path_lexer
-win32Path
-cygwinPath_parser
-cygwinPath_lexer
-cygwinPath
-UnixOpt
+FilePath_type
+UnixPath
+Win32Path
+MacOSPath
 CommonPath
-filePath
-fileUtil
+FilePath
+FileUtil

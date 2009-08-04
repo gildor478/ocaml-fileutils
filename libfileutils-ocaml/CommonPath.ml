@@ -2,6 +2,9 @@
 (** A fast operation cannot be done, will
     continue by trying more complex processing
   *)
+
+module StringExt = FileStringExt;;
+
 exception CannotHandleFast;;
 
 let fast_concat _ _ =

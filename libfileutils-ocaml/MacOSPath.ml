@@ -23,34 +23,68 @@ open FilePath_type;;
 
 include CommonPath;;
 
-let rec dir_writer lst = 
-	match lst with 
-	  Root s :: tl ->
-	  	"/"^(dir_writer tl)
-	| [ CurrentDir Short ] ->
-		""
-	| lst ->
-		let rec dir_writer_aux cmp =
-			match cmp with
-			  Root _ -> ""
-			| ParentDir -> ".."
-			| CurrentDir _ -> "."
-			| Component s -> s
-		in
-		String.concat "/" ( List.map dir_writer_aux lst )
+let rec dir_writer lst =
+ let buffer = Buffer.create path_length
+ in
+ let rec dir_writer_aux lst =
+   match lst with
+       Root s :: tl ->
+         Buffer.add_string buffer s;
+         Buffer.add_char   buffer ':';
+         dir_writer_aux tl
+     | (CurrentDir _) :: tl 
+     | ParentDir  :: tl ->
+         Buffer.add_char   buffer ':';
+         dir_writer_aux tl
+     | (Component "") :: tl ->
+         dir_writer_aux tl
+     | (Component s) :: [] ->
+         Buffer.add_string buffer s;
+         dir_writer_aux []
+     | (Component s) :: tl ->
+         Buffer.add_string buffer s;
+         Buffer.add_char   buffer ':';
+         dir_writer_aux tl
+     | [] ->
+         Buffer.contents buffer
+ in
+   match lst with
+       ParentDir :: _ -> 
+         dir_writer_aux ( (CurrentDir Long) :: lst )
+     | [ CurrentDir Short ] ->
+         ""
+     | _ -> 
+         dir_writer_aux lst
 ;;
 
 let dir_reader str = 
-  UnixPath_parser.main_filename 
-    UnixPath_lexer.token_filename
-    (Lexing.from_string str)
+
+  let rec dir_reader_aux =
+    function
+      | [""] ->
+          []
+      | "" :: tl ->
+          ParentDir :: (dir_reader_aux tl)
+      | str :: tl ->
+          Component str :: (dir_reader_aux tl)
+      | [] ->
+          []
+  in
+    match StringExt.split ~map:(fun s -> s) ':' str with 
+      | [] -> 
+          [CurrentDir Short]
+      | "" :: tl -> 
+          CurrentDir Long :: (dir_reader_aux tl)
+      | [id] ->
+          [Component id]
+      | root :: tl -> 
+          Root root :: (dir_reader_aux tl)
 ;;
 
 let path_writer lst = 
-	String.concat ":" lst
+  String.concat ";" lst
 ;;
 
-let path_reader     = UnixPath_parser.main_path_variable 
-	UnixPath_lexer.token_path_variable
+let path_reader = 
+  StringExt.split ~map:(fun s -> s) ';'
 ;;
-

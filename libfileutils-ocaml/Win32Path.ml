@@ -19,26 +19,65 @@
 (*  Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA               *)
 (********************************************************************************)
 
-{
+open FilePath_type;;
 
-open Win32Path_parser;;
+include CommonPath;;
 
-}
+let rec dir_writer lst = 
+  match lst with 
+      Root s :: tl ->
+        (s^":\\")^(dir_writer tl)
+    | [ CurrentDir Short ] ->
+        ""
+    | lst ->
+        let dir_writer_aux cmp =
+          match cmp with
+              (* We should raise an exception here *)
+              Root s -> s
+            | ParentDir -> ".."
+            | CurrentDir _ -> "."
+            | Component s -> s
+        in
+          String.concat "\\" (List.map dir_writer_aux lst)
+;;
 
-rule 
-token_filename = parse  
-  ":/"		 { ROOT_SEPARATOR }
-| ":\\"		 { ROOT_SEPARATOR }
-| '\\'           { SEPARATOR }
-| '/'            { SEPARATOR }
-| ".."           { DOUBLE_DOT }
-| '.'            { DOT }
-| ':'[^'/''\\'] as cmp
-| [^'\\''/'':']* as cmp { (IDENT cmp) }
-| eof            { EOF }
-and
-token_path_variable = parse
- ';'             { token_path_variable lexbuf }
-| [^';']* as cmp { (IDENT cmp) }
-| eof            { EOF }
+let dir_reader str = 
+  let fn_part_of_string = 
+    function
+      | ".." -> ParentDir
+      | "."  -> CurrentDir Long
+      | str  -> Component str
+  in 
+  let fn_part_split str = 
+    let lst = 
+      List.flatten 
+        (List.map 
+           (StringExt.split ~map:fn_part_of_string '\\')
+           (StringExt.split ~map:(fun s -> s) '/' str))
+    in 
+      match lst with
+        (* TODO: we don't make the difference between c:a and c:\a *) 
+        | Component "" :: tl -> tl 
+        | lst -> lst
+  in
+    try 
+      (
+        let drive_letter, str =
+          StringExt.break_at_first ':' str
+        in
+          Root drive_letter :: (fn_part_split str)
+      )
+    with Not_found ->
+      (
+        fn_part_split str
+      )
+;;
+
+let path_writer lst = 
+  String.concat ";" lst
+;;
+
+let path_reader str =
+  StringExt.split ~map:(fun s -> s) ';' str
+;;
 

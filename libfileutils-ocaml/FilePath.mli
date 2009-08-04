@@ -294,9 +294,6 @@ module DefaultPath: PATH_STRING_SPECIFICATION;;
 (** Unix operating system. *)
 module UnixPath: PATH_STRING_SPECIFICATION;;
 
-(** Unix operating system (optimized). *)
-module UnixOptPath: PATH_STRING_SPECIFICATION;;
-
 (** MacOS operating system. *)
 module MacOSPath: PATH_STRING_SPECIFICATION;;
 

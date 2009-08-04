@@ -32,7 +32,7 @@ sig
   val dir_writer: (filename_part list) -> filename 
   val dir_reader: filename -> (filename_part list)
   val path_writer: (filename list) -> string
-  val path_reader: Lexing.lexbuf -> (filename list)
+  val path_reader: string -> (filename list)
   val fast_concat: filename -> filename -> filename 
   val fast_basename: filename -> filename
   val fast_dirname: filename -> filename 
@@ -353,12 +353,9 @@ struct
     OsOperation.path_writer (List.map string_of_filename lst)
 
   let path_of_string str = 
-    try
-      let lexbuf = Lexing.from_string str
-      in
-      List.map filename_of_string (OsOperation.path_reader lexbuf)
-    with Parsing.Parse_error ->
-      raise (InvalidFilename str)
+    List.map 
+      filename_of_string 
+      (OsOperation.path_reader str)
 
   (* Generic filename component *)
 
@@ -543,105 +540,83 @@ end
 
 module DefaultPath = GenericStringPath(struct
 
-  let os_depend unix macos win32 cygwin =
+  let os_depend unix macos win32 =
     match Sys.os_type with
-      "Unix"   -> unix
+      "Unix"
+    | "Cygwin" -> unix
     | "MacOS"  -> macos
     | "Win32"  -> win32
-    | "Cygwin" -> cygwin
     | s        -> raise (UnrecognizedOS s)
     
   let dir_writer  = 
     os_depend 
-      UnixOpt.dir_writer  
-      (*UnixPath.dir_writer*)
+      UnixPath.dir_writer
       MacOSPath.dir_writer  
       Win32Path.dir_writer  
-      CygwinPath.dir_writer
 
   let dir_reader  = 
     os_depend 
-      UnixOpt.dir_reader 
-      (*UnixPath.dir_reader*)
+      UnixPath.dir_reader
       MacOSPath.dir_reader  
       Win32Path.dir_reader  
-      CygwinPath.dir_reader
 
   let path_writer = 
     os_depend 
-      UnixOpt.path_writer 
-      (*UnixPath.path_writer*)
+      UnixPath.path_writer
       MacOSPath.path_writer 
       Win32Path.path_writer 
-      CygwinPath.path_writer
 
   let path_reader = 
     os_depend 
-      UnixOpt.path_reader 
-      (*UnixPath.path_reader*)
+      UnixPath.path_reader
       MacOSPath.path_reader 
       Win32Path.path_reader 
-      CygwinPath.path_reader
 
   let fast_concat = 
     os_depend 
-      UnixOpt.fast_concat 
-      (*UnixPath.fast_concat*)
+      UnixPath.fast_concat
       MacOSPath.fast_concat 
       Win32Path.fast_concat 
-      CygwinPath.fast_concat
 
   let fast_basename = 
     os_depend 
-      UnixOpt.fast_basename 
-      (*UnixPath.fast_basename*)
+      UnixPath.fast_basename
       MacOSPath.fast_basename 
       Win32Path.fast_basename 
-      CygwinPath.fast_basename
 
   let fast_dirname = 
     os_depend 
-      UnixOpt.fast_dirname 
-      (*UnixPath.fast_dirname*)
+      UnixPath.fast_dirname
       MacOSPath.fast_dirname 
       Win32Path.fast_dirname 
-      CygwinPath.fast_dirname
 
   let fast_is_relative =
     os_depend 
-      UnixOpt.fast_is_relative 
-      (*UnixPath.fast_is_relative*)
+      UnixPath.fast_is_relative
       MacOSPath.fast_is_relative 
       Win32Path.fast_is_relative 
-      CygwinPath.fast_is_relative
 
   let fast_is_current = 
     os_depend 
-      UnixOpt.fast_is_current 
-      (*UnixPath.fast_is_current*)
+      UnixPath.fast_is_current
       MacOSPath.fast_is_current 
       Win32Path.fast_is_current 
-      CygwinPath.fast_is_current
 
   let fast_is_parent = 
     os_depend 
-      UnixOpt.fast_is_parent 
-      (*UnixPath.fast_is_parent*)
+      UnixPath.fast_is_parent
       MacOSPath.fast_is_parent 
       Win32Path.fast_is_parent 
-      CygwinPath.fast_is_parent
 
 end)
 ;;
 
 module UnixPath =  GenericStringPath(UnixPath);;
 
-module UnixOptPath =  GenericStringPath(UnixOpt);;
-
 module MacOSPath = GenericStringPath(MacOSPath);;
 
 module Win32Path = GenericStringPath(Win32Path);;
 
-module CygwinPath = GenericStringPath(CygwinPath);;
+module CygwinPath = UnixPath;;
 
 include DefaultPath;;

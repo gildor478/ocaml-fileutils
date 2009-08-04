@@ -224,7 +224,7 @@ struct
 end
 ;;
 
-module TestUnix  = Test(UnixOptPath)
+module TestUnix  = Test(UnixPath)
 ;;
 TestUnix.os_string := "Unix"
 ;;
@@ -236,14 +236,9 @@ module TestWin32 = Test(Win32Path)
 ;;
 TestWin32.os_string := "Win32"
 ;;
-module TestCygwin = Test(CygwinPath)
-;;
-TestCygwin.os_string := "Cygwin"
-;;
 
 (** Static test *)
 let _ = 
-  assert(CygwinPath.get_extension "test.txt" = "txt");
   assert(UnixPath.get_extension "test.txt" = "txt");
   assert(MacOSPath.get_extension "test.txt" = "txt");
   assert(Win32Path.get_extension "test.txt" = "txt");
@@ -548,103 +543,11 @@ let test_macos =
 
       (* Check extension *)
       @ (
-        List.map TestWin32.extension
+        List.map TestMacOS.extension
         [
          ("root:a:b:c.d",   "root:a:b:c",   "d");
          ("root:a:b.c:d.e", "root:a:b.c:d", "e");
          ("a.",         "a",        "");
-        ]
-      )
-    )
-in
-
-(***********************)
-(* Cygwin FilePath test*)
-(***********************)
-
-let test_cygwin = 
-  let test_path = 
-  [
-   ("c:/");
-   ("c:/a/b");
-   ("c:/a/b/c/");
-   ("c:/a/../b/c");
-   ("c:/a/../b/../c");
-   ("a/b/c/");
-   ("../a/b");
-   ("");
-   (".");
-   ("./");
-   ("..");
-   ("../")
-  ]
-  in
-  "Cygwin FilePath" >:::
-    (
-      (* Is_valid *)
-      (
-        List.map TestCygwin.valid test_path
-      )
-
-      (* Identity *)
-      @ (
-        List.map TestCygwin.identity test_path
-      )
-
-      (* Reduce path *)
-      @ (
-        List.map TestCygwin.reduce
-        [
-         ("c:/a/b/c",                   "c:/a/b/c");
-         ("c:/a/b/c/",                  "c:/a/b/c");
-         ("c:/a/b/c/d/..",              "c:/a/b/c");
-         ("c:/a/b/c/.",                 "c:/a/b/c");
-         ("c:/a/d/../b/c",              "c:/a/b/c");
-         ("c:/a/./b/c",                 "c:/a/b/c");
-         ("c:/a/b/c/d/./..",            "c:/a/b/c");
-         ("c:/a/b/c/d/../.",            "c:/a/b/c");
-         ("c:/a/b/d/./../c",            "c:/a/b/c");
-         ("c:/a/b/d/.././c",            "c:/a/b/c");
-         ("c:/a/b/../d/../b/c",         "c:/a/b/c");
-         ("c:/a/./././b/./c",           "c:/a/b/c");
-         ("c:/a/../a/./b/../c/../b/./c","c:/a/b/c")
-        ]
-      )
-
-      (* Create path *)
-      @ (
-        List.map TestCygwin.make_path
-        [
-         (["c:/a";"c:b";"c:/c/d"], "c:/a;c:b;c:/c/d")
-        ]
-      )
-
-      (* Convert to absolute *)
-      @ (
-        List.map TestCygwin.make_absolute
-        [
-         ("c:/a/b/c", ".",    "c:/a/b/c");
-         ("c:/a/b/c", "./d",  "c:/a/b/c/d");
-         ("c:/a/b/c", "../d", "c:/a/b/d")
-        ]
-      )
-
-      (* Convert to relative *)
-      @ (
-        List.map TestCygwin.make_relative 
-        [
-         ("c:/a/b/c", "c:/a/b/c", "");
-         ("c:/a/b/c", "c:/a/b/d", "../d")
-        ]
-      )
-
-      (* Check extension *)
-      @ (
-        List.map TestCygwin.extension
-        [
-         ("c:/a/b/c.d",   "c:/a/b/c",   "d");
-         ("c:a/b.c/d.e",  "c:a/b.c/d",  "e");
-         ("a.",           "a",        "");
         ]
       )
     )
@@ -1271,7 +1174,6 @@ let tests =
       test_unix;
       test_win32;
       test_macos;
-      test_cygwin;
     ];
 
     test_fileutil;

@@ -28,8 +28,7 @@ test:
 #bench-find: all
 #	_build/test/BenchFind.native
 
-#test: TESTFLAGS+=-only-test "ocaml-fileutils:0:FilePath:0:Unix FilePath"
-#test:
+#test: TESTFLAGS+=-only-test "ocaml-fileutils:0:FilePath:2:MacOS FilePath:6:identity"
 
 all:
 
