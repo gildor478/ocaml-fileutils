@@ -762,11 +762,27 @@ let test_fileutil =
    
     "Touch precedence" >::
     (fun () ->
-      assert_bool 
-        "touch precedence" 
-        (test 
-           (Is_newer_than (make_filename [dir_test ; "essai1"]))
-           (make_filename [dir_test; "essai0"]))
+      let time =
+        Unix.gettimeofday ()
+      in
+      let fn1 = 
+        make_filename [dir_test ; "essai1"]
+      in
+      let fn2 =
+        make_filename [dir_test ; "essai0"]
+      in
+        touch ~time:(Touch_timestamp time) fn1;
+        touch ~time:(Touch_timestamp (time +. 1.0)) fn2;
+        assert_bool 
+          "touch precedence 1" 
+          (test 
+             (Is_newer_than fn1)
+             fn2);
+        assert_bool 
+          "touch precedence 2" 
+          (test 
+             (Is_older_than fn2)
+             fn1)
     );
     
     "Mkdir simple v1" >::

@@ -21,7 +21,7 @@ dnl ****************************************************************************
 
 AC_INIT(ocaml-fileutils, 0.4.0)
 
-AC_CONFIG_SRCDIR([libfileutils-ocaml/fileUtil.ml])
+AC_CONFIG_SRCDIR([libfileutils-ocaml/FileUtil.ml])
 
 AC_PROG_INSTALL
 

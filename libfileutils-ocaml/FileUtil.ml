@@ -534,7 +534,7 @@ let compile_filter
             try 
               let st1 = stat f1
               in
-              wrapper (fun st2 -> st1.modification_time > st2.modification_time)
+              wrapper (fun st2 -> st1.modification_time < st2.modification_time)
             with FileDoesntExist _ ->
               fun x -> false
           end
@@ -543,7 +543,7 @@ let compile_filter
             try 
               let st1 = stat f1
               in
-              wrapper (fun st2 -> st1.modification_time < st2.modification_time)
+              wrapper (fun st2 -> st1.modification_time > st2.modification_time)
             with FileDoesntExist _ ->
               fun x -> false
           end
@@ -812,15 +812,55 @@ let mkdir ?(parent=false) ?(mode=0o0755) fln =
   List.iter mkdir_simple directories
 ;;
 
-(** Modify the time stamp of the given filename. Turn create to false
-    if you don't want to create the file 
+type touch_time_t =
+  | Touch_now                   (** Use Unix.gettimeofday *)
+  | Touch_file_time of filename (** Get mtime of file *)
+  | Touch_timestamp of float    (** Use GMT timestamp *)
+;;
+
+(** Modify the timestamp of the given filename. 
+    @param atime  modify access time, default true
+    @param mtime  modify modification time, default true
+    @param create if file doesn't exist, create it, default true
+    @param time   what time to set, default Touch_now
   *)
-(* TODO: check that it doesn't set the filesize to 0 *)
-let touch ?(create=true) fln =
-  if (test (And(Exists,Is_file)) fln) || create then
-    close_out (open_out_bin fln)
-  else 
-    ()
+let touch 
+      ?(atime=true) 
+      ?(mtime=true) 
+      ?(create=true)
+      ?(time=Touch_now)
+      fln =
+
+  let set_time () =
+    let ftime = 
+      match time with
+        | Touch_now -> 
+            Unix.gettimeofday ()
+        | Touch_timestamp time_ref ->
+            time_ref
+        | Touch_file_time fln_ref ->
+            (Unix.stat fln_ref).Unix.st_mtime
+    in
+    let cur_stat = 
+      Unix.stat fln
+    in
+      Unix.utimes 
+        fln
+        (if atime then ftime else cur_stat.Unix.st_atime)
+        (if mtime then ftime else cur_stat.Unix.st_mtime)
+  in
+    (* Create file if required *)
+    if test Exists fln then
+      (
+        set_time ()
+      )
+    else if create then
+      (
+        close_out (open_out fln);
+        set_time ()
+      )
+    else
+      ()
 ;;
 
 (** [find ~follow:fol tst fln exec accu] Descend the directory tree starting 
