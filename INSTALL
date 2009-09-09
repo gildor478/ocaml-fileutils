@@ -1,16 +1,14 @@
---------------
-ocaml-fileutils.
---------------
+---------------
+ocaml-fileutils
+---------------
 
-Prerequisite :
+Prerequisite:
 
 In order to install you will need :
-- ocaml ( >= 3.10.0 )
+- ocaml (>= 3.10.0)
 	http://caml.inria.fr/
 - make
-
-Optionnaly you can use :
-- ocamlfind ( >= 0.8 ) 
+- ocamlfind (>= 1.1) 
 	http://www.ocaml-programming.de/packages/
 - OUnit regression test suite 
 	http://home.wanadoo.nl/maas/ocaml/

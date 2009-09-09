@@ -1,36 +1,20 @@
-----------------
-ocaml-fileutils.
-----------------
+---------------
+ocaml-fileutils
+---------------
 
 This library is intended to provide a basic interface to the most
-common file and filename operation. It provides different filename
-function : reduce, make_absolute, make_relative... It also enables
-to manipulate real file : cp, mv, rm, touch...
+common real file and filename operation. It has filename function
+(reduce, make_absolute, make_relative) and real file manipulation
+(cp, mv, rm, touch).
 
-It is separated in two modules : SysUtil and SysPath. The first 
-one manipulate files ( real one ), the second one is made for 
-manipulating abstract filename.
+It is separated in two modules: FileUtil for real file and FilePath for
+filename.
 
-This library is still under developpement. I intend to make it as 
+This library is still under developpement. I intend to make it as
 portable as possible. In other one, i welcome any bug report from
-windows user, mac os user...
+Windows user, Mac OS user...
 
-Send bug report at submit@bugs.gallu.homelinux.org beginning with
+For bug report, see:
+http://le-gall.net/sylvain+violaine/bts/index.php?project=3&do=index&switch=1
 
-Package: ocaml-fileutils
-Version: 0.3.0
-Severity: { choose wishlist,normal,important }
-
-and tell me your problem.
-
-----------------------------
-Information about filesystem
-----------------------------
-
-Well, i am not very acquainted with all filesystem syntax. I get information
-about it here :
-http://www.hk8.org/old_web/perl/sysadmin/ch02_02.htm
-
-I also browse a bit the Anonymous CVS of ocaml.
-
-Sylvain LE GALL
+Sylvain Le Gall

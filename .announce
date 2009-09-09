@@ -1,6 +1,6 @@
 To: caml-list@inria.fr
 Bcc: hump@caml.inria.fr
-Subject: [ANN] ocaml-fileutils v 0.3.0
+Subject: [ANN] ocaml-fileutils v0.4.0
 
 General :
 Ocaml fileutils is aimed to be a platform independent library to perform
@@ -14,9 +14,14 @@ operation on file like :
 
 Comes also with a module to manipulate abstract filename :
 - classification
-- make_relative : made a filename relative to another
-- make_absolute :...
+- make_relative: made a filename relative to another
+- make_absolute
 
+This new release simplify module structure (nested modules are not required
+anymore) and comes with a more clear documentation. It also removes
+parser/lexer for path which was little bit overkilling. Some operations have
+been optimized for speed (like find) -- coming close in term of performance to 
+standard POSIX commands.
 
-Link :
-http://www.carva.org/sylvain.le-gall/ocaml-fileutils.html
+Link:
+http://le-gall.net/sylvain+violaine/ocaml-fileutils.html

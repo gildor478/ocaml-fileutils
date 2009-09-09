@@ -1,73 +1,115 @@
-v0.3.0 : 
-  * Change the version to 0.3 ( lot of changes for a minor version )
-  * Update webpages
-  * Correct a bug that prevent sr\@Ltn to be parsed ( which comes from the
-    lexer of UnixPath, there is [^'.''/''\\']* which can produce empty token )
-  * Correct a bug that prevent to parse the initial current dir ( ie produce nothing 
-    when use find "." or find "/a/" )
+v0.4.0:
+  * Simplify interface, avoid nested module when possible:
+    * Add filename information to all exception
+    * FileUtil:
+      * size is now a 64bits integer, functions are restricted to 4 most useful
+        operations
+      * Str match is now separated into another module (FileUtilStr, package
+        fileutils-str)
+      * All operations are now directly in FileUtil and not in FileUtil.StrUtil
+    * FilePath:
+      * Remove is_implicit, use is_relative as replacement
+      * All functions of FilePath.DefaultPath are now directly accessible in
+        FilePath 
+      * Default operation on string, use sub-module Abstract for abstract
+        operations 
+       * FilePath.reduce don't reduce ".." except if asked to (i.e. no symlink)
+       * CygwinPath related function use directly UnixPath
+  * Make documentation more clear
+  * Introduce fast operation for string filename: when possible to operate
+    directly on string use it
+  * Drop parser/lexer for path: this is complicated and not efficient. Prefer
+    simple string manipulation which is more efficient
+  * Replace build system by ocamlbuild, ocamlfind, a simple Makefile,
+    ocaml-autoconf macros and configure
+  * Adapt compilation and test to Windows
+  * Simplify rm and avoid asking question twice (Closes: #FS79)
+  * Use Unix.LargeFile to handle huge file (Closes: FS#77)
+  * Simplify size operation. Now all operation is done on Int64 (Closes: FS#76)
+  * Implement FileUtilStr that allow Str.regexp match outside the core 
+    FileUtil module (Closes: FS#13)
+  * Add a wildcard on .a and .lib to allow installation on Windows 
+    (Closes: FS#84)
+  * Update license header (Closes: FS#8, FS#55)
+  * Accept "/" as separator for Win32 (Closes: FS#78, FS#83, FS#68)
+  * For win32, use PATHEXT to locate executable with "which" (Closes: FS#73)
+  * Don't suppose ".." can be reduced and test it (Closes: FS#10)
+  * Fix "mv" and allow to copy data between filesystem (Closes: FS#6, FS#7)
+  * Optimize FileUtil.find speed, now only 2x slower than UNIX find (was 40x slower before) 
+    (Closes: FS#65)
+ 
+ -- Sylvain Le Gall  Wed, 09 Sep 2009 15:29:38 +0200
 
-v0.2.2 : 
-  * Changes the version to 0.2.2 in TopMakefile.in ( closes: #33 )
-  * Stop removing Makefile in distclean target ( closes: #31 )
-  * Change --enable-docdir --enable-builddir to --withXX ( closes: #32 )
+v0.3.0: 
+  * Change the version to 0.3 (lot of changes for a minor version)
+  * Update webpages
+  * Correct a bug that prevent sr\@Ltn to be parsed (which comes from the
+    lexer of UnixPath, there is [^'.''/''\\']* which can produce empty token)
+  * Correct a bug that prevent to parse the initial current dir (ie produce nothing 
+    when use find "." or find "/a/")
+
+v0.2.2: 
+  * Changes the version to 0.2.2 in TopMakefile.in (closes: #33)
+  * Stop removing Makefile in distclean target (closes: #31)
+  * Change --enable-docdir --enable-builddir to --withXX (closes: #32)
   * Configure now test that ocamlfind is not detected and that we want to
-    use ocamlfind ( closes: #34 )
-  * Correct error concerning parsing of "" as a current dir ( closes : #40 )
-  * Correct error concerning the test Has_extension ( closes : #41 )
+    use ocamlfind (closes: #34)
+  * Correct error concerning parsing of "" as a current dir (closes: #40)
+  * Correct error concerning the test Has_extension (closes: #41)
   * Use a new CurrenDir of (Long|Short) to denote the difference between "" and "."
   * Implement readlink
-  * Implement pwd ( closes : #39 )
-  * Implement cmp ( closes : #37, #38 )
-  * Implement new test : Has_no_extension | Basename_is | Dirname_is
-  * Implement an anti recursion system ( experimental, need to be tested ) :
-    * Use a type action_link : Follow, Skip, SkipInform, AskFollow
+  * Implement pwd (closes: #39)
+  * Implement cmp (closes: #37, #38)
+  * Implement new test: Has_no_extension | Basename_is | Dirname_is
+  * Implement an anti recursion system (experimental, need to be tested) :
+    * Use a type action_link: Follow, Skip, SkipInform, AskFollow
     * Maitain a set of visited directories
-  * Implement new test : Is_older_than_date, Is_newer_than_date, Size_bigger_than,
+  * Implement new test: Is_older_than_date, Is_newer_than_date, Size_bigger_than,
     Size_smaller_than, Size_equal_to, Size_fuzzy_equal_to, Custom
-  * Rewrite the test : Is_older_than, Is_newer_than, now takes only one args
-  * Implement type size and operation coming along ( add, sub, convert, compare,
-    string_of_size ).
+  * Rewrite the test: Is_older_than, Is_newer_than, now takes only one args
+  * Implement type size and operation coming along (add, sub, convert, compare,
+    string_of_size).
   * Implement type permission / base_permission and operation coming along (
-    permission_of_int, int_of_permission ).
-  * Implement type kind ( Dir, File... ).
+    permission_of_int, int_of_permission).
+  * Implement type kind (Dir, File...).
   * Implement function stat 
   * Rewrite find, in order to be able to execute codes foreach filename. Very useful 
-    for rewriting other functions ( rm, cp, mv )
+    for rewriting other functions (rm, cp, mv)
   * Use list argument in place of single filename for rm, cp
   * Fix a bug that prevent ls to be able to list ""
-  * Reworked unitary tests : include test for symlink and anti recursion
+  * Reworked unitary tests: include test for symlink and anti recursion
   * Unitary tests change from Fort to OUnit test suite
 
-v0.2.1 :
+v0.2.1:
   * Minor bug fixes to correct website aspect
 
-v0.2 :
+v0.2:
   * Use module/functor to abstract a lot of operation.
   * Generate a decent ocamldoc documentation
   * Abstract regexp matching using functor
-  * Separate the sysPath modules in two : Abstract and not. Abstract
+  * Separate the sysPath modules in two: Abstract and not. Abstract
     permits to parse once and for all the filename, and then operate
     on it. It allows to handle fast all operation. Concrete module 
     are only proxy that do the conversion to/from the Abstract 
     implementation.
-  * Introduce relation ( updir, subdir, compare ) to allow manipulating
-    filename in classical structure ( Set, Map... )
+  * Introduce relation (updir, subdir, compare) to allow manipulating
+    filename in classical structure (Set, Map...)
   * Rename sysPath, sysUtil to filePath, fileUtil since it appears that it is 
-    more consistent regarding the name of the library ( i was not convinced, that 
-    sysPath represents anything ).
+    more consistent regarding the name of the library (i was not convinced, that 
+    sysPath represents anything).
 
-v0.1.1 ( devel ) :
+v0.1.1 (devel):
 
-  * Fix some weird comportement with reduce ( especially
-    when trying to reduce filename which try to .. a root )
+  * Fix some weird comportement with reduce (especially
+    when trying to reduce filename which try to .. a root)
     and add the possibility to reduce relative filename
   * Rework on the way everything is made :
-    * Support 4 different scheme of filename ( Unix ( the 
-      native way ), MacOS, Win32, Cygwin )
+    * Support 4 different scheme of filename (Unix (the 
+      native way), MacOS, Win32, Cygwin)
     * Each scheme use a parser/lexer to decompose his 
       filename and a .ml to handle the whole discriminant 
-      element of a specific scheme ( ie the way filename are
-      decomposed and the way path like variable are decomposed )
+      element of a specific scheme (ie the way filename are
+      decomposed and the way path like variable are decomposed)
     * All the operation are defined relatively to the 
       discriminant operation in a functorized module 
     * Each scheme produces a module from his discriminant element
@@ -77,10 +119,9 @@ v0.1.1 ( devel ) :
       is the default binding for all the operation.
   * Add SysUtil which try to create some portable file operation :
     mv, cp, touch, mkdir, test, find. This module abandon any non
-    cross platform operation and will never support it ( ie links for 
-    example, won't be supported ).
+    cross platform operation and will never support it (ie links for 
+    example, won't be supported).
   * This release is an alpha release. 0.2 will be the stable one.
 
- -- Sylvain LE GALL <sylvain.le-gall@polytechnique.org>  Thu, 30 Jan 2004 00:29:00 +0200
-
+ -- Sylvain LE GALL  Thu, 30 Jan 2004 00:29:00 +0200
 
