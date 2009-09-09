@@ -19,11 +19,11 @@
 (*  Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA               *)
 (********************************************************************************)
 
-(** POSIX utils for files and directories.
+(** POSIX utilities for files and directories.
     
     A module to provide the core POSIX utilities to manipulate files and
-    directorys. All function nearly match common POSIX utilities but try to be
-    more portable.
+    directories. All function nearly match common POSIX utilities but in
+    rewritten OCaml.
     
     @author Sylvain Le Gall
   *)
@@ -45,21 +45,19 @@ exception CpCannotCopyFilesToFile of (filename list) * filename
 exception CpCannotCopyDir of filename
 exception MvNoSourceFile
 
-(** The policy concerning the links which are directory *)
+(** Policy concerning links which are directories *)
 type action_link =
-    Follow
-    (** We consider links as simple directory (it is dangerous) *)
+  | Follow
+    (** We consider link as simple directory (it is dangerous) *)
   | Skip 
-  (** Just skip it *)
+    (** Just skip it *)
   | SkipInform of (filename -> unit)
-  (** Skip and execute an action *)
+    (** Skip and execute an action *)
   | AskFollow of (filename -> bool)
-  (** Ask and wait for input : true means follow and false means
-      skip *)
+    (** Ask and wait for input, false means skip *)
       
 (** For certain command, you should need to ask the user wether
-    or not he does want to do some action. Provide the function 
-    to Ask or Force the action.
+    or not he wants to act.
   *)
 type interactive =
     Force
@@ -77,7 +75,7 @@ type size =
   | B  of int64 (** Bytes *)
     
 (** Kind of file. This set is a combination of all POSIX file, some of them
-    doesn't exist at all on certain file system.
+    doesn't exist at all on certain file system or OS.
   *)
 type kind = 
     Dir  
@@ -86,8 +84,9 @@ type kind =
   | Dev_block
   | Fifo
   | Socket
+;;
   
-(** Base permission. This is the base type for one set of permission.
+(** Base permission. This is the permission corresponding to one user or group.
   *)
 type base_permission = 
   {
@@ -96,8 +95,9 @@ type base_permission =
     write  : bool;
     read   : bool;
   }
+;;
 
-(** Permission. All the base permission of a file.
+(** Full permission. All the base permissions of a file.
   *)
 type permission =
   {
@@ -105,6 +105,7 @@ type permission =
     group : base_permission;
     other : base_permission;
   }
+;;
   
 (** Information about a file. This type is derived from Unix.stat 
   *)
@@ -120,53 +121,63 @@ type stat =
     modification_time : float;
     creation_time     : float;
   }
+;;
 
-(** Pattern you can use to test file 
+(** Pattern you can use to test file. If the file doesn't exist the result is
+    always false. 
   *)
 type test_file =
-| Is_dev_block                 (** FILE exists and is block special *)
-| Is_dev_char                  (** FILE exists and is character special *)
-| Is_dir                       (** FILE exists and is a directory *)
-| Exists                       (** FILE exists *)
-| Is_file                      (** FILE exists and is a regular file *)
-| Is_set_group_ID              (** FILE exists and is set-group-ID *)
-| Has_sticky_bit               (** FILE exists and has its sticky bit set *)
-| Is_link                      (** FILE exists and is a symbolic link *)
-| Is_pipe                      (** FILE exists and is a named pipe *)
-| Is_readable                  (** FILE exists and is readable *)
-| Is_writeable                 (** FILE exists and is writeable *)
-| Size_not_null                (** FILE exists and has a size greater than zero *)
-| Size_bigger_than of size     (** FILE exists and has a size greater than given size *)
-| Size_smaller_than of size    (** FILE exists and has a size smaller than given size *)
-| Size_equal_to of size        (** FILE exists and has the same size as given size *)
-| Size_fuzzy_equal_to of size  (** FILE exists and has approximatively the same size as given size *)
-| Is_socket                    (** FILE exists and is a socket *)
-| Has_set_user_ID              (** FILE exists and its set-user-ID bit is set *)
-| Is_exec                      (** FILE exists and is executable *)
-| Is_owned_by_user_ID          (** FILE exists and is owned by the effective user ID *)
-| Is_owned_by_group_ID         (** FILE exists and is owned by the effective group ID *)
-| Is_newer_than of filename    (** FILE1 is newer (modification date) than FILE2 *)
-| Is_older_than of filename    (** FILE1 is older than FILE2 *)
-| Is_newer_than_date of float  (** FILE is newer than given date *)
-| Is_older_than_date of float  (** FILE is older than given date *)
-| And of test_file * test_file (** Result of TEST1 and TEST2 *)
-| Or of test_file * test_file  (** Result of TEST1 or TEST2 *)
-| Not of test_file             (** Result of not TEST *)
-| Match of string              (** Compilable match (Str or PCRE or ...) *)
-| True                         (** Always true *)
-| False                        (** Always false *)
-| Has_extension of extension   (** Check extension *)
-| Has_no_extension             (** Check absence of extension *)
-| Is_parent_dir                (** Basename is the parent dir *)
-| Is_current_dir               (** Basename is the current dir *)
-| Basename_is of filename      (** Check the basename *)
-| Dirname_is of filename       (** Check the dirname *)
-| Custom of (filename -> bool) (** Custom operation on filename *)
+  | Is_dev_block                 (** FILE is block special *)
+  | Is_dev_char                  (** FILE is character special *)
+  | Is_dir                       (** FILE is a directory *)
+  | Exists                       (** FILE exists *)
+  | Is_file                      (** FILE is a regular file *)
+  | Is_set_group_ID              (** FILE is set-group-ID *)
+  | Has_sticky_bit               (** FILE has its sticky bit set *)
+  | Is_link                      (** FILE is a symbolic link *)
+  | Is_pipe                      (** FILE is a named pipe *)
+  | Is_readable                  (** FILE is readable *)
+  | Is_writeable                 (** FILE is writeable *)
+  | Size_not_null                (** FILE has a size greater than zero *)
+  | Size_bigger_than of size     (** FILE has a size greater than given size *)
+  | Size_smaller_than of size    (** FILE has a size smaller than given size *)
+  | Size_equal_to of size        (** FILE has the same size as given size *)
+  | Size_fuzzy_equal_to of size  (** FILE has approximatively the same size as given size *)
+  | Is_socket                    (** FILE is a socket *)
+  | Has_set_user_ID              (** FILE its set-user-ID bit is set *)
+  | Is_exec                      (** FILE is executable *)
+  | Is_owned_by_user_ID          (** FILE is owned by the effective user ID *)
+  | Is_owned_by_group_ID         (** FILE is owned by the effective group ID *)
+  | Is_newer_than of filename    (** FILE1 is newer (modification date) than FILE2 *)
+  | Is_older_than of filename    (** FILE1 is older than FILE2 *)
+  | Is_newer_than_date of float  (** FILE is newer than given date *)
+  | Is_older_than_date of float  (** FILE is older than given date *)
+  | And of test_file * test_file (** Result of TEST1 and TEST2 *)
+  | Or of test_file * test_file  (** Result of TEST1 or TEST2 *)
+  | Not of test_file             (** Result of not TEST *)
+  | Match of string              (** Compilable match (Str or PCRE or ...) *)
+  | True                         (** Always true *)
+  | False                        (** Always false *)
+  | Has_extension of extension   (** Check extension *)
+  | Has_no_extension             (** Check absence of extension *)
+  | Is_parent_dir                (** Basename is the parent dir *)
+  | Is_current_dir               (** Basename is the current dir *)
+  | Basename_is of filename      (** Check the basename *)
+  | Dirname_is of filename       (** Check the dirname *)
+  | Custom of (filename -> bool) (** Custom operation on filename *)
+;;
+
+(** Time for file *)
+type touch_time_t =
+  | Touch_now                   (** Use Unix.gettimeofday *)
+  | Touch_file_time of filename (** Get mtime of file *)
+  | Touch_timestamp of float    (** Use GMT timestamp *)
+;;
 
 
 (** {2 Classical permission } *)
 
-(** Understand the POSIX permission integer norm 
+(** Translate POSIX integer permission.
   *)
 let permission_of_int pr =
   let perm_match oct = 
@@ -196,7 +207,7 @@ let permission_of_int pr =
       };
   }
 
-(** Return the POSIX integer permission associated to the permission *)
+(** Return the POSIX integer permission *)
 let int_of_permission pr =
   let permission_int = [ 
     (pr.user.sticky,  0o4000);
@@ -402,10 +413,11 @@ let solve_dirname dirname =
     current_dir
   else
     (reduce dirname)
+;;
   
 (**/**)
   
-(** [stat fln] Returns information about the file (like Unix.stat) 
+(** [stat fln] Return information about the file (like Unix.stat) 
   *)
 let stat (fln: filename) =
   try
@@ -632,7 +644,7 @@ let all_upper_dir fln =
 
 (**/**)
 
-(** Test the existence of the file... *)
+(** Test a file *)
 let test ?match_compile tst =
   let ctst = 
     compile_filter ?match_compile tst
@@ -645,7 +657,7 @@ let pwd () =
   reduce (Sys.getcwd ())
 ;;
 
-(** Return the real filename of a filename which could have link *) 
+(** Resolve to the real filename removing symlink *) 
 let readlink fln =
   let ctst = 
     compile_filter Is_link
@@ -812,12 +824,6 @@ let mkdir ?(parent=false) ?(mode=0o0755) fln =
   List.iter mkdir_simple directories
 ;;
 
-type touch_time_t =
-  | Touch_now                   (** Use Unix.gettimeofday *)
-  | Touch_file_time of filename (** Get mtime of file *)
-  | Touch_timestamp of float    (** Use GMT timestamp *)
-;;
-
 (** Modify the timestamp of the given filename. 
     @param atime  modify access time, default true
     @param mtime  modify modification time, default true
@@ -890,26 +896,58 @@ let find ?(follow = Skip) ?match_compile tst fln exec user_acc =
           f
   in
 
-  let should_skip =
+  let should_skip fln already_followed =
     match follow with 
-      | Skip | SkipInform _ ->  (fun _ -> true)
-      | AskFollow f -> f 
-      | Follow -> (fun _ -> false)
+      | Skip | SkipInform _ -> 
+          true
+      | AskFollow f -> 
+          if not already_followed then
+            (f fln) 
+          else
+            true
+      | Follow -> 
+          if already_followed then
+            raise (RecursiveLink fln)
+          else
+            false
   in
 
   let rec find_aux acc fln =
     try
       (
-        (* TODO: prevent recursion with symlink *)
         let st = 
           stat fln
         in
           if st.kind = Dir then
             (
-              if st.is_link && should_skip fln then
+              if st.is_link then
                 (
-                  skip_action fln;
-                  acc
+                  let (user_acc, dir_links) =
+                    acc
+                  in
+                  let cur_link =
+                     readlink fln
+                  in
+                  let dir_links, already_followed = 
+                    try
+                      (prevent_recursion dir_links cur_link), false
+                    with RecursiveLink _ ->
+                      dir_links, true
+                  in
+                  let acc = 
+                    user_acc, dir_links
+                  in
+                    if should_skip fln already_followed then
+                      (
+                        skip_action fln;
+                        acc
+                      )
+                    else
+                      (
+                        find_in_dir
+                          (process_file acc st fln)
+                          fln
+                      )
                 )
               else
                 (
@@ -1065,7 +1103,7 @@ let cp ?(follow=Skip) ?(force=Force) ?(recurse=false) fln_src_lst fln_dst =
    )
 ;;
 
-(** Move files/directory to another destination 
+(** Move files/directories to another destination 
   *)
 let rec mv ?(force=Force) fln_src fln_dst =
   let fln_src_abs =  make_absolute (pwd ()) fln_src
@@ -1147,8 +1185,8 @@ let cmp ?(skip1 = 0) fln1 ?(skip2 = 0) fln2 =
     (Some (-1))
 ;;
 
-(** [du fln_lst] : Returns the amount of space of all the file 
-    which are subdir of fln_lst. Also returns details for each 
+(** [du fln_lst] Return the amount of space of all the file 
+    which are subdir of fln_lst. Also return details for each 
     file scanned 
   *)
 let du fln_lst = 

@@ -20,6 +20,8 @@
 ################################################################################
 
 FilePath_type
+FileStringExt
+ExtensionPath
 UnixPath
 Win32Path
 MacOSPath

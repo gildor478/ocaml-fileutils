@@ -68,5 +68,5 @@ if test "OCAML_PKG_oUnit" = "no"; then
   AC_MSG_ERROR(["You must install oUnit library"])
 fi
 
-AC_CONFIG_FILES([TopMakefile libfileutils-ocaml/META fileutils.itarget])
+AC_CONFIG_FILES([TopMakefile])
 AC_OUTPUT

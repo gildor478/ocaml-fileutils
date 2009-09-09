@@ -901,7 +901,7 @@ let test_fileutil =
             (fun () ->
               let set = find ~follow:Skip Is_dir dir_test (fun set fln -> SetFilename.add fln set) SetFilename.empty
               in
-              assert_bool "find symlink skip fails" (SetFilename.equal set (SetFilename.add symlink !dirs))
+              assert_bool "find symlink skip fails" (SetFilename.equal set !dirs)
             );
 
             "Unix delete symlink" >::

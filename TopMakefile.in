@@ -26,6 +26,7 @@ OCAMLBUILD=@OCAMLBUILD@
 PACKAGE_VERSION=@PACKAGE_VERSION@
 PACKAGE_TARNAME=@PACKAGE_TARNAME@
 
+ocamlbuild_best_library=@ocamlbuild_best_library@
 ocamlbuild_best_program=@ocamlbuild_best_program@
 
 prefix=@prefix@

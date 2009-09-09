@@ -22,13 +22,8 @@
 -include TopMakefile
 
 BUILDDIR=$(CURDIR)/_build/libfileutils-ocaml
+SRCDIR=./libfileutils-ocaml
 OCAMLBUILDFLAGS+=-classic-display -no-log
-
-test:
-#bench-find: all
-#	_build/test/BenchFind.native
-
-#test: TESTFLAGS+=-only-test "ocaml-fileutils:0:FilePath:2:MacOS FilePath:6:identity"
 
 all:
 
@@ -39,7 +34,14 @@ _build/myocamlbuild: myocamlbuild.ml
 myocamlbuild: _build/myocamlbuild
 
 all: myocamlbuild
-	$(OCAMLBUILD) $(OCAMLBUILDFLAGS) fileutils.otarget 
+	$(OCAMLBUILD) $(OCAMLBUILDFLAGS) \
+	  $(SRCDIR)/fileutils.cma \
+	  $(SRCDIR)/fileutils-str.cma \
+	  $(SRCDIR)/fileutils.$(ocamlbuild_best_library) \
+	  $(SRCDIR)/fileutils-str.$(ocamlbuild_best_library) \
+	  $(SRCDIR)/fileutils.docdir/index.html \
+	  test/test.$(ocamlbuild_best_program) \
+	  test/BenchFind.$(ocamlbuild_best_program)
 
 clean:
 	$(if $(OCAMLBUILD),-$(OCAMLBUILD) $(OCAMLBUILDFLAGS) -clean)
@@ -49,25 +51,24 @@ distclean: clean
 	-$(RM) "$(CURDIR)/config.cache"
 	-$(RM) "$(CURDIR)/config.log"
 	-$(RM) "$(CURDIR)/config.status"
-	-$(RM) "$(CURDIR)/fileutils.itarget"
 	-$(RM) "$(CURDIR)/TopMakefile"
-	-$(RM) "$(CURDIR)/libfileutils-ocaml/META"
 
 install: all
 	$(INSTALL) -d $(htmldir)/api
 	$(INSTALL_DATA) -t $(htmldir)/api \
 	  $(wildcard $(BUILDDIR)/fileutils.docdir/*)
 	$(OCAMLFIND) install \
+	  -patch-version $(PACKAGE_VERSION) \
 	  fileutils \
 	  "$(CURDIR)/libfileutils-ocaml/META" \
 	  "$(BUILDDIR)/fileutils.cma" \
 	  "$(BUILDDIR)/fileutils-str.cma" \
-	  "$(BUILDDIR)/fileUtil.cmi" \
-	  "$(BUILDDIR)/fileUtil.ml" \
-	  "$(BUILDDIR)/fileUtilStr.cmi" \
-	  "$(BUILDDIR)/fileUtilStr.ml" \
-	  "$(BUILDDIR)/filePath.cmi" \
-	  "$(BUILDDIR)/filePath.mli" \
+	  "$(BUILDDIR)/FileUtil.cmi" \
+	  "$(BUILDDIR)/FileUtil.ml" \
+	  "$(BUILDDIR)/FileUtilStr.cmi" \
+	  "$(BUILDDIR)/FileUtilStr.ml" \
+	  "$(BUILDDIR)/FilePath.cmi" \
+	  "$(BUILDDIR)/FilePath.mli" \
 	  $(wildcard $(BUILDDIR)/fileutils.cmxa) \
 	  $(wildcard $(BUILDDIR)/fileutils.a) \
 	  $(wildcard $(BUILDDIR)/fileutils.lib) \
@@ -97,5 +98,7 @@ test: all
 headache:
 	find ./ -name .svn -prune -false -o -name _build -prune -false -o -type f | xargs headache -h .header -c .headache.config
 
+bench-find: all
+	_build/test/BenchFind.native
 
-.PHONY: all clean distclean install uninstall dist test myocamlbuild headache
+.PHONY: all clean distclean install uninstall dist test myocamlbuild headache bench-find
