@@ -19,8 +19,4 @@
 #  Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA               #
 ################################################################################
 
-<src/*.ml>: pkg_unix
-<test/*.ml>: pkg_oUnit
-"src": include
-<test/test.{byte,native}>: pkg_unix, pkg_oUnit, pkg_str
-<test/BenchFind.{byte,native}>: pkg_unix
+FileUtilStr

@@ -21,8 +21,8 @@
 
 -include TopMakefile
 
-BUILDDIR=$(CURDIR)/_build/libfileutils-ocaml
-SRCDIR=./libfileutils-ocaml
+BUILDDIR=$(CURDIR)/_build/src
+SRCDIR=./src
 OCAMLBUILDFLAGS+=-classic-display -no-log
 
 all:
@@ -60,7 +60,7 @@ install: all
 	$(OCAMLFIND) install \
 	  -patch-version $(PACKAGE_VERSION) \
 	  fileutils \
-	  "$(CURDIR)/libfileutils-ocaml/META" \
+	  "$(SRCDIR)/META" \
 	  "$(BUILDDIR)/fileutils.cma" \
 	  "$(BUILDDIR)/fileutils-str.cma" \
 	  "$(BUILDDIR)/FileUtil.cmi" \

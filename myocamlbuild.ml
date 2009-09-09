@@ -19,7 +19,7 @@
 (*  Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA               *)
 (********************************************************************************)
 
-    open Ocamlbuild_plugin
+open Ocamlbuild_plugin;;
 
 let dispatch_ocamlfind = 
   (* These functions are not really officially exported *)
@@ -104,8 +104,7 @@ let _ =
     begin
       function
         | After_rules as e ->
-            dispatch_ocamlfind e;
-            ocaml_lib "libfileutils-ocaml";
+            dispatch_ocamlfind e
         | e ->
             dispatch_ocamlfind e
     end
