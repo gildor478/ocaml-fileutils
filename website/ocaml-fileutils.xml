@@ -20,32 +20,28 @@
   Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 =======================================================================-->
 
-
-
-
-
 <!DOCTYPE webpage PUBLIC "-//Norman Walsh//DTD Website V2.6//EN"
   "http://docbook.sourceforge.net/release/website/2.6/schema/dtd/website.dtd"> 
 <webpage id="ocaml-fileutils-project">
   <head>
-    <title>Projet ocaml-fileutils</title>
+    <title>ocaml-fileutils project</title>
     <titleabbrev>ocaml-fileutils</titleabbrev>
-    <summary>Bibliothèque de fonctions de manipulation des fichiers en OCaml</summary>
+    <summary>Library for file manipulation in OCaml</summary>
   </head>
 
   <webtoc/>
 
   <section>
-    <title>But</title>
-    <para>Le but de ocaml-fileutils est de fournir un ensemble de fonction OCaml 
-    afin de permettre la manipulation de fichier directement en OCaml.</para>
-    <para>Les spécification de ce projets sont :</para>
+    <title>Goals</title>
+    <para>ocaml-fileutils is a library to provide pure OCaml functions to
+      manipulate real file and filename.</para>
+    <para>Requirements of the project:</para>
     <itemizedlist>
-      <listitem><para>ecrit entièrement en OCaml</para>
+      <listitem><para>pure OCaml</para>
       </listitem>
-      <listitem><para>la sémantique des fonctions est similaire à celle de GNU fileutils</para>
+      <listitem><para>real file functions inspired from GNU fileutils</para>
       </listitem>
-      <listitem><para>les opérations ne portent que sur les ensembles commun Win32/POSIX</para>
+      <listitem><para>only Win32 and POSIX compatible</para>
       </listitem>
     </itemizedlist>
   </section>
@@ -53,41 +49,39 @@
   <section>
     <title>Description</title>
 
-    <para>Cette version permet l'utilisation d'un ensemble de base des fonctions 
-    GNU fileutils :</para>
+    <para>This version features the following functions, inspired from GNU fileutils:</para>
     <itemizedlist>
-      <listitem><para>cp : copie de fichier</para>
+      <listitem><para>cp: copy files</para>
       </listitem>
-      <listitem><para>mv : déplacement de fichier</para>
+      <listitem><para>mv: rename files</para>
       </listitem>
-      <listitem><para>rm : destruction de fichier</para>
+      <listitem><para>rm: remove files and directories</para>
       </listitem>
-      <listitem><para>test : test sur l'existence, les propriétés d'un fichier</para>
+      <listitem><para>test: check file types and compare values</para>
       </listitem>
-      <listitem><para>find : recherche d'un ensemble de fichier sur la base d'un test</para>
+      <listitem><para>find: find files that match certain criteria</para>
       </listitem>
-      <listitem><para>mkdir : création d'un répértoire ( et éventuellement de ses parents )</para>
+      <listitem><para>mkdir: create directory and its parents</para>
       </listitem>
-      <listitem><para>ls : liste le contenu d'un répertoire</para>
+      <listitem><para>ls: list content of a directory</para>
       </listitem>
-      <listitem><para>touch : créé un fichier vide ( et met à jour son timestamp )</para>
+      <listitem><para>touch: change file timestamps</para>
       </listitem>
-      <listitem><para>which : recherche d'un exécutable dans un ensemble de chemin</para>
+      <listitem><para>which: locate a command</para>
       </listitem>
-      <listitem><para>readlink : transformation d'un chemin qui contient des liens en chemin sans lien</para>
+      <listitem><para>readlink: resolve symlink</para>
       </listitem>
-      <listitem><para>du : retourne la taille d'un ensemble de fichier</para>
+      <listitem><para>du: compute disk usage</para>
       </listitem>
-      <listitem><para>stat : abstraction de la fonction Unix.stat</para>
+      <listitem><para>stat: abstract of Unix.stat</para>
       </listitem>
-      <listitem><para>cmp : comparaison de deux fichiers</para>
+      <listitem><para>cmp: compare files</para>
       </listitem>
     </itemizedlist>
 
-    <para>De plus, en support de ces fonctionnalités, un ensemble de fonctions relatives
-    à la manipulation des noms de fichiers sous différents OS est fourni :</para>
+    <para>It also contains function to manipulate filename, using different OS scheme:</para>
     <itemizedlist>
-      <listitem><para>OS supportés :</para>
+      <listitem><para>Supported OS:</para>
       <itemizedlist>
         <listitem><para>Win32</para>
         </listitem>
@@ -99,15 +93,13 @@
         </listitem>
       </itemizedlist>
       </listitem>
-      <listitem><para>Fonctions :</para>
+      <listitem><para>Functions:</para>
       <itemizedlist>
-        <listitem><para>Comparaison : is_subdir, is_updir, compare</para>
+        <listitem><para>Compare: is_subdir, is_updir, compare</para>
         </listitem>
-        <listitem><para>Manipulation : make_absolute, make_relative, reduce</para>
+        <listitem><para>Transform: make_absolute, make_relative, reduce</para>
         </listitem>
-        <listitem><para>Extension : chop_extension, check_extension</para>
-        </listitem>
-        <listitem><para>Manipulation d'un ensemble de chemin encodé sous forme de chaine</para>
+        <listitem><para>Extension: chop_extension, check_extension</para>
         </listitem>
       </itemizedlist>
       </listitem>
@@ -115,45 +107,46 @@
   </section>
 
   <section>
-    <title>Nouvelles</title>
+    <title>News</title>
 
     <section>
-      <title>Version 0.3</title>
+      <title>Version 0.4.0</title>
 
-      <para>Ajout de quelques fonctionalité :</para>
+      <para>This is a major rewrite to simplify module structure. Now the most
+        useful functions are directly accessible with a simple "open", no more
+        nested module required.</para>
+
+      <para>It also improve speed for find on Unix. At least on this system, 
+        FileUtil.find only takes 2x time of "find" command (idea to improve
+        this are welcome).</para>
+
+      <para>This version is not compatible with former version, but changes should 
+        be restricted to module name change. See CHANGELOG for more details.</para>
+    </section>
+
+    <section>
+      <title>Version 0.3.0</title>
+
+      <para>Add some features:</para>
       <itemizedlist>
-        <listitem><para>Fonction : cmp, du, stat, readlink</para>
+        <listitem><para>Functions: cmp, du, stat, readlink</para>
         </listitem>
-        <listitem><para>Réecriture de la fonction find pour qu'elle puisse prendre une fonction a executer.
-          Cela simplifie l'ecriture d'autre fonction et donne une flexibilité plus importante à 
-          l'utilisateur.</para>
+        <listitem><para>Find takes a function as argument: more flexible and
+            allow processing huge number of file.</para>
         </listitem>
-        <listitem><para>Ajout de fonction pour le traitement des liens/boucle de récursion des systèmes 
-        de fichiers. Lors du parcours d'un ensemble de fichier, on vérifie désormais systèmatiquement que 
-        l'on ne se trouve pas dans un cycle ( cas classique de "ln -s . recurse" ).</para>
+        <listitem><para>Avoid recursion when processing symlink.</para>
         </listitem>
-        <listitem><para>Traitement de la taille, ajout d'opération sur la taille</para>
+        <listitem><para>Operations on file size</para>
         </listitem>
       </itemizedlist>
     
     </section>
     
     <section>
-      <title>Version 0.2.1</title>
-      
-      <para>Version mineur qui met à jour le site web</para>
-    </section>
+      <title>Version 0.2.0</title>
 
-    <section>
-      <title>Version 0.2</title>
-
-      <para>Cette première version publique, offre un ensemble de fonctionnalité assez complet.
-      Cette version est encore une phase de test de portabilité. Elle a été testé de façon 
-      importante sur un système Linux.</para>
-
-      <para>Tous les testeurs et utilisateurs potentiels sont invités à tester les fonctionnalités
-      de cette version pour valide la portabilité du code.</para>
-      
+      <para>First public version, test and benchmark on different system are
+        welcome.</para>
     </section>
     
   </section>

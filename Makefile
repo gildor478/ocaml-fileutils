@@ -21,7 +21,7 @@
 
 -include TopMakefile
 
-BUILDDIR=$(CURDIR)/_build/src
+BUILDDIR=./_build/src
 SRCDIR=./src
 OCAMLBUILDFLAGS+=-classic-display -no-log
 
@@ -39,19 +39,17 @@ all: myocamlbuild
 	  $(SRCDIR)/fileutils-str.cma \
 	  $(SRCDIR)/fileutils.$(ocamlbuild_best_library) \
 	  $(SRCDIR)/fileutils-str.$(ocamlbuild_best_library) \
-	  $(SRCDIR)/fileutils.docdir/index.html \
-	  test/test.$(ocamlbuild_best_program) \
-	  test/BenchFind.$(ocamlbuild_best_program)
+	  $(SRCDIR)/fileutils.docdir/index.html 
 
 clean:
 	$(if $(OCAMLBUILD),-$(OCAMLBUILD) $(OCAMLBUILDFLAGS) -clean)
 
 distclean: clean
-	-$(RM) -r "$(CURDIR)/autom4te.cache"
-	-$(RM) "$(CURDIR)/config.cache"
-	-$(RM) "$(CURDIR)/config.log"
-	-$(RM) "$(CURDIR)/config.status"
-	-$(RM) "$(CURDIR)/TopMakefile"
+	-$(RM) -r "autom4te.cache"
+	-$(RM) "config.cache"
+	-$(RM) "config.log"
+	-$(RM) "config.status"
+	-$(RM) "TopMakefile"
 
 install: all
 	$(INSTALL) -d $(htmldir)/api
@@ -82,21 +80,33 @@ uninstall:
 	-$(OCAMLFIND) remove fileutils
 
 DISTDIR=$(PACKAGE_TARNAME)-$(PACKAGE_VERSION)
+TARBALL=$(DISTDIR).tar.gz
+SVN_TRUNK=$(shell LC_ALL=en_US svn info | sed -n -e 's/^URL: \(.*\)$$/\1/p')
+SVN_TAG=$(dir $(SVN_TRUNK))/tags/$(PACKAGE_VERSION)
 dist:
-	svn export "$(CURDIR)" "$(CURDIR)/$(DISTDIR)"
-	# TODO: fix this ocaml.m4 copy
-	cp -L "$(CURDIR)/m4/ocaml.m4" "$(CURDIR)/$(DISTDIR)/m4/ocaml.m4"
-	cd "$(CURDIR)/$(DISTDIR)" && ./autogen.sh
-	tar czf "$(DISTDIR).tar.gz" "$(DISTDIR)"
-	$(RM) -r "$(CURDIR)/$(DISTDIR)"
-	gpg -s -a -b "$(DISTDIR).tar.gz"
-	echo Don't forget to tag version $(PACKAGE_VERSION)
+	svn export . "$(DISTDIR)"
+	cp -L "m4/ocaml.m4" "$(DISTDIR)/m4/ocaml.m4"
+	cd "$(DISTDIR)" && ./autogen.sh
+	$(RM) -r "$(DISTDIR)/autom4te.cache"
+	tar czf "$(TARBALL)" "$(DISTDIR)"
+	$(RM) -r "$(DISTDIR)"
+	gpg -s -a -b "$(TARBALL)"
+	# Probing tags
+	if ! svn ls $(SVN_TAG); then echo svn copy . $(SVN_TAG); fi
 
 test: all
-	cd "$(CURDIR)/_build/test" && ./test.$(ocamlbuild_best_program) $(TESTFLAGS)
+ifeq ($(BUILD_TEST),yes)
+	$(OCAMLBUILD) $(OCAMLBUILDFLAGS) \
+	  test/test.$(ocamlbuild_best_program) \
+	  test/BenchFind.$(ocamlbuild_best_program)
+	cd "_build/test" && ./test.$(ocamlbuild_best_program) $(TESTFLAGS)
+else
+	echo "Test cannot be built" >&2 && exit 1
+endif
 
 headache:
-	find ./ -name .svn -prune -false -o -name _build -prune -false -o -type f | xargs headache -h .header -c .headache.config
+	find ./ -name .svn -prune -false -o -name _build -prune -false -o -type f \
+	  | xargs headache -h .header -c .headache.config
 
 bench-find: all
 	_build/test/BenchFind.native

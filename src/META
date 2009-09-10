@@ -19,19 +19,13 @@
 #  Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA               #
 ################################################################################
 
-INSTALL=@INSTALL@
-INSTALL_DATA=@INSTALL_DATA@
-OCAMLFIND=@OCAMLFIND@
-OCAMLBUILD=@OCAMLBUILD@
-PACKAGE_VERSION=@PACKAGE_VERSION@
-PACKAGE_TARNAME=@PACKAGE_TARNAME@
+requires = "unix"
+version = "0.4.0"
+archive(byte) = "fileutils.cma"
+archive(native) = "fileutils.cmxa"
 
-ocamlbuild_best_library=@ocamlbuild_best_library@
-ocamlbuild_best_program=@ocamlbuild_best_program@
-
-prefix=@prefix@
-datarootdir=@datarootdir@
-docdir=@docdir@
-htmldir=@htmldir@
-
-BUILD_TEST=@BUILD_TEST@
+package "str" (
+  requires = "fileutils str"
+  archive(byte) = "fileutils-str.cma"
+  archive(native) = "fileutils-str.cmxa"
+)

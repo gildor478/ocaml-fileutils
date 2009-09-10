@@ -19,7 +19,7 @@ dnl *  along with this library; if not, write to the Free Software Foundation,  
 dnl *  Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA               *
 dnl ********************************************************************************
 
-AC_INIT(ocaml-fileutils, "0.4.0rc1")
+AC_INIT(ocaml-fileutils, 0.4.0)
 
 AC_CONFIG_SRCDIR([src/FileUtil.ml])
 
@@ -64,9 +64,12 @@ AC_SUBST(ocamlbuild_best_library)
 AC_SUBST(ocamlbuild_best_program)
 
 AC_CHECK_OCAML_PKG([oUnit])
-if test "OCAML_PKG_oUnit" = "no"; then
-  AC_MSG_ERROR(["You must install oUnit library"])
+BUILD_TEST="yes"
+if test "$OCAML_PKG_oUnit" = "no"; then
+  AC_MSG_WARN(["You must install oUnit library to enable test"])
+  BUILD_TEST="no"
 fi
+AC_SUBST(BUILD_TEST)
 
 AC_CONFIG_FILES([TopMakefile])
 AC_OUTPUT
