@@ -85,6 +85,7 @@ SVN_TRUNK=$(shell LC_ALL=en_US svn info | sed -n -e 's/^URL: \(.*\)$$/\1/p')
 SVN_TAG=$(dir $(SVN_TRUNK))/tags/$(PACKAGE_VERSION)
 dist:
 	svn export . "$(DISTDIR)"
+	$(RM) "$(DISTDIR)/m4/ocaml.m4"
 	cp -L "m4/ocaml.m4" "$(DISTDIR)/m4/ocaml.m4"
 	cd "$(DISTDIR)" && ./autogen.sh
 	$(RM) -r "$(DISTDIR)/autom4te.cache"
