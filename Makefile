@@ -23,7 +23,7 @@
 
 BUILDDIR=./_build/src
 SRCDIR=./src
-OCAMLBUILDFLAGS+=-classic-display -no-log
+OCAMLBUILDFLAGS+=-classic-display -no-log -byte-plugin
 
 all:
 
@@ -52,9 +52,6 @@ distclean: clean
 	-$(RM) "TopMakefile"
 
 install: all
-	$(INSTALL) -d $(htmldir)/api
-	$(INSTALL_DATA) -t $(htmldir)/api \
-	  $(wildcard $(BUILDDIR)/fileutils.docdir/*)
 	$(OCAMLFIND) install \
 	  -patch-version $(PACKAGE_VERSION) \
 	  fileutils \
@@ -74,6 +71,9 @@ install: all
 	  $(wildcard $(BUILDDIR)/fileutils-str.a) \
 	  $(wildcard $(BUILDDIR)/fileutils-str.lib) \
 	  $(wildcard $(BUILDDIR)/*.cmx) 
+	$(INSTALL) -d $(htmldir)/api
+	$(INSTALL_DATA) -t $(htmldir)/api \
+	  $(wildcard $(BUILDDIR)/fileutils.docdir/*)
 
 uninstall:
 	-$(RM) -r $(htmldir)/api

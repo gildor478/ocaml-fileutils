@@ -2,9 +2,8 @@ To: caml-list@inria.fr
 Bcc: hump@caml.inria.fr
 Subject: [ANN] ocaml-fileutils v0.4.0
 
-General :
 Ocaml fileutils is aimed to be a platform independent library to perform
-operation on file like :
+operation on file like:
 - mv
 - cp
 - rm
@@ -12,7 +11,7 @@ operation on file like :
 - touch
 - which...
 
-Comes also with a module to manipulate abstract filename :
+Comes also with a module to manipulate abstract filename:
 - classification
 - make_relative: made a filename relative to another
 - make_absolute

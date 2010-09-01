@@ -41,5 +41,5 @@ let test =
 (** See {!FileUtil.find}
   *)
 let find =
-  FileUtil.test ~match_compile:match_compile
+  FileUtil.find ~match_compile:match_compile
 ;;
