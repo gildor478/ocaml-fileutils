@@ -19,7 +19,7 @@ dnl *  along with this library; if not, write to the Free Software Foundation,  
 dnl *  Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA               *
 dnl ********************************************************************************
 
-AC_INIT(ocaml-fileutils, 0.4.0)
+AC_INIT(ocaml-fileutils, 0.4.1)
 
 AC_CONFIG_SRCDIR([src/FileUtil.ml])
 
