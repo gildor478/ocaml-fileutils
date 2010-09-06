@@ -836,6 +836,34 @@ let test_fileutil =
       add_fn dir1; 
       add_fn dir2
     );
+
+    "Find v0" >::
+    (bracket 
+       (fun () ->
+          let pwd = pwd () in
+            Sys.chdir dir_test;
+            pwd)
+       (fun pwd ->
+          let find_acc dir = 
+            find True "." (fun acc x -> reduce x :: acc) []
+          in
+          let lst_dot = 
+            find_acc "."
+          in
+          let lst_empty = 
+            find_acc ""
+          in
+            assert_bool
+              "find '.' is empty"
+              (lst_dot <> []);
+            assert_bool
+              "find '' is empty"
+              (lst_empty <> []);
+            assert_bool
+              "find '.' <> find ''"
+              (lst_dot = lst_empty))
+       (fun pwd ->
+          Sys.chdir pwd));
     
     "Find v1" >::
     (fun () ->

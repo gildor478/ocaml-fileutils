@@ -873,7 +873,7 @@ let touch
     from the given filename and using the test provided. You cannot match
     [current_dir] and [parent_dir]. For every file found, the action [exec] is
     done, using the [accu] to start. For a simple file listing, you can use 
-    [find True "." (fun x y -> x :: y) []] 
+    [find True "." (fun x y -> y :: x) []] 
   *)
 let find ?(follow = Skip) ?match_compile tst fln exec user_acc =
 

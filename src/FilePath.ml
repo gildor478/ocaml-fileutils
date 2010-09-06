@@ -140,7 +140,17 @@ struct
         | [] ->
             []
     in
-      List.rev (reduce_aux (List.rev path))
+    let rev_path = List.rev path in
+    match reduce_aux rev_path with
+      | [] when no_symlink = false->
+	(* assert ( List.for_all ( function | Component "" | CurrentDir _ -> true | _ -> false ) rev_path ) *)
+	(try
+	   (* use last CurrentDir _ *)
+	   [ List.find ( function | CurrentDir _ -> true | _ -> false ) rev_path ]
+	 with
+	   | Not_found -> [] ) (* Only Component "" *) 
+      |l -> List.rev l
+
 
 
   (* Compare, subdir, updir *)

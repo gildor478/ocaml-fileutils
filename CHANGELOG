@@ -1,3 +1,9 @@
+v0.4.2:
+  * Apply patch from Rüdiger Schmitt, fix handling for '.' in find and ls 
+    (Close: #418, #736)
+
+ -- Sylvain Le Gall  Mon, 06 Sep 2010 09:34:17 +0000
+
 v0.4.1:
   * Apply patch from S. Glondu to use the right find function in FileUtilStr
     (Closes: #731)
