@@ -1,7 +1,7 @@
 ################################################################################
 #  ocaml-fileutils: files and filenames common operations                      #
 #                                                                              #
-#  Copyright (C) 2003-2009, Sylvain Le Gall                                    #
+#  Copyright (C) 2003-2011, Sylvain Le Gall                                    #
 #                                                                              #
 #  This library is free software; you can redistribute it and/or modify it     #
 #  under the terms of the GNU Lesser General Public License as published by    #
@@ -19,13 +19,21 @@
 #  Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA               #
 ################################################################################
 
+# OASIS_START
+# DO NOT EDIT (digest: bc27009337f2d47d4f4f9bdfcf9859d9)
+version = "0.4.3"
+description = "Functions to manipulate real file (POSIX like) and filename."
 requires = "unix"
-version = "0.4.2"
 archive(byte) = "fileutils.cma"
 archive(native) = "fileutils.cmxa"
-
+exists_if = "fileutils.cma"
 package "str" (
-  requires = "fileutils str"
-  archive(byte) = "fileutils-str.cma"
-  archive(native) = "fileutils-str.cmxa"
+ version = "0.4.3"
+ description = "Functions to manipulate real file (POSIX like) and filename."
+ requires = "fileutils str"
+ archive(byte) = "fileutils-str.cma"
+ archive(native) = "fileutils-str.cmxa"
+ exists_if = "fileutils-str.cma"
 )
+# OASIS_STOP
+

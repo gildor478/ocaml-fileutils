@@ -1,7 +1,7 @@
 ################################################################################
 #  ocaml-fileutils: files and filenames common operations                      #
 #                                                                              #
-#  Copyright (C) 2003-2009, Sylvain Le Gall                                    #
+#  Copyright (C) 2003-2011, Sylvain Le Gall                                    #
 #                                                                              #
 #  This library is free software; you can redistribute it and/or modify it     #
 #  under the terms of the GNU Lesser General Public License as published by    #
@@ -19,12 +19,15 @@
 #  Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA               #
 ################################################################################
 
+# OASIS_START
+# DO NOT EDIT (digest: 175b432af32a9e96f6ff99e8e8f00e98)
+FileUtil
+FilePath
+CommonPath
+ExtensionPath
 FilePath_type
 FileStringExt
-ExtensionPath
+MacOSPath
 UnixPath
 Win32Path
-MacOSPath
-CommonPath
-FilePath
-FileUtil
+# OASIS_STOP

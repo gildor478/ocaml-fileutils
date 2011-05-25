@@ -1,7 +1,7 @@
 ################################################################################
 #  ocaml-fileutils: files and filenames common operations                      #
 #                                                                              #
-#  Copyright (C) 2003-2009, Sylvain Le Gall                                    #
+#  Copyright (C) 2003-2011, Sylvain Le Gall                                    #
 #                                                                              #
 #  This library is free software; you can redistribute it and/or modify it     #
 #  under the terms of the GNU Lesser General Public License as published by    #
@@ -19,8 +19,26 @@
 #  Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA               #
 ################################################################################
 
-<src/*.ml>: pkg_unix
-<test/*.ml>: pkg_oUnit
+# OASIS_START
+# DO NOT EDIT (digest: 17380a4a2aedbba645b20a32c0a0be64)
+# Library fileutils
+# Library fileutils-str
 "src": include
-<test/test.{byte,native}>: pkg_unix, pkg_oUnit, pkg_str
-<test/BenchFind.{byte,native}>: pkg_unix
+<src/*.ml{,i}>: use_fileutils
+<src/*.ml{,i}>: pkg_unix
+<src/*.ml{,i}>: pkg_str
+# Executable test
+"test/test.byte": use_fileutils-str
+"test/test.byte": use_fileutils
+"test/test.byte": pkg_unix
+"test/test.byte": pkg_str
+"test/test.byte": pkg_oUnit
+<test/*.ml{,i}>: use_fileutils-str
+<test/*.ml{,i}>: pkg_str
+<test/*.ml{,i}>: pkg_oUnit
+# Executable BenchFind
+"test/BenchFind.byte": use_fileutils
+"test/BenchFind.byte": pkg_unix
+<test/*.ml{,i}>: use_fileutils
+<test/*.ml{,i}>: pkg_unix
+# OASIS_STOP

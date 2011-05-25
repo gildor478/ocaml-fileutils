@@ -1,0 +1,67 @@
+OASISFormat:  0.2
+Name:         ocaml-fileutils
+Version:      0.4.3
+Authors:      Sylvain Le Gall
+Copyrights:   (C) 2003-2011 Sylvain Le Gall 
+License:      LGPL-2.1 with OCaml linking exception
+LicenseFile:  LICENSE
+BuildTools:   ocamlbuild
+Plugins:      DevFiles (0.2), StdFiles (0.2), META (0.2)
+Synopsis:     Functions to manipulate real file (POSIX like) and filename.
+
+Library "fileutils"
+  Path: src/
+  Modules: FileUtil, 
+           FilePath 
+  InternalModules: CommonPath,
+                   ExtensionPath,
+                   FilePath_type,
+                   FileStringExt,
+                   MacOSPath,
+                   UnixPath,
+                   Win32Path
+  BuildDepends: unix
+
+Library "fileutils-str"
+  FindlibParent: fileutils
+  FindlibName: str
+  Path: src/
+  Modules: FileUtilStr
+  BuildDepends: fileutils, str
+
+Document "api-fileutils"
+  Title: API reference for fileutils
+  Type:  ocamlbuild (0.2)
+  InstallDir: $htmldir/api-fileutils
+  BuildTools+: ocamldoc
+  XOCamlbuildPath: src/
+  XOCamlbuildLibraries: fileutils, fileutils.str
+
+SourceRepository head
+  Type: darcs
+  Location: https://forge.ocamlcore.org/anonscm/darcs/ocaml-fileutils/ocaml-fileutils 
+  Browser: http://darcs.ocamlcore.org/cgi-bin/darcsweb.cgi?r=ocaml-fileutils/ocaml-fileutils;a=summary
+
+Executable BenchFind
+  Path: test
+  MainIs: BenchFind.ml
+  BuildDepends: fileutils
+  Install: false
+
+Executable test 
+  Path: test
+  MainIs: test.ml
+  BuildDepends: fileutils, fileutils.str, oUnit
+  Install: false
+
+Test "bench-find"
+  Type: custom (0.2)
+  Command: $BenchFind 
+  Run: false
+
+Test main
+  Type: custom (0.2)
+  Command: $test 
+  WorkingDirectory: test
+  
+

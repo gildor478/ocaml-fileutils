@@ -1,7 +1,7 @@
 ################################################################################
 #  ocaml-fileutils: files and filenames common operations                      #
 #                                                                              #
-#  Copyright (C) 2003-2009, Sylvain Le Gall                                    #
+#  Copyright (C) 2003-2011, Sylvain Le Gall                                    #
 #                                                                              #
 #  This library is free software; you can redistribute it and/or modify it     #
 #  under the terms of the GNU Lesser General Public License as published by    #
@@ -19,97 +19,46 @@
 #  Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA               #
 ################################################################################
 
--include TopMakefile
+# OASIS_START
+# DO NOT EDIT (digest: bc1e05bfc8b39b664f29dae8dbd3ebbb)
 
-BUILDDIR=./_build/src
-SRCDIR=./src
-OCAMLBUILDFLAGS+=-classic-display -no-log -byte-plugin
+SETUP = ocaml setup.ml
 
-all:
+build: setup.data
+	$(SETUP) -build $(BUILDFLAGS)
 
-_build/myocamlbuild: myocamlbuild.ml
-	$(OCAMLBUILD) $(OCAMLBUILDFLAGS) -just-plugin
-	-cp $@.exe $@
+doc: setup.data build
+	$(SETUP) -doc $(DOCFLAGS)
 
-myocamlbuild: _build/myocamlbuild
+test: setup.data build
+	$(SETUP) -test $(TESTFLAGS)
 
-all: myocamlbuild
-	$(OCAMLBUILD) $(OCAMLBUILDFLAGS) \
-	  $(SRCDIR)/fileutils.cma \
-	  $(SRCDIR)/fileutils-str.cma \
-	  $(SRCDIR)/fileutils.$(ocamlbuild_best_library) \
-	  $(SRCDIR)/fileutils-str.$(ocamlbuild_best_library) \
-	  $(SRCDIR)/fileutils.docdir/index.html 
+all: 
+	$(SETUP) -all $(ALLFLAGS)
 
-clean:
-	$(if $(OCAMLBUILD),-$(OCAMLBUILD) $(OCAMLBUILDFLAGS) -clean)
+install: setup.data
+	$(SETUP) -install $(INSTALLFLAGS)
 
-distclean: clean
-	-$(RM) -r "autom4te.cache"
-	-$(RM) "config.cache"
-	-$(RM) "config.log"
-	-$(RM) "config.status"
-	-$(RM) "TopMakefile"
+uninstall: setup.data
+	$(SETUP) -uninstall $(UNINSTALLFLAGS)
 
-install: all
-	$(OCAMLFIND) install \
-	  -patch-version $(PACKAGE_VERSION) \
-	  fileutils \
-	  "$(SRCDIR)/META" \
-	  "$(BUILDDIR)/fileutils.cma" \
-	  "$(BUILDDIR)/fileutils-str.cma" \
-	  "$(BUILDDIR)/FileUtil.cmi" \
-	  "$(BUILDDIR)/FileUtil.ml" \
-	  "$(BUILDDIR)/FileUtilStr.cmi" \
-	  "$(BUILDDIR)/FileUtilStr.ml" \
-	  "$(BUILDDIR)/FilePath.cmi" \
-	  "$(BUILDDIR)/FilePath.mli" \
-	  $(wildcard $(BUILDDIR)/fileutils.cmxa) \
-	  $(wildcard $(BUILDDIR)/fileutils.a) \
-	  $(wildcard $(BUILDDIR)/fileutils.lib) \
-	  $(wildcard $(BUILDDIR)/fileutils-str.cmxa) \
-	  $(wildcard $(BUILDDIR)/fileutils-str.a) \
-	  $(wildcard $(BUILDDIR)/fileutils-str.lib) \
-	  $(wildcard $(BUILDDIR)/*.cmx) 
-	$(INSTALL) -d $(htmldir)/api
-	$(INSTALL_DATA) -t $(htmldir)/api \
-	  $(wildcard $(BUILDDIR)/fileutils.docdir/*)
+reinstall: setup.data
+	$(SETUP) -reinstall $(REINSTALLFLAGS)
 
-uninstall:
-	-$(RM) -r $(htmldir)/api
-	-$(OCAMLFIND) remove fileutils
+clean: 
+	$(SETUP) -clean $(CLEANFLAGS)
 
-DISTDIR=$(PACKAGE_TARNAME)-$(PACKAGE_VERSION)
-TARBALL=$(DISTDIR).tar.gz
-SVN_TRUNK=$(shell LC_ALL=en_US svn info | sed -n -e 's/^URL: \(.*\)$$/\1/p')
-SVN_TAG=$(dir $(SVN_TRUNK))/tags/$(PACKAGE_VERSION)
-dist:
-	svn export . "$(DISTDIR)"
-	$(RM) "$(DISTDIR)/m4/ocaml.m4"
-	cp -L "m4/ocaml.m4" "$(DISTDIR)/m4/ocaml.m4"
-	cd "$(DISTDIR)" && ./autogen.sh
-	$(RM) -r "$(DISTDIR)/autom4te.cache"
-	tar czf "$(TARBALL)" "$(DISTDIR)"
-	$(RM) -r "$(DISTDIR)"
-	gpg -s -a -b "$(TARBALL)"
-	# Probing tags
-	if ! svn ls $(SVN_TAG); then echo svn copy . $(SVN_TAG); fi
+distclean: 
+	$(SETUP) -distclean $(DISTCLEANFLAGS)
 
-test: all
-ifeq ($(BUILD_TEST),yes)
-	$(OCAMLBUILD) $(OCAMLBUILDFLAGS) \
-	  test/test.$(ocamlbuild_best_program) \
-	  test/BenchFind.$(ocamlbuild_best_program)
-	cd "_build/test" && ./test.$(ocamlbuild_best_program) $(TESTFLAGS)
-else
-	echo "Test cannot be built" >&2 && exit 1
-endif
+setup.data:
+	$(SETUP) -configure $(CONFIGUREFLAGS)
 
+.PHONY: build doc test all install uninstall reinstall clean distclean configure
+
+# OASIS_STOP
 headache:
-	find ./ -name .svn -prune -false -o -name _build -prune -false -o -type f \
-	  | xargs headache -h .header -c .headache.config
+	find ./ -name _darcs -prune -false -o -name _build -prune -false -o -type f \
+		| xargs headache -h _header -c _headache.config
 
-bench-find: all
-	_build/test/BenchFind.native
-
-.PHONY: all clean distclean install uninstall dist test myocamlbuild headache bench-find
+.PHONY: headache
