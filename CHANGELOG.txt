@@ -1,3 +1,8 @@
+v0.4.4:
+  * Regenerate with oasis 0.3.0~rc6
+
+ -- Sylvain Le Gall  Tue, 12 Jun 2012 22:11:00 +0000
+
 v0.4.3:
   * OASIS enabled
 

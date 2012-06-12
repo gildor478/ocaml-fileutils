@@ -20,8 +20,8 @@
 ################################################################################
 
 # OASIS_START
-# DO NOT EDIT (digest: c09c87f839a82aa8c9bcd0468a6959cc)
-version = "0.4.3"
+# DO NOT EDIT (digest: 8b8f1abc569ab4852c8dc520c93aba7c)
+version = "0.4.4"
 description = "Functions to manipulate real file (POSIX like) and filename."
 requires = "unix"
 archive(byte) = "fileutils.cma"
@@ -30,7 +30,7 @@ archive(native) = "fileutils.cmxa"
 archive(native, plugin) = "fileutils.cmxs"
 exists_if = "fileutils.cma"
 package "str" (
- version = "0.4.3"
+ version = "0.4.4"
  description = "Functions to manipulate real file (POSIX like) and filename."
  requires = "fileutils str"
  archive(byte) = "fileutils-str.cma"
