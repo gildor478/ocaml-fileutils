@@ -621,6 +621,7 @@ let test_fileutil =
     in
       Sys.remove fn;
       Unix.mkdir fn 0o700;
+      Unix.chown fn (Unix.geteuid ()) (Unix.getegid ());
       at_exit
         (fun () ->
            if Sys.file_exists fn then
