@@ -114,5 +114,4 @@
 ^setup.data$
 ^setup.log$
 ^_build$
-^ocaml-fileutils-.*\.tar\.gz$
-^ocaml-fileutils-.*\.tar\.gz\.asc$
+^dist
