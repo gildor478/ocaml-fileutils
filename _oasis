@@ -32,7 +32,7 @@ Library "fileutils-str"
 Document "api-fileutils"
   Title: API reference for fileutils
   Type:  ocamlbuild (0.2)
-  InstallDir: $htmldir/api-fileutils
+  InstallDir: $htmldir/api
   BuildTools+: ocamldoc
   XOCamlbuildPath: src/
   XOCamlbuildLibraries: fileutils, fileutils.str
