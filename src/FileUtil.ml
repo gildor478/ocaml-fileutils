@@ -1150,37 +1150,52 @@ let rec mv ?(force=Force) fln_src fln_dst =
 let cmp ?(skip1 = 0) fln1 ?(skip2 = 0) fln2 =
   if (reduce fln1) = (reduce fln2) then
     None
-  else if (test (And(Is_readable,Is_file)) fln1) && (test (And(Is_readable,Is_file)) fln2) then
-    let fd1 = open_in_bin fln1
+  else if (test (And(Is_readable,Is_file)) fln1)
+      && (test (And(Is_readable,Is_file)) fln2) then
+    let fd1 = open_in_bin fln1 in
+    let fd2 = open_in_bin fln2 in
+    let clean_fd () = 
+      let () = try close_in fd1 with _ -> () in
+      let () = try close_in fd2 with _ -> () in
+        ()
     in
-    let fd2 = open_in_bin fln2
+
+    let test_empty st = 
+      try 
+        Stream.empty st;
+        true
+      with Stream.Failure ->
+        false
     in
-    let _ = seek_in fd1 skip1
-    in
-    let _ = seek_in fd2 skip2
-    in
-    let stream1 = Stream.of_channel fd1
-    in
-    let stream2 = Stream.of_channel fd2
-    in
+
+    let _ = seek_in fd1 skip1 in
+    let _ = seek_in fd2 skip2 in
+    let stream1 = Stream.of_channel fd1 in
+    let stream2 = Stream.of_channel fd2 in
     try 
-      while ((Stream.next stream1) = (Stream.next stream2)) 
-      do () done;
-      Some (Stream.count stream1)
-    with Stream.Failure ->
-      let test_empty st = 
-        try 
-          Stream.empty st;
-          true
-        with Stream.Failure ->
-          false
-    in
-    match ((test_empty stream1),(test_empty stream2)) with
-      true, true   -> None
-    | true, false 
-    | false, true 
-    (* Don't know how this case could be... *)
-    | false, false -> Some (Stream.count stream1)
+      begin
+        while ((Stream.next stream1) = (Stream.next stream2)) do 
+          () 
+        done;
+        clean_fd ();
+        Some (Stream.count stream1)
+      end
+    with 
+      | Stream.Failure ->
+          begin
+            match ((test_empty stream1),(test_empty stream2)) with
+                true, true  -> 
+                  None
+              | true, false 
+              | false, true 
+              (* Don't know how this case could be... *)
+              | false, false ->
+                  clean_fd ();
+                  Some (Stream.count stream1)
+          end
+      | e ->
+          clean_fd ();
+          raise e
   else
     (Some (-1))
 ;;
