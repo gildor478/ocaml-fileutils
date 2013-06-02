@@ -1,3 +1,9 @@
+v0.4.5:
+  * Fix fd leaking cmp (Closes: #1012).
+  * Fix test suite for BSD system.
+
+ -- Sylvain Le Gall  Mon, 03 Jun 2013 01:00:26 +0200
+
 v0.4.4:
   * Regenerate with oasis 0.3.0~rc6
 
