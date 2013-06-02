@@ -115,3 +115,4 @@
 ^setup.log$
 ^_build$
 ^dist
+^test/oUnit.log$
