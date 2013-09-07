@@ -65,6 +65,6 @@ headache:
 
 deploy:
 	admin-gallu-deploy --verbose \
-		--forge_upload	--forge_group ocaml-fileutils --forge_user gildor-admin
+		--forge_upload --forge_group ocaml-fileutils --forge_user gildor-admin
 
 .PHONY: deploy
