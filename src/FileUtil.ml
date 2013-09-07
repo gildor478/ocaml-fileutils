@@ -1063,10 +1063,10 @@ let cp ?(follow=Skip) ?(force=Force) ?(recurse=false) fln_src_lst fln_dst =
   in
   let cpfull dir_src dir_dst fln = 
     find (And(Custom(doit force), Is_dir)) fln (
-      fun () fln_src -> cpfile fln_src (reparent dir_src dir_dst fln)
+      fun () fln_src -> cpfile fln_src (reparent dir_src dir_dst fln_src)
      ) ();
     find (And(Custom(doit force), Not(Is_dir))) fln (
-      fun () fln_src -> cpfile fln_src (reparent dir_src dir_dst fln)
+      fun () fln_src -> cpfile fln_src (reparent dir_src dir_dst fln_src)
      ) ()
   in
   (* Test sur l'existence des fichiers source et création des noms de fichiers
