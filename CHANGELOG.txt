@@ -15,7 +15,7 @@ v0.4.3:
  -- Sylvain Le Gall  Thu, 26 May 2011 09:47:22 +0000
 
 v0.4.2:
-  * Apply patch from Rüdiger Schmitt, fix handling for '.' in find and ls 
+  * Apply patch from Rüdiger Schmitt, fix handling for '.' in find and ls
     (Close: #418, #736)
 
  -- Sylvain Le Gall  Mon, 06 Sep 2010 09:34:17 +0000
@@ -40,9 +40,9 @@ v0.4.0:
     * FilePath:
       * Remove is_implicit, use is_relative as replacement
       * All functions of FilePath.DefaultPath are now directly accessible in
-        FilePath 
+        FilePath
       * Default operation on string, use sub-module Abstract for abstract
-        operations 
+        operations
        * FilePath.reduce don't reduce ".." except if asked to (i.e. no symlink)
        * CygwinPath related function use directly UnixPath
   * Make documentation more clear
@@ -56,29 +56,29 @@ v0.4.0:
   * Simplify rm and avoid asking question twice (Closes: #FS79)
   * Use Unix.LargeFile to handle huge file (Closes: FS#77)
   * Simplify size operation. Now all operation is done on Int64 (Closes: FS#76)
-  * Implement FileUtilStr that allow Str.regexp match outside the core 
+  * Implement FileUtilStr that allow Str.regexp match outside the core
     FileUtil module (Closes: FS#13)
-  * Add a wildcard on .a and .lib to allow installation on Windows 
+  * Add a wildcard on .a and .lib to allow installation on Windows
     (Closes: FS#84)
   * Update license header (Closes: FS#8, FS#55)
   * Accept "/" as separator for Win32 (Closes: FS#78, FS#83, FS#68)
   * For win32, use PATHEXT to locate executable with "which" (Closes: FS#73)
   * Don't suppose ".." can be reduced and test it (Closes: FS#10)
   * Fix "mv" and allow to copy data between filesystem (Closes: FS#6, FS#7)
-  * Optimize FileUtil.find speed, now only 2x slower than UNIX find (was 40x slower before) 
+  * Optimize FileUtil.find speed, now only 2x slower than UNIX find (was 40x slower before)
     (Closes: FS#65)
- 
+
  -- Sylvain Le Gall  Wed, 09 Sep 2009 15:29:38 +0200
 
-v0.3.0: 
+v0.3.0:
   * Change the version to 0.3 (lot of changes for a minor version)
   * Update webpages
   * Correct a bug that prevent sr\@Ltn to be parsed (which comes from the
     lexer of UnixPath, there is [^'.''/''\\']* which can produce empty token)
-  * Correct a bug that prevent to parse the initial current dir (ie produce nothing 
+  * Correct a bug that prevent to parse the initial current dir (ie produce nothing
     when use find "." or find "/a/")
 
-v0.2.2: 
+v0.2.2:
   * Changes the version to 0.2.2 in TopMakefile.in (closes: #33)
   * Stop removing Makefile in distclean target (closes: #31)
   * Change --enable-docdir --enable-builddir to --withXX (closes: #32)
@@ -102,8 +102,8 @@ v0.2.2:
   * Implement type permission / base_permission and operation coming along (
     permission_of_int, int_of_permission).
   * Implement type kind (Dir, File...).
-  * Implement function stat 
-  * Rewrite find, in order to be able to execute codes foreach filename. Very useful 
+  * Implement function stat
+  * Rewrite find, in order to be able to execute codes foreach filename. Very useful
     for rewriting other functions (rm, cp, mv)
   * Use list argument in place of single filename for rm, cp
   * Fix a bug that prevent ls to be able to list ""
@@ -119,13 +119,13 @@ v0.2:
   * Abstract regexp matching using functor
   * Separate the sysPath modules in two: Abstract and not. Abstract
     permits to parse once and for all the filename, and then operate
-    on it. It allows to handle fast all operation. Concrete module 
-    are only proxy that do the conversion to/from the Abstract 
+    on it. It allows to handle fast all operation. Concrete module
+    are only proxy that do the conversion to/from the Abstract
     implementation.
   * Introduce relation (updir, subdir, compare) to allow manipulating
     filename in classical structure (Set, Map...)
-  * Rename sysPath, sysUtil to filePath, fileUtil since it appears that it is 
-    more consistent regarding the name of the library (i was not convinced, that 
+  * Rename sysPath, sysUtil to filePath, fileUtil since it appears that it is
+    more consistent regarding the name of the library (i was not convinced, that
     sysPath represents anything).
 
 v0.1.1 (devel):
@@ -134,14 +134,14 @@ v0.1.1 (devel):
     when trying to reduce filename which try to .. a root)
     and add the possibility to reduce relative filename
   * Rework on the way everything is made :
-    * Support 4 different scheme of filename (Unix (the 
+    * Support 4 different scheme of filename (Unix (the
       native way), MacOS, Win32, Cygwin)
-    * Each scheme use a parser/lexer to decompose his 
-      filename and a .ml to handle the whole discriminant 
+    * Each scheme use a parser/lexer to decompose his
+      filename and a .ml to handle the whole discriminant
       element of a specific scheme (ie the way filename are
       decomposed and the way path like variable are decomposed)
-    * All the operation are defined relatively to the 
-      discriminant operation in a functorized module 
+    * All the operation are defined relatively to the
+      discriminant operation in a functorized module
     * Each scheme produces a module from his discriminant element
       and from the generic operation. These modules are defined in
       SysPath.{UnixPath|Win32Path|CygwinPath|MacOSPath}.
@@ -149,7 +149,7 @@ v0.1.1 (devel):
       is the default binding for all the operation.
   * Add SysUtil which try to create some portable file operation :
     mv, cp, touch, mkdir, test, find. This module abandon any non
-    cross platform operation and will never support it (ie links for 
+    cross platform operation and will never support it (ie links for
     example, won't be supported).
   * This release is an alpha release. 0.2 will be the stable one.
 

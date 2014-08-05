@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!--======================================================================
+<!--====================================================================
   ocaml-fileutils: files and filenames common operations
   
-  Copyright (C) 2003-2011, Sylvain Le Gall 
+  Copyright (C) 2003-2011, Sylvain Le Gall
   
   This library is free software; you can redistribute it and/or modify it
   under the terms of the GNU Lesser General Public License as published by
@@ -11,17 +11,20 @@
   exception.
   
   This library is distributed in the hope that it will be useful, but
-  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
-  or FITNESS FOR A PARTICULAR PURPOSE. See the file COPYING for more
-  details.
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the file
+  COPYING for more details.
   
   You should have received a copy of the GNU Lesser General Public License
   along with this library; if not, write to the Free Software Foundation,
   Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
-=======================================================================-->
+=====================================================================-->
+
+
+
 
 <!DOCTYPE webpage PUBLIC "-//Norman Walsh//DTD Website V2.6//EN"
-  "http://docbook.sourceforge.net/release/website/2.6/schema/dtd/website.dtd"> 
+  "http://docbook.sourceforge.net/release/website/2.6/schema/dtd/website.dtd">
 <webpage id="ocaml-fileutils-project">
   <head>
     <title>ocaml-fileutils project</title>
@@ -116,11 +119,11 @@
         useful functions are directly accessible with a simple "open", no more
         nested module required.</para>
 
-      <para>It also improve speed for find on Unix. At least on this system, 
+      <para>It also improve speed for find on Unix. At least on this system,
         FileUtil.find only takes 2x time of "find" command (idea to improve
         this are welcome).</para>
 
-      <para>This version is not compatible with former version, but changes should 
+      <para>This version is not compatible with former version, but changes should
         be restricted to module name change. See CHANGELOG for more details.</para>
     </section>
 
@@ -139,15 +142,15 @@
         <listitem><para>Operations on file size</para>
         </listitem>
       </itemizedlist>
-    
+
     </section>
-    
+
     <section>
       <title>Version 0.2.0</title>
 
       <para>First public version, test and benchmark on different system are
         welcome.</para>
     </section>
-    
+
   </section>
 </webpage>

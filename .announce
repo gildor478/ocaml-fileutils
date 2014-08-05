@@ -19,7 +19,7 @@ Comes also with a module to manipulate abstract filename:
 This new release simplify module structure (nested modules are not required
 anymore) and comes with a more clear documentation. It also removes
 parser/lexer for path which was little bit overkilling. Some operations have
-been optimized for speed (like find) -- coming close in term of performance to 
+been optimized for speed (like find) -- coming close in term of performance to
 standard POSIX commands.
 
 Link:

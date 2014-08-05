@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!--======================================================================
+<!--====================================================================
   ocaml-fileutils: files and filenames common operations
   
-  Copyright (C) 2003-2011, Sylvain Le Gall 
+  Copyright (C) 2003-2011, Sylvain Le Gall
   
   This library is free software; you can redistribute it and/or modify it
   under the terms of the GNU Lesser General Public License as published by
@@ -11,17 +11,20 @@
   exception.
   
   This library is distributed in the hope that it will be useful, but
-  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
-  or FITNESS FOR A PARTICULAR PURPOSE. See the file COPYING for more
-  details.
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the file
+  COPYING for more details.
   
   You should have received a copy of the GNU Lesser General Public License
   along with this library; if not, write to the Free Software Foundation,
   Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
-=======================================================================-->
+=====================================================================-->
+
+
+
 
 <!DOCTYPE webpage PUBLIC "-//Norman Walsh//DTD Website V2.6//EN"
-  "http://docbook.sourceforge.net/release/website/2.6/schema/dtd/website.dtd"> 
+  "http://docbook.sourceforge.net/release/website/2.6/schema/dtd/website.dtd">
 <webpage id="home">
   <head>
     <title>Project ocaml-fileutils</title>

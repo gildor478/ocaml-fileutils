@@ -1,6 +1,6 @@
 
 Must:
-- implement a basic glob function to replace the Str implementation (*, ?). 
+- implement a basic glob function to replace the Str implementation (*, ?).
 - add more test to the test.ml file ( should have at least 200 test - only 133
   at the time I am writing this line )
 - create a URI parser, in order to be able to adress different filesystem using

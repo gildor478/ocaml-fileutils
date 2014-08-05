@@ -1,30 +1,31 @@
-(********************************************************************************)
-(*  ocaml-fileutils: files and filenames common operations                      *)
-(*                                                                              *)
-(*  Copyright (C) 2003-2011, Sylvain Le Gall                                    *)
-(*                                                                              *)
-(*  This library is free software; you can redistribute it and/or modify it     *)
-(*  under the terms of the GNU Lesser General Public License as published by    *)
-(*  the Free Software Foundation; either version 2.1 of the License, or (at     *)
-(*  your option) any later version, with the OCaml static compilation           *)
-(*  exception.                                                                  *)
-(*                                                                              *)
-(*  This library is distributed in the hope that it will be useful, but         *)
-(*  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY  *)
-(*  or FITNESS FOR A PARTICULAR PURPOSE. See the file COPYING for more          *)
-(*  details.                                                                    *)
-(*                                                                              *)
-(*  You should have received a copy of the GNU Lesser General Public License    *)
-(*  along with this library; if not, write to the Free Software Foundation,     *)
-(*  Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA               *)
-(********************************************************************************)
+(******************************************************************************)
+(*  ocaml-fileutils: files and filenames common operations                    *)
+(*                                                                            *)
+(*  Copyright (C) 2003-2011, Sylvain Le Gall                                  *)
+(*                                                                            *)
+(*  This library is free software; you can redistribute it and/or modify it   *)
+(*  under the terms of the GNU Lesser General Public License as published by  *)
+(*  the Free Software Foundation; either version 2.1 of the License, or (at   *)
+(*  your option) any later version, with the OCaml static compilation         *)
+(*  exception.                                                                *)
+(*                                                                            *)
+(*  This library is distributed in the hope that it will be useful, but       *)
+(*  WITHOUT ANY WARRANTY; without even the implied warranty of                *)
+(*  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the file         *)
+(*  COPYING for more details.                                                 *)
+(*                                                                            *)
+(*  You should have received a copy of the GNU Lesser General Public License  *)
+(*  along with this library; if not, write to the Free Software Foundation,   *)
+(*  Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA             *)
+(******************************************************************************)
 
-open FilePath_type;;
+open FilePath_type
 
-include CommonPath;;
+include CommonPath
 
-let rec dir_writer lst = 
-  match lst with 
+
+let rec dir_writer lst =
+  match lst with
       Root s :: tl ->
         (s^":\\")^(dir_writer tl)
     | [ CurrentDir Short ] ->
@@ -39,28 +40,28 @@ let rec dir_writer lst =
             | Component s -> s
         in
           String.concat "\\" (List.map dir_writer_aux lst)
-;;
 
-let dir_reader str = 
-  let fn_part_of_string = 
+
+let dir_reader str =
+  let fn_part_of_string =
     function
       | ".." -> ParentDir
       | "."  -> CurrentDir Long
       | str  -> Component str
-  in 
-  let fn_part_split str = 
-    let lst = 
-      List.flatten 
-        (List.map 
+  in
+  let fn_part_split str =
+    let lst =
+      List.flatten
+        (List.map
            (StringExt.split ~map:fn_part_of_string '\\')
            (StringExt.split ~map:(fun s -> s) '/' str))
-    in 
+    in
       match lst with
-        (* TODO: we don't make the difference between c:a and c:\a *) 
-        | Component "" :: tl -> tl 
+        (* TODO: we don't make the difference between c:a and c:\a *)
+        | Component "" :: tl -> tl
         | lst -> lst
   in
-    try 
+    try
       (
         let drive_letter, str =
           StringExt.break_at_first ':' str
@@ -71,13 +72,11 @@ let dir_reader str =
       (
         fn_part_split str
       )
-;;
 
-let path_writer lst = 
+
+let path_writer lst =
   String.concat ";" lst
-;;
+
 
 let path_reader str =
   StringExt.split ~map:(fun s -> s) ';' str
-;;
-

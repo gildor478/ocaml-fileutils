@@ -1,57 +1,57 @@
-(********************************************************************************)
-(*  ocaml-fileutils: files and filenames common operations                      *)
-(*                                                                              *)
-(*  Copyright (C) 2003-2011, Sylvain Le Gall                                    *)
-(*                                                                              *)
-(*  This library is free software; you can redistribute it and/or modify it     *)
-(*  under the terms of the GNU Lesser General Public License as published by    *)
-(*  the Free Software Foundation; either version 2.1 of the License, or (at     *)
-(*  your option) any later version, with the OCaml static compilation           *)
-(*  exception.                                                                  *)
-(*                                                                              *)
-(*  This library is distributed in the hope that it will be useful, but         *)
-(*  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY  *)
-(*  or FITNESS FOR A PARTICULAR PURPOSE. See the file COPYING for more          *)
-(*  details.                                                                    *)
-(*                                                                              *)
-(*  You should have received a copy of the GNU Lesser General Public License    *)
-(*  along with this library; if not, write to the Free Software Foundation,     *)
-(*  Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA               *)
-(********************************************************************************)
+(******************************************************************************)
+(*  ocaml-fileutils: files and filenames common operations                    *)
+(*                                                                            *)
+(*  Copyright (C) 2003-2011, Sylvain Le Gall                                  *)
+(*                                                                            *)
+(*  This library is free software; you can redistribute it and/or modify it   *)
+(*  under the terms of the GNU Lesser General Public License as published by  *)
+(*  the Free Software Foundation; either version 2.1 of the License, or (at   *)
+(*  your option) any later version, with the OCaml static compilation         *)
+(*  exception.                                                                *)
+(*                                                                            *)
+(*  This library is distributed in the hope that it will be useful, but       *)
+(*  WITHOUT ANY WARRANTY; without even the implied warranty of                *)
+(*  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the file         *)
+(*  COPYING for more details.                                                 *)
+(*                                                                            *)
+(*  You should have received a copy of the GNU Lesser General Public License  *)
+(*  along with this library; if not, write to the Free Software Foundation,   *)
+(*  Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA             *)
+(******************************************************************************)
 
-open FilePath_type;;
+open FilePath_type
 
-exception BaseFilenameRelative of filename;;
-exception UnrecognizedOS of string;;
-exception EmptyFilename;;
-exception NoExtension of filename;;
-exception InvalidFilename of filename;;
+exception BaseFilenameRelative of filename
+exception UnrecognizedOS of string
+exception EmptyFilename
+exception NoExtension of filename
+exception InvalidFilename of filename
 
 module type OS_SPECIFICATION =
 sig
-  val dir_writer: (filename_part list) -> filename 
+  val dir_writer: (filename_part list) -> filename
   val dir_reader: filename -> (filename_part list)
   val path_writer: (filename list) -> string
   val path_reader: string -> (filename list)
-  val fast_concat: filename -> filename -> filename 
+  val fast_concat: filename -> filename -> filename
   val fast_basename: filename -> filename
-  val fast_dirname: filename -> filename 
+  val fast_dirname: filename -> filename
   val fast_is_relative: filename -> bool
   val fast_is_current: filename -> bool
   val fast_is_parent: filename -> bool
 end
-;;
+
 
 module type PATH_SPECIFICATION =
 sig
-  type filename  
-  type extension 
+  type filename
+  type extension
 
-  val string_of_filename : filename -> string
-  val filename_of_string : string -> filename
+  val string_of_filename: filename -> string
+  val filename_of_string: string -> filename
   val extension_of_string: string -> extension
   val string_of_extension: extension -> string
-  val make_filename: string list -> filename 
+  val make_filename: string list -> filename
   val is_subdir: filename -> filename -> bool
   val is_updir: filename -> filename -> bool
   val compare: filename -> filename -> int
@@ -61,14 +61,14 @@ sig
   val reduce: ?no_symlink:bool -> filename -> filename
   val make_absolute: filename -> filename -> filename
   val make_relative: filename -> filename -> filename
-  val reparent: filename -> filename -> filename -> filename 
+  val reparent: filename -> filename -> filename -> filename
   val identity: filename -> filename
   val is_valid: filename -> bool
   val is_relative: filename -> bool
   val is_current: filename -> bool
   val is_parent: filename -> bool
   val chop_extension: filename -> filename
-  val get_extension: filename -> extension 
+  val get_extension: filename -> extension
   val check_extension: filename -> extension -> bool
   val add_extension: filename -> extension -> filename
   val replace_extension: filename -> extension -> filename
@@ -77,21 +77,21 @@ sig
   val current_dir: filename
   val parent_dir: filename
 end
-;;
+
 
 module type PATH_STRING_SPECIFICATION =
 sig
-  module Abstract: PATH_SPECIFICATION 
+  module Abstract: PATH_SPECIFICATION
 
-  include PATH_SPECIFICATION with 
-    type filename = string and 
+  include PATH_SPECIFICATION with
+    type filename = string and
     type extension = string
 end
-;;
+
 
 (* Convert an OS_SPECIFICATION to PATH_SPECIFICATION *)
-module GenericPath  = 
-functor ( OsOperation : OS_SPECIFICATION ) ->
+module GenericPath =
+functor (OsOperation: OS_SPECIFICATION) ->
 struct
   type filename = FilePath_type.filename_part list
 
@@ -99,38 +99,38 @@ struct
 
   (* Filename_from_string *)
 
-  let filename_of_string str = 
-    try 
+  let filename_of_string str =
+    try
       OsOperation.dir_reader str
     with Parsing.Parse_error ->
       raise (InvalidFilename str)
 
   (* String_from_filename *)
 
-  let string_of_filename path = 
+  let string_of_filename path =
     OsOperation.dir_writer path
 
   (* Reduce *)
 
   let reduce ?(no_symlink=false) path =
     (* TODO: not tail recursive ! *)
-    let rec reduce_aux lst = 
-      match lst with 
+    let rec reduce_aux lst =
+      match lst with
         | ParentDir :: tl when no_symlink ->
             begin
               match reduce_aux tl with
                 | Root s :: tl ->
-                    Root s :: tl 
+                    Root s :: tl
                 | ParentDir :: tl ->
                     ParentDir :: ParentDir :: tl
                 | [] ->
-                    ParentDir :: tl 
+                    ParentDir :: tl
                 | _ :: tl ->
-                    tl                  
+                    tl
             end
         | ParentDir :: tl ->
             ParentDir :: (reduce_aux tl)
-        | CurrentDir _ :: tl 
+        | CurrentDir _ :: tl
         | Component "" :: tl ->
             (reduce_aux tl)
         | Component s :: tl ->
@@ -143,12 +143,14 @@ struct
     let rev_path = List.rev path in
     match reduce_aux rev_path with
       | [] when no_symlink = false->
-	(* assert ( List.for_all ( function | Component "" | CurrentDir _ -> true | _ -> false ) rev_path ) *)
+	(* assert
+  * ( List.for_all ( function | Component ""
+  * | CurrentDir _ -> true | _ -> false ) rev_path ) *)
 	(try
 	   (* use last CurrentDir _ *)
 	   [ List.find ( function | CurrentDir _ -> true | _ -> false ) rev_path ]
 	 with
-	   | Not_found -> [] ) (* Only Component "" *) 
+	   | Not_found -> [] ) (* Only Component "" *)
       |l -> List.rev l
 
 
@@ -159,7 +161,7 @@ struct
 
   let relation_of_filename path1 path2 =
     let rec relation_of_filename_aux path1 path2 =
-      match (path1,path2) with
+      match (path1, path2) with
         ([], []) ->
         Equal
       | (hd1 :: tl1, hd2 :: tl2) ->
@@ -167,8 +169,8 @@ struct
           relation_of_filename_aux tl1 tl2
         else
         begin
-          NoRelation (String.compare 
-              (string_of_filename [hd1]) 
+          NoRelation (String.compare
+              (string_of_filename [hd1])
               (string_of_filename [hd2])
             )
         end
@@ -178,7 +180,7 @@ struct
         UpDir
     in
     relation_of_filename_aux path1 path2
-    
+
   let is_subdir path1 path2 =
     match relation_of_filename path1 path2 with
       SubDir ->
@@ -196,19 +198,15 @@ struct
 
   let compare path1 path2 =
     match relation_of_filename path1 path2 with
-      SubDir ->
-      -1
-    | UpDir ->
-      1
-    | Equal ->
-      0
-    | NoRelation i ->
-      i 
+      SubDir -> -1
+    | UpDir -> 1
+    | Equal -> 0
+    | NoRelation i -> i
 
   (* Concat *)
 
   let concat lst_path1 lst_path2 =
-    reduce 
+    reduce
       (match lst_path2 with
          | CurrentDir Short :: tl_path2 ->
              lst_path1 @ tl_path2
@@ -223,16 +221,16 @@ struct
      (Root _) :: _ -> false
     | _            -> true
 
-  
+
   (* Is_valid *)
-  
-  let is_valid path = 
-    (* As we are manipulating abstract filename, 
+
+  let is_valid path =
+    (* As we are manipulating abstract filename,
        and that it has been parsed, we are
        sure that all is correct *)
     true
 
-  let is_current path = 
+  let is_current path =
     match path with
       [ (CurrentDir _) ] -> true
     | _ -> false
@@ -244,8 +242,8 @@ struct
 
   (* Basename *)
 
-  let basename path = 
-    match List.rev path with  
+  let basename path =
+    match List.rev path with
       hd :: tl ->
       [hd]
     | [] ->
@@ -253,7 +251,7 @@ struct
 
   (* Dirname *)
 
-  let dirname path = 
+  let dirname path =
     match List.rev path with
       hd :: tl ->
       List.rev tl
@@ -263,54 +261,53 @@ struct
   (* Extension manipulation *)
 
   let wrap_extension f path =
-    match basename path with 
+    match basename path with
       | [Component fn] ->
           f fn
       | _ ->
           raise (NoExtension (string_of_filename path))
 
-  let check_extension path ext = 
+  let check_extension path ext =
     wrap_extension
       (fun fn -> ExtensionPath.check fn ext)
       path
 
-  let get_extension path = 
+  let get_extension path =
     wrap_extension
       (fun fn -> ExtensionPath.get fn)
       path
 
   let chop_extension path =
-    wrap_extension 
-      (fun fn -> 
+    wrap_extension
+      (fun fn ->
          concat
            (dirname path)
            [Component (ExtensionPath.chop fn)])
       path
 
   let add_extension path ext =
-    wrap_extension 
-      (fun fn -> 
+    wrap_extension
+      (fun fn ->
          concat
            (dirname path)
            [Component (ExtensionPath.add fn ext)])
       path
 
   let replace_extension path ext =
-    wrap_extension 
-      (fun fn -> 
-         concat 
+    wrap_extension
+      (fun fn ->
+         concat
            (dirname path)
            [Component (ExtensionPath.replace fn ext)])
       path
 
   let extension_of_string x = x
 
-  let string_of_extension x = x 
-    
-  (* Make_asbolute *)
+  let string_of_extension x = x
 
-  let make_absolute path_base path_path =    
-    reduce 
+  (* Make_asbolute *)
+  let make_absolute path_base path_path =
+    reduce
       (if is_relative path_base then
          raise (BaseFilenameRelative (string_of_filename path_base))
        else if is_relative path_path then
@@ -319,20 +316,19 @@ struct
          path_path)
 
   (* Make_relative *)
-
   let make_relative path_base path_path =
     let rec make_relative_aux lst_base lst_path =
       match  (lst_base, lst_path) with
       x :: tl_base, a :: tl_path when x = a ->
         make_relative_aux tl_base tl_path
       | _, _ ->
-        let back_to_base = List.rev_map 
+        let back_to_base = List.rev_map
           (fun x -> ParentDir)
           lst_base
         in
           back_to_base @ lst_path
     in
-      reduce 
+      reduce
         (if is_relative path_base then
            raise (BaseFilenameRelative (string_of_filename path_base))
          else if is_relative path_path then
@@ -341,12 +337,10 @@ struct
            make_relative_aux path_base path_path)
 
   (* Make_filename *)
-
   let make_filename lst_path =
     reduce (List.flatten (List.map filename_of_string lst_path))
-    
-  (* Reparent *)
 
+  (* Reparent *)
   let reparent path_src path_dst path =
     let path_relative =
       make_relative path_src path
@@ -354,17 +348,16 @@ struct
       make_absolute path_dst path_relative
 
   (* Identity *)
-  
   let identity path = path
-  
+
   (* Manipulate path like variable *)
 
-  let string_of_path lst = 
+  let string_of_path lst =
     OsOperation.path_writer (List.map string_of_filename lst)
 
-  let path_of_string str = 
-    List.map 
-      filename_of_string 
+  let path_of_string str =
+    List.map
+      filename_of_string
       (OsOperation.path_reader str)
 
   (* Generic filename component *)
@@ -372,12 +365,12 @@ struct
   let current_dir = [ CurrentDir Long ]
 
   let parent_dir = [ ParentDir ]
-end 
-;;
+end
+
 
 (* Convert an OS_SPECIFICATION to PATH_STRING_SPECIFICATION *)
 module GenericStringPath =
-functor (OsOperation : OS_SPECIFICATION) ->
+functor (OsOperation: OS_SPECIFICATION) ->
 struct
 
   module Abstract = GenericPath(OsOperation)
@@ -385,14 +378,14 @@ struct
   type filename  = string
   type extension = string
 
-  let string_of_filename path = 
+  let string_of_filename path =
     path
 
-  let filename_of_string path = 
+  let filename_of_string path =
     path
 
-  let string_of_extension ext = 
-    ext 
+  let string_of_extension ext =
+    ext
 
   let extension_of_string str =
     str
@@ -405,7 +398,7 @@ struct
 
   let s2e = Abstract.extension_of_string
 
-  let is_subdir path1 path2 = 
+  let is_subdir path1 path2 =
     Abstract.is_subdir (s2f path1) (s2f path2)
 
   let is_updir path1 path2 =
@@ -415,23 +408,23 @@ struct
     Abstract.compare   (s2f path1) (s2f path2)
 
   let basename path =
-    try 
+    try
       OsOperation.fast_basename path
     with CommonPath.CannotHandleFast ->
       f2s (Abstract.basename (s2f path))
 
-  let dirname path = 
+  let dirname path =
     try
       OsOperation.fast_dirname path
     with CommonPath.CannotHandleFast ->
       f2s (Abstract.dirname  (s2f path))
 
-  let concat path1 path2 = 
+  let concat path1 path2 =
     try
       OsOperation.fast_concat path1 path2
     with CommonPath.CannotHandleFast ->
       f2s (Abstract.concat (s2f path1) (s2f path2))
-    
+
   let make_filename path_lst =
     f2s (Abstract.make_filename path_lst)
 
@@ -456,8 +449,8 @@ struct
     with InvalidFilename _ ->
       false
 
-  let is_relative path = 
-    try 
+  let is_relative path =
+    try
       OsOperation.fast_is_relative path
     with CommonPath.CannotHandleFast ->
       Abstract.is_relative (s2f path)
@@ -487,9 +480,9 @@ struct
 
   let chop_extension path =
     try
-      wrap_extension 
-        (fun fn -> 
-           OsOperation.fast_concat 
+      wrap_extension
+        (fun fn ->
+           OsOperation.fast_concat
              (OsOperation.fast_dirname path)
              (ExtensionPath.chop fn))
         path
@@ -498,7 +491,7 @@ struct
 
   let get_extension path =
     try
-      wrap_extension 
+      wrap_extension
         (fun fn -> ExtensionPath.get fn)
         path
     with CommonPath.CannotHandleFast ->
@@ -515,8 +508,8 @@ struct
   let add_extension path ext =
     try
       wrap_extension
-        (fun fn -> 
-           OsOperation.fast_concat 
+        (fun fn ->
+           OsOperation.fast_concat
              (OsOperation.fast_dirname path)
              (ExtensionPath.add fn ext))
         path
@@ -526,8 +519,8 @@ struct
   let replace_extension path ext =
     try
       wrap_extension
-        (fun fn -> 
-           OsOperation.fast_concat 
+        (fun fn ->
+           OsOperation.fast_concat
              (OsOperation.fast_dirname path)
              (ExtensionPath.replace fn ext))
         path
@@ -546,7 +539,7 @@ struct
   let parent_dir =
     f2s (Abstract.parent_dir)
 end
-;;
+
 
 module DefaultPath = GenericStringPath(struct
 
@@ -557,76 +550,75 @@ module DefaultPath = GenericStringPath(struct
     | "MacOS"  -> macos
     | "Win32"  -> win32
     | s        -> raise (UnrecognizedOS s)
-    
-  let dir_writer  = 
-    os_depend 
+
+  let dir_writer =
+    os_depend
       UnixPath.dir_writer
-      MacOSPath.dir_writer  
-      Win32Path.dir_writer  
+      MacOSPath.dir_writer
+      Win32Path.dir_writer
 
-  let dir_reader  = 
-    os_depend 
+  let dir_reader =
+    os_depend
       UnixPath.dir_reader
-      MacOSPath.dir_reader  
-      Win32Path.dir_reader  
+      MacOSPath.dir_reader
+      Win32Path.dir_reader
 
-  let path_writer = 
-    os_depend 
+  let path_writer =
+    os_depend
       UnixPath.path_writer
-      MacOSPath.path_writer 
-      Win32Path.path_writer 
+      MacOSPath.path_writer
+      Win32Path.path_writer
 
-  let path_reader = 
-    os_depend 
+  let path_reader =
+    os_depend
       UnixPath.path_reader
-      MacOSPath.path_reader 
-      Win32Path.path_reader 
+      MacOSPath.path_reader
+      Win32Path.path_reader
 
-  let fast_concat = 
-    os_depend 
+  let fast_concat =
+    os_depend
       UnixPath.fast_concat
-      MacOSPath.fast_concat 
-      Win32Path.fast_concat 
+      MacOSPath.fast_concat
+      Win32Path.fast_concat
 
-  let fast_basename = 
-    os_depend 
+  let fast_basename =
+    os_depend
       UnixPath.fast_basename
-      MacOSPath.fast_basename 
-      Win32Path.fast_basename 
+      MacOSPath.fast_basename
+      Win32Path.fast_basename
 
-  let fast_dirname = 
-    os_depend 
+  let fast_dirname =
+    os_depend
       UnixPath.fast_dirname
-      MacOSPath.fast_dirname 
-      Win32Path.fast_dirname 
+      MacOSPath.fast_dirname
+      Win32Path.fast_dirname
 
   let fast_is_relative =
-    os_depend 
+    os_depend
       UnixPath.fast_is_relative
-      MacOSPath.fast_is_relative 
-      Win32Path.fast_is_relative 
+      MacOSPath.fast_is_relative
+      Win32Path.fast_is_relative
 
-  let fast_is_current = 
-    os_depend 
+  let fast_is_current =
+    os_depend
       UnixPath.fast_is_current
-      MacOSPath.fast_is_current 
-      Win32Path.fast_is_current 
+      MacOSPath.fast_is_current
+      Win32Path.fast_is_current
 
-  let fast_is_parent = 
-    os_depend 
+  let fast_is_parent =
+    os_depend
       UnixPath.fast_is_parent
-      MacOSPath.fast_is_parent 
-      Win32Path.fast_is_parent 
-
+      MacOSPath.fast_is_parent
+      Win32Path.fast_is_parent
 end)
-;;
 
-module UnixPath =  GenericStringPath(UnixPath);;
 
-module MacOSPath = GenericStringPath(MacOSPath);;
+module UnixPath =  GenericStringPath(UnixPath)
 
-module Win32Path = GenericStringPath(Win32Path);;
+module MacOSPath = GenericStringPath(MacOSPath)
 
-module CygwinPath = UnixPath;;
+module Win32Path = GenericStringPath(Win32Path)
 
-include DefaultPath;;
+module CygwinPath = UnixPath
+
+include DefaultPath
