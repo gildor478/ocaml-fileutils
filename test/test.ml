@@ -19,24 +19,22 @@
 (*  Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA               *)
 (********************************************************************************)
 
-open OUnit;;
-open FilePath;;
-open FileUtil;;
+open OUnit
+open FilePath
+open FileUtil
 
 module SetFilename = Set.Make (struct
     type t = FilePath.DefaultPath.filename
     let compare = FilePath.DefaultPath.compare
 end)
-;;
 
-let verbose = 
-  ref false
-;;
+
+let verbose = ref false
+
 
 let dbug_print f =
   if !verbose then
     prerr_endline (f ())
-;;
 
 let assert_equal_string ~msg = 
   assert_equal ~printer:(fun x -> x) ~msg:msg
