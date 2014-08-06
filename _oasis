@@ -1,12 +1,12 @@
-OASISFormat:  0.3
+OASISFormat:  0.4
 Name:         ocaml-fileutils
 Version:      0.4.6
 Authors:      Sylvain Le Gall
-Copyrights:   (C) 2003-2011 Sylvain Le Gall
+Copyrights:   (C) 2003-2014 Sylvain Le Gall
 License:      LGPL-2.1 with OCaml linking exception
 LicenseFile:  LICENSE
 BuildTools:   ocamlbuild
-Plugins:      DevFiles (0.3), StdFiles (0.3), META (0.3)
+Plugins:      DevFiles (0.4), StdFiles (0.4), META (0.4)
 Synopsis:     Functions to manipulate real file (POSIX like) and filename.
 
 Library "fileutils"
@@ -31,7 +31,7 @@ Library "fileutils-str"
 
 Document "api-fileutils"
   Title: API reference for fileutils
-  Type:  ocamlbuild (0.2)
+  Type:  ocamlbuild (0.4)
   InstallDir: $htmldir/api
   BuildTools+: ocamldoc
   XOCamlbuildPath: src/
@@ -57,7 +57,7 @@ Executable test
   Install: false
 
 Test "bench-find"
-  Type: custom (0.2)
+  Type: custom (0.4)
   Command: $BenchFind
   Run: false
 
