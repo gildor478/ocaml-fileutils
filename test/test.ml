@@ -19,7 +19,7 @@
 (*  Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA             *)
 (******************************************************************************)
 
-open OUnit
+open OUnit2
 open FilePath
 open FileUtil
 
@@ -29,123 +29,87 @@ module SetFilename = Set.Make (struct
 end)
 
 
-let verbose = ref false
-
-
-let dbug_print f =
-  if !verbose then
-    prerr_endline (f ())
-
-
 let assert_equal_string ~msg =
   assert_equal ~printer:(fun x -> x) ~msg:msg
 
 
+module DiffSetFilename =
+  OUnitDiff.SetMake
+    (struct
+       type t = string
+       let compare = FilePath.DefaultPath.compare
+       let pp_printer = Format.pp_print_string
+       let pp_print_sep = OUnitDiff.pp_comma_separator
+     end)
+
 (** Check that two set of file are equal *)
-let assert_equal_set_filename st_ref st =
-  let to_file_list_string lst =
-    String.concat ", "
-      (List.map
-         (Printf.sprintf "%S")
-         lst)
-  in
-  let msg_difference =
-    let file_not_expected =
-      SetFilename.elements (SetFilename.diff st st_ref)
-    in
-    let file_not_found =
-      SetFilename.elements (SetFilename.diff st_ref st)
-    in
-      match file_not_expected, file_not_found with
-        | [], [] ->
-            "No difference"
-        | _, [] ->
-            Printf.sprintf
-              "Files %s are not expected in result"
-              (to_file_list_string file_not_expected)
-        | [], _ ->
-            Printf.sprintf
-              "Files %s are not found in result"
-              (to_file_list_string file_not_found)
-        | _, _ ->
-            Printf.sprintf
-              "File %s are not found and %s are not expected in result"
-              (to_file_list_string file_not_found)
-              (to_file_list_string file_not_expected)
-  in
-    assert_equal
-      ~cmp:SetFilename.equal
-      ~msg:msg_difference
-      ~printer:(fun st -> to_file_list_string (SetFilename.elements st))
-      st_ref
-      st
+let assert_equal_set_filename ?msg st_ref st =
+  DiffSetFilename.assert_equal ?msg
+    (DiffSetFilename.of_list (SetFilename.elements st_ref))
+    (DiffSetFilename.of_list (SetFilename.elements st))
 
 (** Ensure that we are dealing with generated file (and not random
-    file on the filesystem
+    file on the filesystem).
   *)
 module SafeFS =
 struct
-  let magic =
-    Random.self_init ();
-    Random.bits ()
+  module S =
+    Set.Make
+      (struct
+         type t = int * int
+         let compare = Pervasives.compare
+       end)
 
-  let file_mark fn =
-    let chn =
-      open_out_bin fn
-    in
-      output_binary_int chn magic;
-      close_out chn
+  type t =
+      {
+        mutable files: SetFilename.t;
+        mutable dirs: SetFilename.t;
+        mutable markers: S.t;
+      }
 
-  let file_check fn =
-    try
-      let chn =
-        open_in_bin fn
-      in
-      let magic =
-        input_binary_int chn
-      in
-        close_in chn;
-        magic = magic
-    with _ ->
-      false
+  let default () =
+    {
+      files = SetFilename.empty;
+      dirs = SetFilename.empty;
+      markers = S.empty;
+    }
 
-  let dir_marker fn =
-    Filename.concat fn "_mark"
+  let marker fn =
+    let st = Unix.lstat fn in
+      (st.Unix.st_dev, st.Unix.st_ino)
 
-  let is_special_file fn =
-    (Filename.basename fn) = "_mark"
+  let mark t fn =
+    t.markers <- S.add (marker fn) t.markers
 
-  let dir_mark fn =
-    file_mark (dir_marker fn)
+  let touch t fn =
+    if Sys.file_exists fn then begin
+      failwith (Printf.sprintf "File %S already exists." fn)
+    end else begin
+      let chn = open_out fn in
+        close_out chn;
+        mark t fn;
+        t.files <- SetFilename.add fn t.files
+    end
 
-  let dir_check fn =
-    file_check (dir_marker fn)
+  let mkdir t dn =
+    if Sys.file_exists dn then begin
+      failwith (Printf.sprintf "Directory %S already exists." dn)
+    end else begin
+      Unix.mkdir dn 0o755;
+      mark t dn;
+      t.dirs <- SetFilename.add dn t.dirs
+    end
 
-  let dir_unmark fn =
-    if dir_check fn then
-      Sys.remove (dir_marker fn)
+  let auto_ask_user t =
+    Ask (fun fn -> S.mem (marker fn) t.markers)
 
-  let assert_removable fn =
-    if Sys.file_exists fn then
-      (
-        if Sys.is_directory fn then
-          (
-            assert_bool
-              (Printf.sprintf "%S directory cannot be removed" fn)
-              (dir_check fn)
-          )
-        else
-          (
-            assert_bool
-              (Printf.sprintf "%S file cannot be removed" fn)
-              (file_check fn)
-          )
-      )
-    else
-      (
-        assert_failure
-          (Printf.sprintf "%S doesn't exist" fn)
-      )
+  let create dn dirs files =
+    let t = default () in
+      mark t dn;
+      t.dirs <- SetFilename.add dn t.dirs;
+      List.iter (fun fn -> mkdir t (Filename.concat dn fn)) dirs;
+      List.iter (fun fn -> touch t (Filename.concat dn fn)) files;
+      t
 end
 
 module Test =
@@ -162,60 +126,63 @@ struct
   let test_name s = (s)
 
   let reduce (exp, res) =
-    (test_name "reduce") >:: (fun () ->
-      assert_equal_string ~msg:(test_label "reduce" exp)
-      res (OsPath.reduce ~no_symlink:true exp)
-    )
+    (test_name "reduce") >::
+     (fun test_ctxt ->
+        assert_equal_string
+          ~msg:(test_label "reduce" exp)
+          res (OsPath.reduce ~no_symlink:true exp))
 
   let make_path (exp, res) =
-    (test_name "make_path") >:: (fun () ->
-      assert_equal_string ~msg:(test_label_list "make_path" exp)
-      res (OsPath.string_of_path exp)
-    )
+    (test_name "make_path") >::
+     (fun test_ctxt ->
+        assert_equal_string ~msg:(test_label_list "make_path" exp)
+          res (OsPath.string_of_path exp))
 
   let make_absolute (base, rela, res) =
-    (test_name "make_absolute") >:: (fun () ->
-      assert_equal_string ~msg:(test_label_pair "make_absolute" (base, rela))
-      res (OsPath.reduce ~no_symlink:true (OsPath.make_absolute base rela))
-    )
+    (test_name "make_absolute") >::
+     (fun test_ctxt ->
+        assert_equal_string ~msg:(test_label_pair "make_absolute" (base, rela))
+          res (OsPath.reduce ~no_symlink:true (OsPath.make_absolute base rela)))
 
   let make_relative (base, abs, res) =
-    (test_name "make_relative") >:: (fun () ->
-      assert_equal_string ~msg:(test_label_pair "make_relative" (base, abs))
-      res (OsPath.make_relative base abs)
-    )
+    (test_name "make_relative") >::
+     (fun test_ctxt ->
+        assert_equal_string ~msg:(test_label_pair "make_relative" (base, abs))
+          res (OsPath.make_relative base abs))
 
   let valid exp =
-    (test_name "valid") >:: (fun () ->
-      assert_bool (test_label "is_valid" exp)
-      (OsPath.is_valid exp)
-    )
+    (test_name "valid") >::
+     (fun test_ctxt ->
+        assert_bool (test_label "is_valid" exp)
+          (OsPath.is_valid exp))
 
   let identity exp =
-    (test_name "identity") >:: (fun () ->
-      assert_equal_string ~msg:(test_label "identity" exp)
-      exp (OsPath.identity exp)
-    )
+    (test_name "identity") >::
+     (fun test_ctxt ->
+        assert_equal_string ~msg:(test_label "identity" exp)
+          exp (OsPath.identity exp))
 
   let extension (filename, basename, extension) =
-    (test_name "extension") >:: (fun () ->
-      assert_equal_string ~msg:(test_label "chop_extension" filename)
-      (OsPath.chop_extension filename) basename;
+    (test_name "extension") >::
+     (fun test_ctxt ->
+        assert_equal_string ~msg:(test_label "chop_extension" filename)
+          (OsPath.chop_extension filename) basename;
 
-      assert_equal_string ~msg:(test_label "get_extension" filename)
-      (OsPath.string_of_extension (OsPath.get_extension filename)) extension;
+        assert_equal_string ~msg:(test_label "get_extension" filename)
+          (OsPath.string_of_extension (OsPath.get_extension filename))
+          extension;
 
-      assert_bool (test_label "check_extension" filename)
-      (OsPath.check_extension filename (OsPath.extension_of_string extension));
+        assert_bool (test_label "check_extension" filename)
+          (OsPath.check_extension filename
+             (OsPath.extension_of_string extension));
 
-      assert_bool (test_label "check_extension (false) " filename)
-      (not (OsPath.check_extension filename
-              (OsPath.extension_of_string "dummy")))
-    )
+        assert_bool (test_label "check_extension (false) " filename)
+          (not (OsPath.check_extension filename
+                  (OsPath.extension_of_string "dummy"))))
 
   let is_relative (filename, res) =
     (test_name "is_relative") >::
-     (fun () ->
+     (fun test_ctxt ->
         assert_equal
           res
           (OsPath.is_relative filename))
@@ -235,7 +202,7 @@ let () =
 let _ =
   assert(UnixPath.get_extension "test.txt" = "txt");
   assert(MacOSPath.get_extension "test.txt" = "txt");
-  assert(Win32Path.get_extension "test.txt" = "txt");
+  assert(Win32Path.get_extension "test.txt" = "txt")
 
 (*********************)
 (* Unix FilePath test*)
@@ -339,7 +306,7 @@ let test_unix =
       ]
     )
   )
-in
+
 
 (**********************)
 (* Win32 FilePath test*)
@@ -364,49 +331,37 @@ let test_win32 =
   "Win32 FilePath" >:::
     (
       (* Is_valid *)
-      (
-        List.map TestWin32.valid test_path
-      )
+      (List.map TestWin32.valid test_path)
 
       (* Identity *)
-      @ (
-        List.map TestWin32.identity test_path
-      )
+      @ (List.map TestWin32.identity test_path)
 
       (* Reduce path *)
-      @ (
-        List.map TestWin32.reduce
-        [
-         ("c:\\a\\b\\c",                            "c:\\a\\b\\c");
-         ("c:\\a\\b\\c\\",                          "c:\\a\\b\\c");
-         ("c:\\a\\b\\c\\d\\..",                     "c:\\a\\b\\c");
-         ("c:\\a\\b\\c\\.",                         "c:\\a\\b\\c");
-         ("c:\\a\\d\\..\\b\\c",                     "c:\\a\\b\\c");
-         ("c:\\a\\.\\b\\c",                         "c:\\a\\b\\c");
-         ("c:\\a\\b\\c\\d\\.\\..",                  "c:\\a\\b\\c");
-         ("c:\\a\\b\\c\\d\\..\\.",                  "c:\\a\\b\\c");
-         ("c:\\a\\b\\d\\.\\..\\c",                  "c:\\a\\b\\c");
-         ("c:\\a\\b\\d\\..\\.\\c",                  "c:\\a\\b\\c");
-         ("c:\\a\\b\\..\\d\\..\\b\\c",              "c:\\a\\b\\c");
-         ("c:\\a\\.\\.\\.\\b\\.\\c",                "c:\\a\\b\\c");
-         ("c:\\a\\..\\a\\.\\b\\..\\c\\..\\b\\.\\c", "c:\\a\\b\\c");
-         ("a\\..\\b",                               "b");
-         ("",                                       "");
-         (".",                                      "");
-         (".\\",                                    "");
-         ("..",                                     "..");
-         ("..\\",                                   "..");
-        ]
-      )
+      @ (List.map TestWin32.reduce
+           [("c:\\a\\b\\c",                            "c:\\a\\b\\c");
+            ("c:\\a\\b\\c\\",                          "c:\\a\\b\\c");
+            ("c:\\a\\b\\c\\d\\..",                     "c:\\a\\b\\c");
+            ("c:\\a\\b\\c\\.",                         "c:\\a\\b\\c");
+            ("c:\\a\\d\\..\\b\\c",                     "c:\\a\\b\\c");
+            ("c:\\a\\.\\b\\c",                         "c:\\a\\b\\c");
+            ("c:\\a\\b\\c\\d\\.\\..",                  "c:\\a\\b\\c");
+            ("c:\\a\\b\\c\\d\\..\\.",                  "c:\\a\\b\\c");
+            ("c:\\a\\b\\d\\.\\..\\c",                  "c:\\a\\b\\c");
+            ("c:\\a\\b\\d\\..\\.\\c",                  "c:\\a\\b\\c");
+            ("c:\\a\\b\\..\\d\\..\\b\\c",              "c:\\a\\b\\c");
+            ("c:\\a\\.\\.\\.\\b\\.\\c",                "c:\\a\\b\\c");
+            ("c:\\a\\..\\a\\.\\b\\..\\c\\..\\b\\.\\c", "c:\\a\\b\\c");
+            ("a\\..\\b",                               "b");
+            ("",                                       "");
+            (".",                                      "");
+            (".\\",                                    "");
+            ("..",                                     "..");
+            ("..\\",                                   "..")])
 
       (* Create path *)
-      @ (
-        List.map TestWin32.make_path
-        [
-         (["c:/a"; "b"; "c:/c\\d"], "c:\\a;b;c:\\c\\d");
-         ([],                       "");
-        ]
-      )
+      @ (List.map TestWin32.make_path
+           [(["c:/a"; "b"; "c:/c\\d"], "c:\\a;b;c:\\c\\d");
+            ([],                       "")])
 
       (* Convert to absolute *)
       @ (
@@ -453,9 +408,7 @@ let test_win32 =
             "..\\a",  true;
           ]
       )
-
     )
-in
 
 
 (**********************)
@@ -542,7 +495,7 @@ let test_macos =
         ]
       )
     )
-in
+
 
 (*****************)
 (* FileUtil test *)
@@ -550,530 +503,410 @@ in
 
 (* Test to be performed *)
 let test_fileutil =
-  let dirs =
-    ref SetFilename.empty
-  in
-  let files =
-    ref SetFilename.empty
-  in
-
-  let add_fn fn =
-    if Sys.is_directory fn then
-      (
-        SafeFS.dir_mark fn;
-        files := SetFilename.add (SafeFS.dir_marker fn) !files;
-        dirs := SetFilename.add fn !dirs
-      )
-    else
-      (
-        SafeFS.file_mark fn;
-        files := SetFilename.add fn !files;
-      )
-  in
-
-  let auto_ask_user fn =
-    if not (SafeFS.is_special_file fn) then
-      (
-        if Sys.file_exists fn then
-          (
-            SafeFS.assert_removable fn;
-            if Sys.is_directory fn then
-              (
-                dbug_print
-                 (fun () -> "Removing directory '"^fn^"'");
-                SafeFS.dir_unmark fn;
-                dirs := SetFilename.remove fn !dirs
-              )
-            else
-              (
-                dbug_print
-                 (fun () -> "Removing file '"^fn^"'");
-                files := SetFilename.remove fn !files
-              )
-          )
-        else
-          (
-            dbug_print
-              (fun () -> "Allow to remove not existing file '"^fn^"'");
-          );
-        true
-      )
-    else
-      (
-        dbug_print
-          (fun () -> "Skipping special file '"^fn^"'");
-        false
-      )
-  in
-
-  let dir_test =
-    let fn =
-      Filename.temp_file "fileutil-" ""
-    in
-      Sys.remove fn;
-      Unix.mkdir fn 0o700;
-      Unix.chown fn (Unix.geteuid ()) (Unix.getegid ());
-      at_exit
-        (fun () ->
-           if Sys.file_exists fn then
-             try
-               Unix.rmdir fn
-             with _ ->
-               ());
-      add_fn fn;
-      fn
-  in
-
-  let dir_otherfs =
-    pwd ()
-  in
-
-  let file_test =
-    let fn =
-      make_filename [dir_test; "essai99"]
-    in
-      touch fn;
-      at_exit
-        (fun () ->
-           try
-             if Sys.file_exists fn then
-               Sys.remove fn
-           with _ ->
-             ());
-      add_fn fn;
-      fn
-  in
-
   "FileUtil" >:::
-    [
-      "Creation of base dir" >::
-      (fun () ->
-        assert_bool "base dir" (test Is_dir dir_test);
-        assert_bool "file test" (test Is_file file_test)
-      )
-    ]
+    ["Test" >::
+     (fun test_ctxt ->
+        let tmp_dir = bracket_tmpdir test_ctxt in
+        let file_test =
+          let fn, chn = bracket_tmpfile test_ctxt in
+            output_string chn "foo";
+            close_out chn;
+            fn
+        in
+        let non_fatal_test file (stest, expr, res) =
+          non_fatal test_ctxt
+            (fun test_ctxt ->
+               assert_bool
+                 ("Test "^stest^" on "^file)
+                 (res = (test expr file)))
+        in
+          non_fatal_test file_test ("Size_not_null",   Size_not_null, true);
+          List.iter
+            (non_fatal_test tmp_dir)
+            [
+              "True",            True,            true;
+              "False",           False,           false;
+              "Is_dir",          Is_dir,          true;
+              "Not Is_dir",      (Not Is_dir),    false;
+              "Is_dev_block",    Is_dev_block,    false;
+              "Is_dev_char",     Is_dev_char,     false;
+              "Exists",          Exists,          true;
+              "Is_file",         Is_file,         false;
+              "Is_set_group_ID", Is_set_group_ID, false;
+              "Has_sticky_bit",  Has_sticky_bit,  false;
+              "Is_link",         Is_link,         false;
+              "Is_pipe",         Is_pipe,         false;
+              "Is_readable",     Is_readable,     true;
+              "Is_writeable",    Is_writeable,    true;
+              "Is_socket",       Is_socket,       false;
+              "Has_set_user_ID", Has_set_user_ID, false;
+              "Is_exec",         Is_exec,         true;
+              "Match",           Match(tmp_dir), true;
 
-    @ (
-      let test_test (stest, expr, file, res, cond) =
-        "test" >::
-        (fun () ->
-           cond ();
-           assert_bool
-             ("Test "^stest^" on "^file)
-             (res = (test expr file))
-        )
-      in
-      let all () =
-        ()
-      in
-      let not_win32 () =
-        skip_if (Sys.os_type = "Win32") "Test not available on win32"
-      in
-      List.map test_test
-      [
-       "True",            True,            dir_test,  true,  all;
-       "False",           False,           dir_test,  false, all;
-       "Is_dir",          Is_dir,          dir_test,  true,  all;
-       "Not Is_dir",      (Not Is_dir),    dir_test,  false, all;
-       "Is_dev_block",    Is_dev_block,    dir_test,  false, all;
-       "Is_dev_char",     Is_dev_char,     dir_test,  false, all;
-       "Exists",          Exists,          dir_test,  true,  all;
-       "Is_file",         Is_file,         dir_test,  false, all;
-       "Is_set_group_ID", Is_set_group_ID, dir_test,  false, all;
-       "Has_sticky_bit",  Has_sticky_bit,  dir_test,  false, all;
-       "Is_link",         Is_link,         dir_test,  false, all;
-       "Is_pipe",         Is_pipe,         dir_test,  false, all;
-       "Is_readable",     Is_readable,     dir_test,  true,  all;
-       "Is_writeable",    Is_writeable,    dir_test,  true,  all;
-       "Size_not_null",   Size_not_null,   file_test, true,  all;
-       "Is_socket",       Is_socket,       dir_test,  false, all;
-       "Has_set_user_ID", Has_set_user_ID, dir_test,  false, all;
-       "Is_exec",         Is_exec,         dir_test,  true,  all;
-       "Match",           Match(dir_test), dir_test,  true,  all;
-
-       "And of test_file * test_file", And(True, False), dir_test, false, all;
-       "Or of test_file * test_file", Or(True, False), dir_test, true, all;
-       "Is_owned_by_user_ID", Is_owned_by_user_ID, dir_test, true, not_win32;
-       "Is_owned_by_group_ID", Is_owned_by_group_ID, dir_test, true, not_win32;
-       "Is_newer_than", (Is_newer_than dir_test), dir_test, false, all;
-       "Is_older_than", (Is_older_than dir_test), dir_test, false, all;
-      ]
-    )
-
-    @ [
+              "And of test_file * test_file", And(True, False), false;
+              "Or of test_file * test_file", Or(True, False), true;
+              "Is_newer_than", (Is_newer_than tmp_dir), false;
+              "Is_older_than", (Is_older_than tmp_dir), false;
+            ];
+          if Sys.os_type <> "Win32" then begin
+            List.iter
+              (non_fatal_test tmp_dir)
+              [
+                "Is_owned_by_user_ID", Is_owned_by_user_ID, true;
+                "Is_owned_by_group_ID", Is_owned_by_group_ID, true;
+              ]
+          end);
 
     "Test with FileUtilStr.Match" >::
-    (fun () ->
-       assert_bool
-         "FileUtilStr.Match = true"
-         (FileUtilStr.test (Match ".*fileutil-") dir_test);
-       assert_bool
-         "FileUtilStr.Match = false"
-         (not (FileUtilStr.test (Match "fileutil") dir_test))
-    );
+    (fun test_ctxt ->
+       let tmp_dir = bracket_tmpdir ~prefix:"fileutil-foobar" test_ctxt in
+         assert_bool
+           "FileUtilStr.Match = true"
+           (FileUtilStr.test (Match ".*fileutil-") tmp_dir);
+         assert_bool
+           "FileUtilStr.Match = false"
+           (not (FileUtilStr.test (Match "fileutil") tmp_dir)));
 
     "Touch in not existing subdir" >::
-    (fun () ->
-      try
-        let file =
-          make_filename [dir_test; "doesntexist"; "essai0"]
-        in
-        touch file;
-        assert_failure "Touch should have failed, since directory is missing"
-      with _ ->
-        ()
-    );
+    (fun test_ctxt ->
+       let tmp_dir = bracket_tmpdir test_ctxt in
+       try
+         let file = make_filename [tmp_dir; "doesntexist"; "essai0"] in
+         touch file;
+         assert_failure
+           "Touch should have failed, since intermediate directory is missing"
+       with _ ->
+         ());
 
     "Touch in existing dir v1" >::
-    (fun () ->
-      let file =
-        make_filename [dir_test; "essai0"]
-      in
-      touch file;
-      Unix.sleep 1;
-      assert_bool "touch" (test Exists (make_filename [dir_test; "essai0"]));
-      add_fn file
+    (fun test_ctxt ->
+       let tmp_dir = bracket_tmpdir test_ctxt in
+       let file = make_filename [tmp_dir; "essai0"] in
+       touch file;
+       Unix.sleep 1;
+       assert_bool "touch" (test Exists file);
     );
 
     "Touch in existing dir with no create" >::
-    (fun () ->
-      let file = make_filename [dir_test; "essai2"]
-      in
-      touch ~create:false file;
-      assert_bool "touch" (not (test Exists file))
-    );
+    (fun test_ctxt ->
+       let tmp_dir = bracket_tmpdir test_ctxt in
+       let file = make_filename [tmp_dir; "essai2"] in
+         touch ~create:false file;
+         assert_bool "touch" (not (test Exists file)));
 
     "Touch in existing dir v2" >::
-    (fun () ->
-      let file = make_filename [dir_test; "essai1"]
-      in
-      touch file;
-      assert_bool "touch" (test Exists (make_filename [dir_test; "essai1"]));
-      add_fn file
-    );
+    (fun test_ctxt ->
+       let tmp_dir = bracket_tmpdir test_ctxt in
+       let file = make_filename [tmp_dir; "essai1"] in
+         touch file;
+         assert_bool "touch" (test Exists file));
 
     "Touch precedence" >::
-    (fun () ->
-      let time =
-        Unix.gettimeofday ()
-      in
-      let fn1 =
-        make_filename [dir_test ; "essai1"]
-      in
-      let fn2 =
-        make_filename [dir_test ; "essai0"]
-      in
-        touch ~time:(Touch_timestamp time) fn1;
-        touch ~time:(Touch_timestamp (time +. 1.0)) fn2;
-        assert_bool
-          "touch precedence 1"
-          (test
-             (Is_newer_than fn1)
-             fn2);
-        assert_bool
-          "touch precedence 2"
-          (test
-             (Is_older_than fn2)
-             fn1)
-    );
+    (fun test_ctxt ->
+       let tmp_dir = bracket_tmpdir test_ctxt in
+       let time = Unix.gettimeofday () in
+       let fn1 = make_filename [tmp_dir; "essai1"] in
+       let fn2 = make_filename [tmp_dir; "essai0"] in
+         touch ~time:(Touch_timestamp time) fn1;
+         touch ~time:(Touch_timestamp (time +. 1.0)) fn2;
+         assert_bool "touch precedence 1"
+           (test (Is_newer_than fn1) fn2);
+         assert_bool
+           "touch precedence 2"
+           (test (Is_older_than fn2) fn1));
 
     "Mkdir simple v1" >::
-    (fun () ->
-      let dir = make_filename [dir_test; "essai2"]
-      in
-      mkdir dir;
-      assert_bool "mkdir" (test Is_dir dir);
-      add_fn dir
-    );
+    (fun test_ctxt ->
+       let tmp_dir = bracket_tmpdir test_ctxt in
+       let dir = make_filename [tmp_dir; "essai2"] in
+         mkdir dir;
+         assert_bool "mkdir" (test Is_dir dir));
 
     "Mkdir simple && mode 700" >::
-    (fun () ->
-      let dir = make_filename [dir_test ; "essai3"]
-      in
-      mkdir ~mode:0o0700 dir;
-      assert_bool "mkdir" (test Is_dir dir);
-      add_fn dir
-    );
+    (fun test_ctxt ->
+       let tmp_dir = bracket_tmpdir test_ctxt in
+       let dir = make_filename [tmp_dir; "essai3"] in
+         mkdir ~mode:0o0700 dir;
+         assert_bool "mkdir" (test Is_dir dir));
 
     "Mkdir recurse v2" >::
-    (fun () ->
-      try
-        let dir = make_filename [dir_test; "essai4"; "essai5"]
-        in
-        mkdir dir;
-        assert_failure "mkdir"
-      with MkdirMissingComponentPath _ ->
-        ()
-    );
+    (fun test_ctxt ->
+       try
+         let tmp_dir = bracket_tmpdir test_ctxt in
+         let dir = make_filename [tmp_dir; "essai4"; "essai5"] in
+           mkdir dir;
+           assert_failure "mkdir"
+       with MkdirMissingComponentPath _ ->
+         ());
 
     "Mkdir && already exist v3" >::
-    (fun () ->
-      try
-        let dir = make_filename [dir_test; "essai0"]
-        in
-        mkdir dir;
-        assert_failure "mkdir"
-      with MkdirDirnameAlreadyUsed _ ->
-        ()
-    );
+    (fun test_ctxt ->
+       let tmp_dir = bracket_tmpdir test_ctxt in
+         try
+           let dir = make_filename [tmp_dir; "essai0"] in
+             touch dir;
+             mkdir dir;
+             assert_failure "mkdir"
+         with MkdirDirnameAlreadyUsed _ ->
+           ());
 
     "Mkdir recurse v4" >::
-    (fun () ->
-      let dir1 = (make_filename [dir_test; "essai4"])
-      in
-      let dir2 = (make_filename [dir1; "essai5"])
-      in
-      mkdir ~parent:true dir2;
-      assert_bool "mkdir" (test Is_dir dir2);
-      add_fn dir1;
-      add_fn dir2
-    );
+    (fun test_ctxt ->
+       let tmp_dir = bracket_tmpdir test_ctxt in
+       let dir1 = (make_filename [tmp_dir; "essai4"]) in
+       let dir2 = (make_filename [dir1; "essai5"]) in
+         mkdir ~parent:true dir2;
+         assert_bool "mkdir" (test Is_dir dir2));
 
     "Find v0" >::
-    (bracket
-       (fun () ->
-          let pwd = pwd () in
-            Sys.chdir dir_test;
-            pwd)
-       (fun pwd ->
-          let find_acc dir =
-            find True "." (fun acc x -> reduce x :: acc) []
-          in
-          let lst_dot =
-            find_acc "."
-          in
-          let lst_empty =
-            find_acc ""
-          in
-            assert_bool
-              "find '.' is empty"
-              (lst_dot <> []);
-            assert_bool
-              "find '' is empty"
-              (lst_empty <> []);
-            assert_bool
-              "find '.' <> find ''"
-              (lst_dot = lst_empty))
-       (fun pwd ->
-          Sys.chdir pwd));
+    (fun test_ctxt ->
+       let tmp_dir = bracket_tmpdir test_ctxt in
+       with_bracket_chdir test_ctxt tmp_dir
+         (fun test_ctxt ->
+            let find_acc dir =
+              find True "." (fun acc x -> reduce x :: acc) []
+            in
+            let lst_dot =
+              find_acc "."
+            in
+            let lst_empty =
+              find_acc ""
+            in
+              assert_bool "find '.' is empty" (lst_dot <> []);
+              assert_bool "find '' is empty" (lst_empty <> []);
+              assert_bool "find '.' <> find ''" (lst_dot = lst_empty)));
 
     "Find v1" >::
-    (fun () ->
-      let set =
-        find True dir_test (fun set fln -> SetFilename.add fln set)
-          SetFilename.empty
-      in
-      assert_equal_set_filename
-        (SetFilename.union !dirs !files)
-        set
-    );
+    (fun test_ctxt ->
+       let tmp_dir = bracket_tmpdir test_ctxt in
+       let sfs =
+         SafeFS.create tmp_dir
+           ["essai_dir"]
+           ["essai_file"]
+       in
+       let set =
+         find True tmp_dir (fun set fln -> SetFilename.add fln set)
+           SetFilename.empty
+       in
+         assert_equal_set_filename
+           (SetFilename.union sfs.SafeFS.dirs sfs.SafeFS.files)
+           set);
 
     "Find v2" >::
-    (fun () ->
-      let set =
-        find Is_dir dir_test (fun set fln -> SetFilename.add fln set)
-          SetFilename.empty
-      in
-      assert_equal_set_filename
-        !dirs
-        set
-    );
+    (fun test_ctxt ->
+       let tmp_dir = bracket_tmpdir test_ctxt in
+       let sfs =
+         SafeFS.create tmp_dir
+           ["essai_dir"]
+           ["essai_file"]
+       in
+       let set =
+         find Is_dir tmp_dir (fun set fln -> SetFilename.add fln set)
+           SetFilename.empty
+       in
+         assert_equal_set_filename sfs.SafeFS.dirs set);
 
     "Find v3" >::
-    (fun () ->
-      let set =
-        find Is_file dir_test (fun set fln -> SetFilename.add fln set)
-          SetFilename.empty
-      in
-      assert_equal_set_filename
-        !files
-        set
-    );
+    (fun test_ctxt ->
+       let tmp_dir = bracket_tmpdir test_ctxt in
+       let sfs =
+         SafeFS.create tmp_dir
+           ["essai_dir"]
+           ["essai_file"]
+       in
+       let set =
+         find Is_file tmp_dir (fun set fln -> SetFilename.add fln set)
+           SetFilename.empty
+       in
+         assert_equal_set_filename sfs.SafeFS.files set);
 
     "Find v4" >::
-    (fun () ->
-      let set = find Is_file (Filename.concat dir_test "") (fun set fln ->
-        SetFilename.add fln set) SetFilename.empty
+    (fun test_ctxt ->
+       let tmp_dir = bracket_tmpdir test_ctxt in
+       let sfs =
+         SafeFS.create tmp_dir
+           ["essai_dir"]
+           ["essai_file"]
+       in
+       let set =
+         find Is_file (Filename.concat tmp_dir "")
+           (fun set fln -> SetFilename.add fln set)
+           SetFilename.empty
       in
-      assert_equal_set_filename
-        !files
-        set
-    );
+         assert_equal_set_filename sfs.SafeFS.files set);
 
     "Unix specific" >:::
     (
-      let symlink = make_filename [dir_test ; "recurse"]
+      let mk_symlink test_ctxt =
+        let () =
+          skip_if (Sys.os_type <> "Unix") "Synlink only works on Unix."
+        in
+
+        let tmp_dir = bracket_tmpdir test_ctxt in
+        let symlink = make_filename [tmp_dir; "recurse"] in
+        let sfs =
+          SafeFS.create tmp_dir
+            ["essai_dir"]
+            ["essai_file"]
+        in
+          Unix.symlink current_dir symlink;
+          SafeFS.mark sfs symlink;
+          tmp_dir, symlink, sfs
       in
-      match Sys.os_type with
-        "Unix" ->
-          [
-            "Unix symlink" >::
-            (fun () ->
-              Unix.symlink current_dir symlink;
-              assert_bool "symlink is not a link" (test Is_link symlink);
-              assert_bool "symlink is not a dir" (test Is_dir symlink)
-            );
+        [
+          "Unix symlink" >::
+          (fun test_ctxt ->
+             let _, symlink, _ = mk_symlink test_ctxt in
+               assert_bool "symlink is not a link" (test Is_link symlink);
+               assert_bool "symlink is not a dir" (test Is_dir symlink));
 
-            "Find v4 (link follow)" >::
-            (fun () ->
-              try
-                find ~follow:Follow Is_dir dir_test (fun () fln -> ()) ();
-                assert_failure
-                  "find follow should have failed, since there is \
-                   recursive symlink"
-              with RecursiveLink _ ->
-                ()
-            );
+          "Find v4 (link follow)" >::
+          (fun test_ctxt ->
+             let tmp_dir, _, _ = mk_symlink test_ctxt in
+               try
+                 find ~follow:Follow Is_dir tmp_dir (fun () fln -> ()) ();
+                 assert_failure
+                   "find follow should have failed, since there is \
+                    recursive symlink"
+               with RecursiveLink _ ->
+                 ());
 
-            "Find v5 (no link follow)" >::
-            (fun () ->
-              let set =
-                find ~follow:Skip Is_dir dir_test
-                  (fun set fln -> SetFilename.add fln set)
-                  SetFilename.empty
-              in
-              assert_bool "find symlink skip fails"
-                (SetFilename.equal set !dirs)
-            );
+          "Find v5 (no link follow)" >::
+          (fun test_ctxt ->
+             let tmp_dir, fn, sfs = mk_symlink test_ctxt in
+             let set =
+               find ~follow:Skip Is_dir tmp_dir
+                 (fun set fln -> SetFilename.add fln set)
+                 SetFilename.empty
+             in
+               assert_bool "find symlink skip fails"
+                 (SetFilename.equal set sfs.SafeFS.dirs));
 
-            "Unix delete symlink" >::
-            (fun () ->
-              rm [symlink];
-              assert_bool "rm symlink failed" (test (Not Exists) symlink)
-            )
-          ]
-      | _ ->
-          []
+          "Unix delete symlink" >::
+          (fun test_ctxt ->
+             let _, symlink, _ = mk_symlink test_ctxt in
+               rm [symlink];
+                 try
+                   let _st: Unix.stats = Unix.lstat symlink in
+                     assert_failure "rm symlink failed"
+                 with Unix.Unix_error(Unix.ENOENT, _, _) ->
+                   ());
+        ]
     );
 
     "Cp v1" >::
-    (fun () ->
-      let file = make_filename [dir_test ; "essai6"]
-      in
-      cp [(make_filename [dir_test ; "essai0"])] file;
-      assert_bool "cp" (test Exists file);
-      add_fn file
-    );
+    (fun test_ctxt ->
+       let tmp_dir = bracket_tmpdir test_ctxt in
+       let file = make_filename [tmp_dir; "essai6"] in
+       let fn0 = make_filename [tmp_dir; "essai0"] in
+         touch fn0;
+         cp [fn0] file;
+         assert_bool "cp" (test Exists file));
 
     "Cp v2" >::
-    (fun () ->
-      let file = make_filename [dir_test ; "essai4"]
-      in
-      cp [(make_filename [dir_test ; "essai0"])] file;
-      assert_bool "cp" (test (Exists) file);
-      add_fn file
-    );
+    (fun test_ctxt ->
+       let tmp_dir = bracket_tmpdir test_ctxt in
+       let file = make_filename [tmp_dir; "essai4"] in
+       let fn0 = make_filename [tmp_dir; "essai0"] in
+         touch fn0;
+         cp [fn0] file;
+         assert_bool "cp" (test (Exists) file));
 
     "Cp with space" >::
-    (fun () ->
-       let dirspace = make_filename [dir_test; "essai 7"]
-       in
-       let file = make_filename [dirspace; "essai0"]
-       in
+    (fun test_ctxt ->
+       let tmp_dir = bracket_tmpdir test_ctxt in
+       let dirspace = make_filename [tmp_dir; "essai 7"] in
+       let file = make_filename [dirspace; "essai0"] in
+       let fn0 = make_filename [tmp_dir; "essai0"] in
+         touch fn0;
          mkdir dirspace;
-         cp [(make_filename [dir_test ; "essai0"])] file;
-         assert_bool "cp" (test (Exists) file);
-         add_fn dirspace;
-         add_fn file
-    );
+         cp [fn0] file;
+         assert_bool "cp" (test (Exists) file));
 
     "Mv simple" >::
-    (fun () ->
-       let file0 = make_filename [dir_test; "essai0"]
-       in
-       let file1 = make_filename [dir_test; "essai10"]
-       in
-       let file2 = make_filename [dir_test; "essai9"]
-       in
+    (fun test_ctxt ->
+       let tmp_dir = bracket_tmpdir test_ctxt in
+       let file0 = make_filename [tmp_dir; "essai0"] in
+       let file1 = make_filename [tmp_dir; "essai10"] in
+       let file2 = make_filename [tmp_dir; "essai9"] in
+         touch file0;
          cp [file0] file1;
          mv file1 file2;
          cp [file0] file1;
          mv file1 file2;
-         add_fn file2;
-         assert_bool "mv" (test Exists file2);
-    );
+         assert_bool "mv" (test Exists file2));
 
     "Mv otherfs" >::
-    (fun () ->
-       let file_test = make_filename [dir_test; "essai12"]
+    (fun test_ctxt ->
+       let tmp_dir = bracket_tmpdir test_ctxt in
+       let file_test = make_filename [tmp_dir; "essai12"] in
+       let sfs = SafeFS.create tmp_dir [] ["essai12"] in
+       let file =
+         let fn = Filename.temp_file ~temp_dir:(pwd ()) "otherfs" ".txt" in
+           Sys.remove fn;
+           bracket ignore
+             (fun () _ ->
+                rm ~force:(SafeFS.auto_ask_user sfs) [fn])
+             test_ctxt;
+           fn
        in
-       let file = make_filename [dir_otherfs; "essai11"]
-       in
-         touch file_test;
-         SafeFS.file_mark file_test;
          mv file_test file;
-         assert_bool "mv" (test Exists file);
-         rm ~force:(Ask auto_ask_user) [file]
-    );
+         SafeFS.mark sfs file;
+         assert_bool "mv" (test Exists file));
 
     "Rm simple" >::
-    (fun () ->
-      let file = (make_filename [dir_test  ; "essai0"])
-      in
-      rm ~force:(Ask auto_ask_user) [file];
-      assert_bool "rm" (test (Not Exists) file)
-    );
+    (fun test_ctxt ->
+       let tmp_dir = bracket_tmpdir test_ctxt in
+       let file = (make_filename [tmp_dir; "essai0"]) in
+       let sfs = SafeFS.create tmp_dir [] ["essai0"] in
+         rm ~force:(SafeFS.auto_ask_user sfs) [file];
+         assert_bool "rm" (test (Not Exists) file));
 
     "Rm no recurse" >::
-    (fun () ->
-      let file = (make_filename [dir_test; "essai4"])
-      in
-        try
-          rm ~force:(Ask auto_ask_user) [file];
-          assert_failure
-            ("rm should have failed because "^file^" is a directory")
-        with RmDirNoRecurse _ ->
-          (* Need to mark again essai4 *)
-          add_fn file
-    );
+    (fun test_ctxt ->
+       let tmp_dir = bracket_tmpdir test_ctxt in
+       let dir = (make_filename [tmp_dir; "essai4"]) in
+       let sfs = SafeFS.create tmp_dir ["essai4"] ["essai0"] in
+         mkdir dir;
+         try
+           rm ~force:(SafeFS.auto_ask_user sfs) [dir];
+           assert_failure
+             ("rm should have failed because "^dir^" is a directory")
+         with RmDirNoRecurse _ ->
+           ());
 
     "Rm ask duplicate" >::
-    (fun () ->
-       let dir =
-         make_filename [dir_test; "ask-duplicate"]
+    (fun test_ctxt ->
+       let tmp_dir = bracket_tmpdir test_ctxt in
+       let dir = make_filename [tmp_dir; "ask-duplicate"] in
+       let sfs =
+         SafeFS.create tmp_dir
+           ["ask-duplicate"]
+           [make_filename ["ask-duplicate"; "toto.txt"]]
        in
-       let fn =
-         make_filename [dir; "toto.txt"]
-       in
-       let set_asked =
-         ref SetFilename.empty
-       in
-       let set_duplicated =
-         ref SetFilename.empty
-       in
+       let set_asked = ref SetFilename.empty in
+       let set_duplicated = ref SetFilename.empty in
        let ask_register fn =
          if SetFilename.mem fn !set_asked then
            set_duplicated := SetFilename.add fn !set_duplicated;
          set_asked := SetFilename.add fn !set_asked;
-         auto_ask_user fn
+         match SafeFS.auto_ask_user sfs with
+           | Ask f -> f fn
+           | _ -> false
        in
-         mkdir dir;
-         touch fn;
-         add_fn dir;
-         add_fn fn;
          rm ~force:(Ask ask_register) ~recurse:true [dir];
          assert_equal
            ~msg:"duplicate file asked when removing"
            SetFilename.empty
-           !set_duplicated
-    );
-
-    "Rm final" >::
-    (fun () ->
-      rm ~force:(Ask auto_ask_user) ~recurse:true [dir_test];
-      assert_bool "rm" (test (Not Exists) dir_test)
-    );
+           !set_duplicated);
 
     "Which ocamlc" >::
-    (fun () ->
+    (fun test_ctxt ->
        try
-         let _str: string =
-           which "ocamlc"
-         in
+         let _str: string = which "ocamlc" in
            ()
        with Not_found ->
-         assert_failure "Cannot find ocamlc"
-    );
+         assert_failure "Cannot find ocamlc");
 
 
     "Size" >:::
@@ -1088,8 +921,8 @@ let test_fileutil =
           Int64.succ (Int64.mul 1024L 1024L)
         in
         let test_of_vector fuzzy (str, sz) =
-          TestCase
-            (fun () ->
+          test_case
+            (fun test_ctxt ->
                assert_equal
                  ~printer:(fun s -> s)
                  str
@@ -1098,87 +931,80 @@ let test_fileutil =
 
           [
             "exact" >:::
-            (
-              List.map
-                (test_of_vector false)
-                [
-                  "0 TB", TB 0L;
-                  "0 GB", GB 0L;
-                  "0 MB", MB 0L;
-                  "0 KB", KB 0L;
-                  "0 B",  B  0L;
-                  "1 TB", TB 1L;
-                  "1 GB", GB 1L;
-                  "1 MB", MB 1L;
-                  "1 KB", KB 1L;
-                  "1 B",  B  1L;
-                  "1025 TB",   TB i64_unit;
-                  "1 TB 1 GB", GB i64_unit;
-                  "1 GB 1 MB", MB i64_unit;
-                  "1 MB 1 KB", KB i64_unit;
-                  "1 KB 1 B",  B  i64_unit;
-                  "1024 TB 1 GB", GB i64_unit2;
-                  "1 TB 1 MB",    MB i64_unit2;
-                  "1 GB 1 KB",    KB i64_unit2;
-                  "1 MB 1 B",     B  i64_unit2;
-                  "97 MB 728 KB 349 B", B 102457693L;
-                ]
-            );
+            (List.map
+               (test_of_vector false)
+               [
+                 "0 TB", TB 0L;
+                 "0 GB", GB 0L;
+                 "0 MB", MB 0L;
+                 "0 KB", KB 0L;
+                 "0 B",  B  0L;
+                 "1 TB", TB 1L;
+                 "1 GB", GB 1L;
+                 "1 MB", MB 1L;
+                 "1 KB", KB 1L;
+                 "1 B",  B  1L;
+                 "1025 TB",   TB i64_unit;
+                 "1 TB 1 GB", GB i64_unit;
+                 "1 GB 1 MB", MB i64_unit;
+                 "1 MB 1 KB", KB i64_unit;
+                 "1 KB 1 B",  B  i64_unit;
+                 "1024 TB 1 GB", GB i64_unit2;
+                 "1 TB 1 MB",    MB i64_unit2;
+                 "1 GB 1 KB",    KB i64_unit2;
+                 "1 MB 1 B",     B  i64_unit2;
+                 "97 MB 728 KB 349 B", B 102457693L;
+               ]);
 
             "fuzzy" >:::
-            (
-              List.map
-                (test_of_vector true)
-                [
-                  "0.00 TB", TB 0L;
-                  "0.00 GB", GB 0L;
-                  "0.00 MB", MB 0L;
-                  "0.00 KB", KB 0L;
-                  "0.00 B",  B  0L;
-                  "1.00 TB", TB 1L;
-                  "1.00 GB", GB 1L;
-                  "1.00 MB", MB 1L;
-                  "1.00 KB", KB 1L;
-                  "1.00 B",  B  1L;
-                  "1025.00 TB", TB i64_unit;
-                  "1.00 TB",    GB i64_unit;
-                  "1.00 GB",    MB i64_unit;
-                  "1.00 MB",    KB i64_unit;
-                  "1.00 KB",    B  i64_unit;
-                  "1024.00 TB", GB i64_unit2;
-                  "1.00 TB",    MB i64_unit2;
-                  "1.00 GB",    KB i64_unit2;
-                  "1.00 MB",    B  i64_unit2;
-                  "97.71 MB", B 102457693L;
-                ]
-            );
-          ]
-      );
+            (List.map
+               (test_of_vector true)
+               [
+                 "0.00 TB", TB 0L;
+                 "0.00 GB", GB 0L;
+                 "0.00 MB", MB 0L;
+                 "0.00 KB", KB 0L;
+                 "0.00 B",  B  0L;
+                 "1.00 TB", TB 1L;
+                 "1.00 GB", GB 1L;
+                 "1.00 MB", MB 1L;
+                 "1.00 KB", KB 1L;
+                 "1.00 B",  B  1L;
+                 "1025.00 TB", TB i64_unit;
+                 "1.00 TB",    GB i64_unit;
+                 "1.00 GB",    MB i64_unit;
+                 "1.00 MB",    KB i64_unit;
+                 "1.00 KB",    B  i64_unit;
+                 "1024.00 TB", GB i64_unit2;
+                 "1.00 TB",    MB i64_unit2;
+                 "1.00 GB",    KB i64_unit2;
+                 "1.00 MB",    B  i64_unit2;
+                 "97.71 MB", B 102457693L;
+               ]);
+          ]);
 
       "size_add" >:::
-      (
-        let test_of_vector (str, szs) =
-          TestCase
-            (fun () ->
-               assert_equal
-                 ~printer:(fun s -> s)
-                 str
-                 (string_of_size
-                    (List.fold_left size_add (B 0L) szs)))
-        in
-          List.map
-            test_of_vector
-            [
-              "1 TB 10 MB 12 KB", [TB 1L; KB 12L; MB 10L];
-              "2 MB 976 KB",      [KB 2000L; MB 1L]
-            ]
-      );
+      (let test_of_vector (str, szs) =
+         test_case
+           (fun test_ctxt ->
+              assert_equal
+                ~printer:(fun s -> s)
+                str
+                (string_of_size
+                   (List.fold_left size_add (B 0L) szs)))
+       in
+         List.map
+           test_of_vector
+           [
+             "1 TB 10 MB 12 KB", [TB 1L; KB 12L; MB 10L];
+             "2 MB 976 KB",      [KB 2000L; MB 1L]
+           ]);
 
       "size_compare" >:::
       (
         let test_of_vector (sz1, sz2, res) =
-          TestCase
-            (fun () ->
+          test_case
+            (fun test_ctxt ->
                let cmp =
                  size_compare sz1 sz2
                in
@@ -1193,8 +1019,7 @@ let test_fileutil =
                  assert_equal
                    ~printer:string_of_int
                    (norm res)
-                   cmp
-            )
+                   cmp)
         in
           List.map
             test_of_vector
@@ -1209,25 +1034,21 @@ let test_fileutil =
               MB 1L,  B 1L, 1;
               KB 1L,  B 1L, 1;
                B 2L,  B 1L, 1;
-            ]
-      );
+            ]);
     ];
   ]
-in
 
 
-let tests =
-  "ocaml-fileutils" >:::
-  [
-    "FilePath" >:::
-    [
-      test_unix;
-      test_win32;
-      test_macos;
-    ];
+let () =
+  run_test_tt_main
+    ("ocaml-fileutils" >:::
+     [
+       "FilePath" >:::
+       [
+         test_unix;
+         test_win32;
+         test_macos;
+       ];
 
-    test_fileutil;
-  ]
-in
-  ignore (run_test_tt_main tests)
-
+       test_fileutil;
+     ])

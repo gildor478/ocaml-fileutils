@@ -52,7 +52,7 @@ Executable BenchFind
 Executable test
   Path: test
   MainIs: test.ml
-  BuildDepends: fileutils, fileutils.str, oUnit
+  BuildDepends: fileutils, fileutils.str, oUnit (>= 2.0.0)
   Build$: flag(tests)
   Install: false
 
