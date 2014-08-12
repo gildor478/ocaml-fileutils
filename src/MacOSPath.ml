@@ -25,8 +25,7 @@ include CommonPath
 
 
 let rec dir_writer lst =
- let buffer = Buffer.create path_length
- in
+ let buffer = Buffer.create path_length in
  let rec dir_writer_aux lst =
    match lst with
        Root s :: tl ->

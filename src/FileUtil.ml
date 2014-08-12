@@ -142,13 +142,15 @@ type test_file =
   | Size_bigger_than of size     (** FILE has a size greater than given size *)
   | Size_smaller_than of size    (** FILE has a size smaller than given size *)
   | Size_equal_to of size        (** FILE has the same size as given size *)
-  | Size_fuzzy_equal_to of size  (** FILE has approximatively the same size as given size *)
+  | Size_fuzzy_equal_to of size  (** FILE has approximatively the same size as
+                                     given size *)
   | Is_socket                    (** FILE is a socket *)
   | Has_set_user_ID              (** FILE its set-user-ID bit is set *)
   | Is_exec                      (** FILE is executable *)
   | Is_owned_by_user_ID          (** FILE is owned by the effective user ID *)
   | Is_owned_by_group_ID         (** FILE is owned by the effective group ID *)
-  | Is_newer_than of filename    (** FILE1 is newer (modification date) than FILE2 *)
+  | Is_newer_than of filename    (** FILE1 is newer (modification date) than
+                                     FILE2 *)
   | Is_older_than of filename    (** FILE1 is older than FILE2 *)
   | Is_newer_than_date of float  (** FILE is newer than given date *)
   | Is_older_than_date of float  (** FILE is older than given date *)
@@ -268,31 +270,26 @@ let size_compare ?(fuzzy=false) sz1 sz2 =
   let by2 =
     byte_of_size sz2
   in
-    if fuzzy then
-      (
-        let rec fuzzy_comp n1 n2 =
-          if n1 = n2 then
-            0
-          else
-            (
-              let up_unit_n1 =
-                Int64.div n1 1024L
-              in
-              let up_unit_n2 =
-                Int64.div n2 1024L
-              in
-                if up_unit_n1 <> 0L && up_unit_n2 <> 0L then
-                  fuzzy_comp up_unit_n1 up_unit_n2
-                else
-                  Int64.compare n1 n2
-            )
-        in
-          fuzzy_comp by1 by2
-      )
-    else
-      (
-        Int64.compare by1 by2
-      )
+    if fuzzy then begin
+      let rec fuzzy_comp n1 n2 =
+        if n1 = n2 then
+          0
+        else begin
+          let up_unit_n1 =
+            Int64.div n1 1024L
+          in
+          let up_unit_n2 =
+            Int64.div n2 1024L
+          in
+            if up_unit_n1 <> 0L && up_unit_n2 <> 0L then
+              fuzzy_comp up_unit_n1 up_unit_n2
+            else
+              Int64.compare n1 n2
+        end
+      in
+        fuzzy_comp by1 by2
+    end else
+      Int64.compare by1 by2
 
 
 (** Convert a value to a string representation. If fuzzy is set to true, only
@@ -308,20 +305,17 @@ let string_of_size ?(fuzzy=false) sz =
 
   let rec decomp_continue fup i unt acc =
     if i = 0L then
-      (
-        szstr i unt acc
-      )
-    else
-      (
-        (** Continue with upper unit *)
-        let r =
-          Int64.rem i 1024L
-        in
-        let q =
-          Int64.div i 1024L
-        in
-          decomp_start (szstr r unt acc) (fup q)
-      )
+      szstr i unt acc
+    else begin
+      (** Continue with upper unit *)
+      let r =
+        Int64.rem i 1024L
+      in
+      let q =
+        Int64.div i 1024L
+      in
+        decomp_start (szstr r unt acc) (fup q)
+    end
 
   and decomp_start acc sz =
     (* Decompose size for current unit and try
@@ -356,31 +350,28 @@ let string_of_size ?(fuzzy=false) sz =
     only_significant_unit (decomp_start (0L, "B", []) sz)
   in
 
-    if fuzzy then
-      (
-        let _, rem =
-          List.fold_left
-            (fun (div, acc) (i, _unt) ->
-               let acc =
-                 acc +. ((Int64.to_float i) /. div)
-               in
-                 div *. 1024.0,
-                 acc)
-            (1024.0, 0.0)
-            rem_lst
-        in
-          Printf.sprintf "%.2f %s"
-            ((Int64.to_float main_i) +. rem)
-            main_unt
-      )
-    else
-      (
-        String.concat
-          " "
-          (List.map
-             (fun (i, unt) -> Printf.sprintf "%Ld %s" i unt)
-             ((main_i, main_unt) :: rem_lst))
-      )
+    if fuzzy then begin
+      let _, rem =
+        List.fold_left
+          (fun (div, acc) (i, _unt) ->
+             let acc =
+               acc +. ((Int64.to_float i) /. div)
+             in
+               div *. 1024.0,
+               acc)
+          (1024.0, 0.0)
+          rem_lst
+      in
+        Printf.sprintf "%.2f %s"
+          ((Int64.to_float main_i) +. rem)
+          main_unt
+    end else begin
+      String.concat
+        " "
+        (List.map
+           (fun (i, unt) -> Printf.sprintf "%Ld %s" i unt)
+           ((main_i, main_unt) :: rem_lst))
+    end
 
 
 (** {2 Operations on files and directories} *)
@@ -410,7 +401,7 @@ let solve_dirname dirname =
   if is_current dirname then
     current_dir
   else
-    (reduce dirname)
+    reduce dirname
 
 
 (**/**)
@@ -542,8 +533,7 @@ let compile_filter
       | Is_newer_than(f1) ->
           begin
             try
-              let st1 = stat f1
-              in
+              let st1 = stat f1 in
               wrapper (fun st2 -> st1.modification_time < st2.modification_time)
             with FileDoesntExist _ ->
               fun x -> false
@@ -551,8 +541,7 @@ let compile_filter
       | Is_older_than(f1) ->
           begin
             try
-              let st1 = stat f1
-              in
+              let st1 = stat f1 in
               wrapper (fun st2 -> st1.modification_time > st2.modification_time)
             with FileDoesntExist _ ->
               fun x -> false
@@ -596,8 +585,7 @@ let compile_filter
           begin
             fun t ->
               try
-                let _ = chop_extension (fn t)
-                in
+                let _ = chop_extension (fn t) in
                   false
               with FilePath.NoExtension _ ->
                 true
@@ -629,8 +617,7 @@ let compile_filter
 
 let all_upper_dir fln =
   let rec all_upper_dir_aux lst fln =
-    let dir = dirname fln
-    in
+    let dir = dirname fln in
     match lst with
       prev_dir :: tl when prev_dir = dir ->
       lst
@@ -760,17 +747,15 @@ let which ?(path) fln =
 
               List.fold_left
                 (fun found dirname ->
-                   if found = None then
-                     (
-                       try
-                         let ext =
-                           List.find (ctst dirname) real_ext
-                         in
-                           Some (to_filename dirname ext)
-                       with Not_found ->
-                         None
-                     )
-                   else
+                   if found = None then begin
+                     try
+                       let ext =
+                         List.find (ctst dirname) real_ext
+                       in
+                         Some (to_filename dirname ext)
+                     with Not_found ->
+                       None
+                   end else
                      found)
                 None
                 real_path
@@ -803,9 +788,7 @@ let which ?(path) fln =
 let mkdir ?(parent=false) ?(mode=0o0755) fln =
   let mkdir_simple fln =
     if test Exists fln then
-      if test Is_dir fln then
-        ()
-      else
+      if not (test Is_dir fln) then
         raise (MkdirDirnameAlreadyUsed fln)
     else
       try
@@ -856,16 +839,11 @@ let touch
   in
     (* Create file if required *)
     if test Exists fln then
-      (
-        set_time ()
-      )
-    else if create then
-      (
-        close_out (open_out fln);
-        set_time ()
-      )
-    else
-      ()
+      set_time ()
+    else if create then begin
+      close_out (open_out fln);
+      set_time ()
+    end
 
 
 (** [find ~follow:fol tst fln exec accu] Descend the directory tree starting
@@ -901,7 +879,7 @@ let find ?(follow = Skip) ?match_compile tst fln exec user_acc =
           true
       | AskFollow f ->
           if not already_followed then
-            (f fln)
+            f fln
           else
             true
       | Follow ->
@@ -913,53 +891,38 @@ let find ?(follow = Skip) ?match_compile tst fln exec user_acc =
 
   let rec find_aux acc fln =
     try
-      (
-        let st =
-          stat fln
-        in
-          if st.kind = Dir then
-            (
-              if st.is_link then
-                (
-                  let user_acc, dir_links =
-                    acc
-                  in
-                  let cur_link =
-                     readlink fln
-                  in
-                  let dir_links, already_followed =
-                    try
-                      (prevent_recursion dir_links cur_link), false
-                    with RecursiveLink _ ->
-                      dir_links, true
-                  in
-                  let acc =
-                    user_acc, dir_links
-                  in
-                    if should_skip fln already_followed then
-                      (
-                        skip_action fln;
-                        acc
-                      )
-                    else
-                      (
-                        find_in_dir
-                          (process_file acc st fln)
-                          fln
-                      )
-                )
-              else
-                (
-                  find_in_dir
-                    (process_file acc st fln)
-                    fln
-                )
-            )
-          else
-            (
-              process_file acc st fln
-            )
-      )
+      let st = stat fln in
+        if st.kind = Dir then begin
+          if st.is_link then begin
+            let user_acc, dir_links =
+              acc
+            in
+            let cur_link =
+               readlink fln
+            in
+            let dir_links, already_followed =
+              try
+                (prevent_recursion dir_links cur_link), false
+              with RecursiveLink _ ->
+                dir_links, true
+            in
+            let acc =
+              user_acc, dir_links
+            in
+              if should_skip fln already_followed then begin
+                skip_action fln;
+                acc
+              end else
+                find_in_dir
+                  (process_file acc st fln)
+                  fln
+          end else begin
+            find_in_dir
+              (process_file acc st fln)
+              fln
+          end
+        end else
+          process_file acc st fln
     with FileDoesntExist _ ->
       acc
 
@@ -1000,26 +963,16 @@ let rm ?(force=Force) ?(recurse=false) fln_lst =
   let rec rm_aux lst =
     List.iter
       (fun fn ->
-         if test Exists fn && (doit force fn) then
-           (
-             if test_dir fn then
-               (
-                 if recurse then
-                   (
-                     rm_aux (ls fn);
-                     rmdir fn
-                   )
-                 else
-                   (
-                     raise (RmDirNoRecurse fn)
-                   )
-               )
-             else
-               (
-                 Unix.unlink fn
-               )
-           )
-      )
+         if test Exists fn && (doit force fn) then begin
+           if test_dir fn then begin
+             if recurse then begin
+               rm_aux (ls fn);
+               rmdir fn
+             end else
+               raise (RmDirNoRecurse fn)
+           end else
+             Unix.unlink fn
+         end)
       lst
   in
 
@@ -1031,24 +984,18 @@ let rm ?(force=Force) ?(recurse=false) fln_lst =
 let cp ?(follow=Skip) ?(force=Force) ?(recurse=false) fln_src_lst fln_dst =
   let cpfile fln_src fln_dst =
     let cpfile () =
-      let buffer_len = 1024
-      in
-      let buffer = String.make buffer_len ' '
-      in
-      let read_len = ref 0
-      in
-      let ch_in = open_in_bin fln_src
-      in
-      let ch_out = open_out_bin fln_dst
-      in
+      let buffer_len = 1024 in
+      let buffer = String.make buffer_len ' ' in
+      let read_len = ref 0 in
+      let ch_in = open_in_bin fln_src in
+      let ch_out = open_out_bin fln_dst in
       while (read_len := input ch_in buffer 0 buffer_len; !read_len <> 0) do
         output ch_out buffer 0 !read_len
       done;
       close_in ch_in;
       close_out ch_out
     in
-    let st = stat fln_src
-    in
+    let st = stat fln_src in
     match st.kind with
       File ->
        cpfile ()
@@ -1058,12 +1005,10 @@ let cp ?(follow=Skip) ?(force=Force) ?(recurse=false) fln_src_lst fln_dst =
       raise (CpCannotCopy fln_src)
   in
   let cpfull dir_src dir_dst fln =
-    find (And(Custom(doit force), Is_dir)) fln (
-      fun () fln_src -> cpfile fln_src (reparent dir_src dir_dst fln_src)
-     ) ();
-    find (And(Custom(doit force), Not(Is_dir))) fln (
-      fun () fln_src -> cpfile fln_src (reparent dir_src dir_dst fln_src)
-     ) ()
+    find (And(Custom(doit force), Is_dir)) fln
+      (fun () fln_src -> cpfile fln_src (reparent dir_src dir_dst fln_src)) ();
+    find (And(Custom(doit force), Not(Is_dir))) fln
+      (fun () fln_src -> cpfile fln_src (reparent dir_src dir_dst fln_src)) ()
   in
   (* Test sur l'existence des fichiers source et création des noms de fichiers
      absolu
@@ -1085,57 +1030,40 @@ let cp ?(follow=Skip) ?(force=Force) ?(recurse=false) fln_src_lst fln_dst =
   in
   if test Is_dir real_fln_dst then
     List.iter (fun x -> cpfull (dirname x) real_fln_dst x) real_fln_src_lst
-  else
-    (
-      if (List.length real_fln_src_lst) = 1 then
-        let real_fln_src = List.nth real_fln_src_lst 0
-        in
-        cpfull real_fln_src real_fln_dst real_fln_src
-        (* Off course, reparent will replace the common prefix
-        * of 3rd arg and 1st arg by 2nd arg, which give
-        * fln_src -> fln_dst *)
-      else
-        raise (CpCannotCopyFilesToFile (real_fln_src_lst, real_fln_dst))
-   )
+  else if (List.length real_fln_src_lst) = 1 then begin
+    let real_fln_src = List.nth real_fln_src_lst 0 in
+      cpfull real_fln_src real_fln_dst real_fln_src
+      (* Off course, reparent will replace the common prefix
+       * of 3rd arg and 1st arg by 2nd arg, which give
+       * fln_src -> fln_dst *)
+  end else
+    raise (CpCannotCopyFilesToFile (real_fln_src_lst, real_fln_dst))
 
 
 (** Move files/directories to another destination
   *)
 let rec mv ?(force=Force) fln_src fln_dst =
-  let fln_src_abs =  make_absolute (pwd ()) fln_src
-  in
-  let fln_dst_abs =  make_absolute (pwd ()) fln_dst
-  in
-  if compare fln_src_abs fln_dst_abs <> 0 then
-    (
-      if test Exists fln_dst_abs && doit force fln_dst then
-        (
-          rm [fln_dst_abs];
-          mv fln_src_abs fln_dst_abs
-        )
-      else if test Is_dir fln_dst_abs then
-        (
-          mv ~force
-            fln_src_abs
-            (make_absolute
-               fln_dst_abs
-               (basename fln_src_abs))
-        )
-      else if test Exists fln_src_abs then
-        (
-          try
-            Sys.rename fln_src_abs fln_dst_abs
-          with Sys_error _ ->
-            (
-              cp ~force ~recurse:true [fln_src_abs] fln_dst_abs;
-              rm ~force ~recurse:true [fln_src_abs]
-            )
-        )
-      else
-        (
-          raise MvNoSourceFile
-        )
-    )
+  let fln_src_abs =  make_absolute (pwd ()) fln_src in
+  let fln_dst_abs =  make_absolute (pwd ()) fln_dst in
+  if compare fln_src_abs fln_dst_abs <> 0 then begin
+    if test Exists fln_dst_abs && doit force fln_dst then begin
+        rm [fln_dst_abs];
+        mv fln_src_abs fln_dst_abs
+    end else if test Is_dir fln_dst_abs then begin
+      mv ~force
+        fln_src_abs
+        (make_absolute
+           fln_dst_abs
+           (basename fln_src_abs))
+    end else if test Exists fln_src_abs then begin
+      try
+        Sys.rename fln_src_abs fln_dst_abs
+      with Sys_error _ ->
+        cp ~force ~recurse:true [fln_src_abs] fln_dst_abs;
+        rm ~force ~recurse:true [fln_src_abs]
+    end else
+      raise MvNoSourceFile
+  end
 
 
 (** [cmp skip1 fln1 skip2 fln2] Compare files [fln1] and [fln2] starting at pos
@@ -1147,7 +1075,7 @@ let cmp ?(skip1 = 0) fln1 ?(skip2 = 0) fln2 =
   if (reduce fln1) = (reduce fln2) then
     None
   else if (test (And(Is_readable, Is_file)) fln1)
-      && (test (And(Is_readable, Is_file)) fln2) then
+      && (test (And(Is_readable, Is_file)) fln2) then begin
     let fd1 = open_in_bin fln1 in
     let fd2 = open_in_bin fln2 in
     let clean_fd () =
@@ -1192,8 +1120,8 @@ let cmp ?(skip1 = 0) fln1 ?(skip2 = 0) fln2 =
       | e ->
           clean_fd ();
           raise e
-  else
-    (Some (-1))
+  end else
+    Some (-1)
 
 
 (** [du fln_lst] Return the amount of space of all the file
@@ -1202,14 +1130,14 @@ let cmp ?(skip1 = 0) fln1 ?(skip2 = 0) fln2 =
   *)
 let du fln_lst =
   let du_aux (sz, lst) fln =
-    let st = stat fln
-    in
-    (size_add sz st.size, (fln, st.size) :: lst)
+    let st = stat fln in
+      (size_add sz st.size, (fln, st.size) :: lst)
   in
-  List.fold_left
-  (fun (accu: size * (filename * size) list) fln -> find True fln du_aux accu)
-  (B 0L, [])
-  fln_lst
+    List.fold_left
+      (fun (accu: size * (filename * size) list) fln ->
+         find True fln du_aux accu)
+      (B 0L, [])
+    fln_lst
 
 
 (** For future release:

@@ -53,25 +53,21 @@ let dir_reader fn =
       | str -> Component str
   in
 
-    if (String.length fn) > 0 then
-      (
-        if fn.[0] = sep then
-          StringExt.split
-            ~start_acc:[Root ""]
-            ~start_pos:1
-            ~map:fn_part_of_string
-            sep
-            fn
-        else
-          StringExt.split
-            ~map:fn_part_of_string
-            sep
-            fn
-      )
-    else
-      (
-        [CurrentDir Short]
-      )
+    if (String.length fn) > 0 then begin
+      if fn.[0] = sep then
+        StringExt.split
+          ~start_acc:[Root ""]
+          ~start_pos:1
+          ~map:fn_part_of_string
+          sep
+          fn
+      else
+        StringExt.split
+          ~map:fn_part_of_string
+          sep
+          fn
+    end else
+      [CurrentDir Short]
 
 
 let path_writer lst =

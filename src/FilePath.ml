@@ -476,7 +476,7 @@ struct
          not (OsOperation.fast_is_relative bfn) then
         raise (NoExtension path)
       else
-        (f bfn)
+        f bfn
 
   let chop_extension path =
     try
