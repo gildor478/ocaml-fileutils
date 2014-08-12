@@ -819,7 +819,7 @@ let test_fileutil =
        let fn0 = make_filename [tmp_dir; "essai0"] in
          touch fn0;
          cp [fn0] file;
-         assert_bool "cp" (test (Exists) file));
+         assert_bool "cp" (test Exists file));
 
     "Cp with space" >::
     (fun test_ctxt ->
@@ -830,7 +830,17 @@ let test_fileutil =
          touch fn0;
          mkdir dirspace;
          cp [fn0] file;
-         assert_bool "cp" (test (Exists) file));
+         assert_bool "cp" (test Exists file));
+
+    "Cp dir to dir" >::
+    (fun test_ctxt ->
+       let tmp_dir = bracket_tmpdir test_ctxt in
+       let dir1 = make_filename [tmp_dir; "dir1"] in
+       let dir2 = make_filename [tmp_dir; "dir2"] in
+         mkdir dir1;
+         touch (make_filename [dir1; "file.txt"]);
+         cp ~recurse:true [dir1] dir2;
+         assert_bool "cp" (test Exists (make_filename [dir2; "file.txt"])));
 
     "Mv simple" >::
     (fun test_ctxt ->
