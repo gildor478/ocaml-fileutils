@@ -787,15 +787,16 @@ let which ?(path) fln =
   *)
 let mkdir ?(parent=false) ?(mode=0o0755) fln =
   let mkdir_simple fln =
-    if test Exists fln then
-      if not (test Is_dir fln) then
+    if test Exists fln then begin
+      if test (Not Is_dir) fln then
         raise (MkdirDirnameAlreadyUsed fln)
-    else
+    end else begin
       try
         Unix.mkdir fln mode
       with Unix.Unix_error(Unix.ENOENT, _, _)
         | Unix.Unix_error(Unix.ENOTDIR, _, _) ->
         raise (MkdirMissingComponentPath fln)
+    end
   in
   let directories =
     if parent then
