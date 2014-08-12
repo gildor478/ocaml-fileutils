@@ -791,6 +791,15 @@ let test_fileutil =
                      assert_failure "rm symlink failed"
                  with Unix.Unix_error(Unix.ENOENT, _, _) ->
                    ());
+
+          "Dead symlink" >::
+          (fun test_ctxt ->
+             let tmp_dir = bracket_tmpdir test_ctxt in
+             let dir = make_filename [tmp_dir; "dir"] in
+             let symlink = make_filename [dir; "dead"] in
+               mkdir dir;
+               Unix.symlink "non_existing.txt" symlink;
+               rm ~recurse:true [dir]);
         ]
     );
 

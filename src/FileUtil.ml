@@ -964,7 +964,14 @@ let rm ?(force=Force) ?(recurse=false) fln_lst =
   let rec rm_aux lst =
     List.iter
       (fun fn ->
-         if test Exists fn && (doit force fn) then begin
+         let exists =
+           try
+             let _st: Unix.stats = Unix.lstat fn in
+               true
+           with Unix.Unix_error(Unix.ENOENT, _, _) ->
+             false
+         in
+         if exists && (doit force fn) then begin
            if test_dir fn then begin
              if recurse then begin
                rm_aux (ls fn);
