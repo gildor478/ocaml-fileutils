@@ -583,7 +583,6 @@ let test_fileutil =
        let tmp_dir = bracket_tmpdir test_ctxt in
        let file = make_filename [tmp_dir; "essai0"] in
        touch file;
-       Unix.sleep 1;
        assert_bool "touch" (test Exists file);
     );
 
@@ -741,7 +740,6 @@ let test_fileutil =
         let () =
           skip_if (Sys.os_type <> "Unix") "Synlink only works on Unix."
         in
-
         let tmp_dir = bracket_tmpdir test_ctxt in
         let symlink = make_filename [tmp_dir; "recurse"] in
         let sfs =
@@ -752,6 +750,17 @@ let test_fileutil =
           Unix.symlink current_dir symlink;
           SafeFS.mark sfs symlink;
           tmp_dir, symlink, sfs
+      in
+      let mk_deadlink test_ctxt =
+        let () =
+          skip_if (Sys.os_type <> "Unix") "Synlink only works on Unix."
+        in
+        let tmp_dir = bracket_tmpdir test_ctxt in
+        let dir = make_filename [tmp_dir; "dir1"] in
+        let symlink = make_filename [dir; "dead"] in
+          mkdir dir;
+          Unix.symlink "non_existing.txt" symlink;
+          tmp_dir, symlink, dir
       in
         [
           "Unix symlink" >::
@@ -780,7 +789,8 @@ let test_fileutil =
                  SetFilename.empty
              in
                assert_bool "find symlink skip fails"
-                 (SetFilename.equal set sfs.SafeFS.dirs));
+                 (SetFilename.equal set
+                    (SetFilename.add fn sfs.SafeFS.dirs)));
 
           "Unix delete symlink" >::
           (fun test_ctxt ->
@@ -791,15 +801,41 @@ let test_fileutil =
                      assert_failure "rm symlink failed"
                  with Unix.Unix_error(Unix.ENOENT, _, _) ->
                    ());
-
-          "Dead symlink" >::
+          "Dead link + stat" >::
           (fun test_ctxt ->
-             let tmp_dir = bracket_tmpdir test_ctxt in
-             let dir = make_filename [tmp_dir; "dir"] in
-             let symlink = make_filename [dir; "dead"] in
-               mkdir dir;
-               Unix.symlink "non_existing.txt" symlink;
+             let tmp_dir, symlink, _ = mk_deadlink test_ctxt in
+             let st = stat symlink in
+               assert_bool "is marked as a link" st.is_link;
+               assert_equal ~msg:"is a link" Symlink st.kind;
+               assert_raises
+                 ~msg:"cannot dereference"
+                 (FileDoesntExist symlink)
+                 (fun () -> stat ~dereference:true symlink));
+
+          "Dead link + test" >::
+          (fun test_ctxt ->
+             let tmp_dir, symlink, _ = mk_deadlink test_ctxt in
+               assert_bool "dead link exists"
+                 (test Is_link symlink));
+
+          "Dead symlink + rm" >::
+          (fun test_ctxt ->
+             let tmp_dir, symlink, dir = mk_deadlink test_ctxt in
                rm ~recurse:true [dir]);
+
+          "Dead symlink + cp" >::
+          (fun test_ctxt ->
+             let tmp_dir, symlink, dir1 = mk_deadlink test_ctxt in
+             let dir2 = make_filename [tmp_dir; "dir2"] in
+               cp ~recurse:true [dir1] dir2;
+               try
+                 (* test Is_link *)
+                 let _st: Unix.stats =
+                   Unix.lstat (make_filename [dir2; "dead"])
+                 in
+                   ()
+               with Unix.Unix_error(Unix.ENOENT, _, _) ->
+                 assert_failure "dead link not copied.");
         ]
     );
 

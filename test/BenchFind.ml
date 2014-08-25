@@ -26,7 +26,8 @@ let () =
   in
   let sys_find () =
     let _i: int =
-      Sys.command ("find "^(Filename.quote dir)^" -name '*.mp3' | wc -l")
+      Sys.command ("find "^(Filename.quote dir)^" -name '*.mp3' \
+                     | (echo -n 'Count: '; wc -l)")
     in
       ()
   in
@@ -38,18 +39,18 @@ let () =
         (fun i _ -> i + 1)
         0
     in
-      Printf.eprintf "%d\n%!" count
+      Printf.eprintf "Count: %d\n%!" count
   in
   let time str f =
     let start_time =
       Unix.gettimeofday ()
     in
     let time =
-      prerr_string str; flush stderr;
+      prerr_endline str;
       f ();
       (Unix.gettimeofday ()) -. start_time
     in
-      Printf.eprintf "%.2fs\n%!" time;
+      Printf.eprintf "Time: %.2fs\n%!" time;
       time
   in
   let () =

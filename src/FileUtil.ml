@@ -84,6 +84,7 @@ type kind =
   | Dev_block
   | Fifo
   | Socket
+  | Symlink (** @since 0.4.6 *)
 
 
 (** Base permission. This is the permission corresponding to one user or group.
@@ -390,6 +391,7 @@ let doit force fln =
 
 
 let prevent_recursion fln_set fln =
+  (* TODO: use a set of dev/inode *)
   if SetFilename.mem fln fln_set then
     raise (RecursiveLink fln)
   else
@@ -407,16 +409,31 @@ let solve_dirname dirname =
 (**/**)
 
 (** [stat fln] Return information about the file (like Unix.stat)
+    Non POSIX command.
   *)
-let stat (fln: filename) =
+let stat ?(dereference=false) (fln: filename) =
+  let kind_of_stat ustat =
+    match ustat.Unix.LargeFile.st_kind with
+      | Unix.S_REG -> File
+      | Unix.S_DIR -> Dir
+      | Unix.S_CHR -> Dev_char
+      | Unix.S_BLK -> Dev_block
+      | Unix.S_FIFO -> Fifo
+      | Unix.S_SOCK -> Socket
+      | Unix.S_LNK -> Symlink
+  in
   try
+    let ustat = Unix.LargeFile.lstat fln in
+    let is_link = (kind_of_stat ustat = Symlink) in
     let ustat =
-      Unix.LargeFile.lstat fln
+      if is_link && dereference then
+        Unix.LargeFile.stat fln
+      else
+        ustat
     in
-    let stat_of_kind knd =
       {
-        kind              = knd;
-        is_link           = false;
+        kind              = kind_of_stat ustat;
+        is_link           = is_link;
         permission        = permission_of_int ustat.Unix.LargeFile.st_perm;
         size              = B ustat.Unix.LargeFile.st_size;
         owner             = ustat.Unix.LargeFile.st_uid;
@@ -425,194 +442,191 @@ let stat (fln: filename) =
         modification_time = ustat.Unix.LargeFile.st_mtime;
         creation_time     = ustat.Unix.LargeFile.st_ctime;
       }
-    in
-      match ustat.Unix.LargeFile.st_kind with
-        | Unix.S_REG ->
-            stat_of_kind File
-        | Unix.S_DIR ->
-            stat_of_kind Dir
-        | Unix.S_CHR ->
-            stat_of_kind Dev_char
-        | Unix.S_BLK ->
-            stat_of_kind Dev_block
-        | Unix.S_FIFO ->
-            stat_of_kind Fifo
-        | Unix.S_SOCK ->
-            stat_of_kind Socket
-        | Unix.S_LNK ->
-            (
-              let stat_of_kind knd =
-                {(stat_of_kind knd) with is_link = true}
-              in
-                match (Unix.stat fln).Unix.st_kind with
-                  | Unix.S_REG ->
-                      stat_of_kind File
-                  | Unix.S_DIR ->
-                      stat_of_kind Dir
-                  | Unix.S_CHR ->
-                      stat_of_kind Dev_char
-                  | Unix.S_BLK ->
-                      stat_of_kind Dev_block
-                  | Unix.S_FIFO ->
-                      stat_of_kind Fifo
-                  | Unix.S_SOCK ->
-                      stat_of_kind Socket
-                  | Unix.S_LNK ->
-                      failwith
-                        (Printf.sprintf
-                           "Unix.stat of file '%s' return a link"
-                           fln)
-            )
-  with Unix.Unix_error(_) ->
+  with Unix.Unix_error(Unix.ENOENT, _, _) ->
     raise (FileDoesntExist fln)
 
 
 (**/**)
-let compile_filter
-      ?(match_compile=(fun s fn -> s = fn))
-      flt =
 
-  let fn (fn, _) =
-    fn
+
+let compile_filter ?(match_compile=(fun s fn -> s = fn)) flt =
+  let cflt =
+    let rec cc =
+      function
+        | True                   -> `Val true
+        | False                  -> `Val false
+        | Is_dev_block           -> `Stat (`Kind Dev_block)
+        | Is_dev_char            -> `Stat (`Kind Dev_char)
+        | Is_dir                 -> `Stat (`Kind Dir)
+        | Is_file                -> `Stat (`Kind File)
+        | Is_socket              -> `Stat (`Kind Socket)
+        | Is_pipe                -> `Stat (`Kind Fifo)
+        | Is_link                -> `Is_link
+        | Is_set_group_ID        -> `Stat `Is_set_group_ID
+        | Has_sticky_bit         -> `Stat `Has_sticky_bit
+        | Has_set_user_ID        -> `Stat `Has_set_user_ID
+        | Is_readable            -> `Stat `Is_readable
+        | Is_writeable           -> `Stat `Is_writeable
+        | Is_exec                -> `Stat `Is_exec
+        | Size_not_null          -> `Stat (`Size (`Bigger, B 0L))
+        | Size_bigger_than sz    -> `Stat (`Size (`Bigger, sz))
+        | Size_smaller_than sz   -> `Stat (`Size (`Smaller, sz))
+        | Size_equal_to sz       -> `Stat (`Size (`Equal, sz))
+        | Size_fuzzy_equal_to sz -> `Stat (`Size (`FuzzyEqual, sz))
+        | Is_owned_by_user_ID ->
+            `Stat (`Is_owned_by_user_ID (Unix.geteuid ()))
+        | Is_owned_by_group_ID ->
+            `Stat (`Is_owned_by_group_ID (Unix.getegid ()))
+        | Exists                 -> `Stat `Exists
+        | Is_newer_than fn1      -> `Stat (`Newer (stat fn1).modification_time)
+        | Is_older_than fn1      -> `Stat (`Older (stat fn1).modification_time)
+        | Is_newer_than_date(dt) -> `Stat (`Newer dt)
+        | Is_older_than_date(dt) -> `Stat (`Older dt)
+        | Has_extension ext      -> `Has_extension ext
+        | Has_no_extension       -> `Has_no_extension
+        | Is_current_dir         -> `Is_current_dir
+        | Is_parent_dir          -> `Is_parent_dir
+        | Basename_is s          -> `Basename_is s
+        | Dirname_is s           -> `Dirname_is s
+        | Custom f               -> `Custom f
+        | Match str              -> `Custom (match_compile str)
+        | And(flt1, flt2) ->
+            begin
+              match cc flt1, cc flt2 with
+                | `Val true, cflt | cflt, `Val true -> cflt
+                | `Val false, cflt | cflt,  `Val false -> `Val false
+                | cflt1, cflt2 -> `And (cflt1, cflt2)
+            end
+        | Or(flt1, flt2) ->
+            begin
+              match cc flt1, cc flt2 with
+                | `Val true, _ | _, `Val true -> `Val true
+                | `Val false, cflt | cflt,  `Val false -> cflt
+                | cflt1, cflt2 -> `Or (cflt1, cflt2)
+            end
+        | Not flt ->
+            begin
+              match cc flt with
+                | `Val b -> `Val (not b)
+                | cflt -> `Not cflt
+            end
+    in
+      cc flt
   in
-
-  let wrapper f (_, st) =
-    try
-      f (Lazy.force st)
-    with FileDoesntExist _ ->
-      false
+  let need_statL, need_stat =
+    let rec dfs =
+      function
+        | `Val _ | `Has_extension _ | `Has_no_extension | `Is_current_dir
+        | `Is_parent_dir | `Basename_is _ | `Dirname_is _
+        | `Custom _ ->
+            false, false
+        | `Stat _ ->
+            true, false
+        | `Is_link ->
+            false, true
+        | `And (cflt1, cflt2) | `Or (cflt1, cflt2) ->
+            let need_stat1, need_statL1 = dfs cflt1 in
+            let need_stat2, need_statL2 = dfs cflt2 in
+              need_stat1 || need_stat2, need_statL1 || need_statL2
+        | `Not cflt ->
+            dfs cflt
+    in
+      dfs cflt
   in
-
-  let rec compile_filter_aux =
-    function
-      | True -> (fun _ -> true)
-      | False -> (fun _ -> false)
-      | Is_dev_block    -> wrapper (fun st -> st.kind = Dev_block)
-      | Is_dev_char     -> wrapper (fun st -> st.kind = Dev_char)
-      | Is_dir          -> wrapper (fun st -> st.kind = Dir)
-      | Is_file         -> wrapper (fun st -> st.kind = File)
-      | Is_socket       -> wrapper (fun st -> st.kind = Socket)
-      | Is_pipe         -> wrapper (fun st -> st.kind = Fifo)
-      | Is_link         -> wrapper (fun st -> st.is_link)
-      | Exists          -> wrapper (fun st -> true)
-      | Is_set_group_ID -> wrapper (fun st -> st.permission.group.sticky)
-      | Has_sticky_bit  -> wrapper (fun st -> st.permission.other.sticky)
-      | Has_set_user_ID -> wrapper (fun st -> st.permission.user.sticky)
-      | Is_readable ->
-          wrapper
-            (fun st ->
-               st.permission.user.read  ||
-               st.permission.group.read ||
-               st.permission.other.read)
-      | Is_writeable ->
-          wrapper
-            (fun st ->
-               st.permission.user.write  ||
-               st.permission.group.write ||
-               st.permission.other.write)
-      | Is_exec ->
-          wrapper
-            (fun st ->
-               st.permission.user.exec  ||
-               st.permission.group.exec ||
-               st.permission.other.exec)
-      | Size_not_null ->
-          wrapper (fun st -> (size_compare st.size (B 0L)) > 0)
-      | Size_bigger_than sz ->
-          wrapper (fun st -> (size_compare st.size sz) > 0)
-      | Size_smaller_than sz ->
-          wrapper (fun st -> (size_compare st.size sz) < 0)
-      | Size_equal_to sz ->
-          wrapper (fun st -> (size_compare st.size sz) = 0)
-      | Size_fuzzy_equal_to sz ->
-          wrapper (fun st -> (size_compare ~fuzzy:true st.size sz) = 0)
-      | Is_owned_by_user_ID  ->
-          wrapper (fun st -> Unix.geteuid () = st.owner)
-      | Is_owned_by_group_ID ->
-          wrapper (fun st -> Unix.getegid () = st.group_owner)
-      | Is_newer_than(f1) ->
-          begin
-            try
-              let st1 = stat f1 in
-              wrapper (fun st2 -> st1.modification_time < st2.modification_time)
-            with FileDoesntExist _ ->
-              fun x -> false
-          end
-      | Is_older_than(f1) ->
-          begin
-            try
-              let st1 = stat f1 in
-              wrapper (fun st2 -> st1.modification_time > st2.modification_time)
-            with FileDoesntExist _ ->
-              fun x -> false
-          end
-      | Is_newer_than_date(dt) ->
-          wrapper (fun st -> st.modification_time > dt)
-      | Is_older_than_date(dt) ->
-          wrapper (fun st -> st.modification_time < dt)
-      | And(flt1, flt2) ->
-          let cflt1 =
-            compile_filter_aux flt1
-          in
-          let cflt2 =
-            compile_filter_aux flt2
-          in
-            fun t -> (cflt1 t) && (cflt2 t)
-      | Or(flt1, flt2) ->
-          let cflt1 =
-            compile_filter_aux flt1
-          in
-          let cflt2 =
-            compile_filter_aux flt2
-          in
-            fun t -> (cflt1 t) || (cflt2 t)
-      | Not(flt1) ->
-          let cflt1 =
-            compile_filter_aux flt1
-          in
-            fun t -> not (cflt1 t)
-      | Match(str) ->
-          fun t -> match_compile str (fn t)
-      | Has_extension(ext) ->
-          begin
-            fun t ->
-              try
-                check_extension (fn t) ext
-              with FilePath.NoExtension _ ->
-                false
-          end
-      | Has_no_extension ->
-          begin
-            fun t ->
-              try
-                let _ = chop_extension (fn t) in
+    (* Compiled function to return. *)
+    fun ?st_opt ?stL_opt fn ->
+      let st_opt =
+        if need_stat && st_opt = None then begin
+          try
+            match stL_opt with
+              | Some st when not st.is_link -> stL_opt
+              | _ -> Some (stat fn)
+          with FileDoesntExist _ ->
+            None
+        end else
+          st_opt
+      in
+      let stL_opt =
+        if need_statL && stL_opt = None then begin
+          try
+            match st_opt with
+              | Some st when not st.is_link -> st_opt
+              | _ -> Some (stat ~dereference:true fn)
+          with FileDoesntExist _ ->
+            None
+        end else
+          stL_opt
+      in
+      let rec eval =
+        function
+          | `Val b -> b
+          | `Has_extension ext ->
+              begin
+                try
+                  check_extension fn ext
+                with FilePath.NoExtension _ ->
                   false
-              with FilePath.NoExtension _ ->
-                true
-          end
-      | Is_current_dir ->
-          fun t -> is_current (basename (fn t))
-      | Is_parent_dir ->
-          fun t -> is_parent (basename (fn t))
-      | Basename_is s ->
-          fun t -> (basename (fn t)) = s
-      | Dirname_is s ->
-          fun t -> (dirname (fn t)) = s
-      | Custom f ->
-          fun t -> f (fn t)
-    in
-    let res_filter =
-      compile_filter_aux flt
-    in
-      fun ?pre_stat fn ->
-        let lazy_stat =
-          match pre_stat with
-            | Some st ->
-                Lazy.lazy_from_val st
-            | None ->
-                lazy (stat fn)
-        in
-          res_filter (fn, lazy_stat)
+              end
+          | `Has_no_extension ->
+              begin
+                try
+                  let _str: filename = chop_extension fn in
+                    false
+                with FilePath.NoExtension _ ->
+                  true
+              end
+          | `Is_current_dir -> is_current (basename fn)
+          | `Is_parent_dir -> is_parent (basename fn)
+          | `Basename_is bn -> (FilePath.compare (basename fn) bn) = 0
+          | `Dirname_is dn -> (FilePath.compare (dirname fn) dn) = 0
+          | `Custom f -> f fn
+          | `Stat e ->
+              begin
+                match stL_opt, e with
+                  | Some stL, `Exists -> true
+                  | Some stL, `Kind knd -> stL.kind = knd
+                  | Some stL, `Is_set_group_ID -> stL.permission.group.sticky
+                  | Some stL, `Has_sticky_bit -> stL.permission.other.sticky
+                  | Some stL, `Has_set_user_ID -> stL.permission.user.sticky
+                  | Some stL, `Size (cmp, sz) ->
+                      begin
+                        let diff = size_compare stL.size sz in
+                          match cmp with
+                            | `Bigger -> diff > 0
+                            | `Smaller -> diff < 0
+                            | `Equal -> diff = 0
+                            | `FuzzyEqual ->
+                                (size_compare ~fuzzy:true stL.size sz) = 0
+                      end
+                  | Some stL, `Is_owned_by_user_ID uid -> uid = stL.owner
+                  | Some stL, `Is_owned_by_group_ID gid -> gid = stL.group_owner
+                  | Some stL, `Is_readable ->
+                      let perm = stL.permission in
+                        perm.user.read || perm.group.read || perm.other.read
+                  | Some stL, `Is_writeable ->
+                      let perm = stL.permission in
+                        perm.user.write || perm.group.write || perm.other.write
+                  | Some stL, `Is_exec ->
+                      let perm = stL.permission in
+                        perm.user.exec || perm.group.exec || perm.other.exec
+                  | Some stL, `Newer dt -> stL.modification_time > dt
+                  | Some stL, `Older dt -> stL.modification_time < dt
+                  | None, _ -> false
+              end
+          | `Is_link ->
+              begin
+                match st_opt with
+                  | Some st -> st.is_link
+                  | None -> false
+              end
+          | `And (cflt1, cflt2) ->
+              (eval cflt1) && (eval cflt2)
+          | `Or (cflt1, cflt2) ->
+              (eval cflt1) || (eval cflt2)
+          | `Not cflt ->
+              not (eval cflt)
+      in
+        eval cflt
 
 
 let all_upper_dir fln =
@@ -629,7 +643,9 @@ let all_upper_dir fln =
 
 (**/**)
 
-(** Test a file *)
+(** Test a file.
+    See {{:http://pubs.opengroup.org/onlinepubs/007904875/utilities/test.html#tag_04_140}POSIX documentation}.
+  *)
 let test ?match_compile tst =
   let ctst =
     compile_filter ?match_compile tst
@@ -644,23 +660,13 @@ let pwd () =
 
 (** Resolve to the real filename removing symlink *)
 let readlink fln =
-  let ctst =
-    compile_filter Is_link
-  in
+  let ctst = compile_filter Is_link in
   let rec readlink_aux already_read fln =
-    let newly_read =
-      prevent_recursion already_read fln
-    in
-    let dirs =
-      all_upper_dir fln
-    in
+    let newly_read = prevent_recursion already_read fln in
+    let dirs = all_upper_dir fln in
       try
-        let src_link =
-          List.find ctst (List.rev dirs)
-        in
-        let dst_link =
-          Unix.readlink src_link
-        in
+        let src_link = List.find ctst (List.rev dirs) in
+        let dst_link = Unix.readlink src_link in
         let real_link =
           if is_relative dst_link then
             reduce (concat (dirname src_link) dst_link)
@@ -677,15 +683,8 @@ let readlink fln =
 (** List the content of a directory
   *)
 let ls dirname =
-  let real_dirname =
-    solve_dirname dirname
-  in
-  let array_dir =
-    Sys.readdir real_dirname
-  in
-  let list_dir =
-    Array.to_list array_dir
-  in
+  let array_dir = Sys.readdir (solve_dirname dirname) in
+  let list_dir = Array.to_list array_dir in
     List.map
       (fun x -> concat dirname x)
       list_dir
@@ -855,29 +854,17 @@ let touch
   *)
 let find ?(follow = Skip) ?match_compile tst fln exec user_acc =
 
-  let user_test =
-    compile_filter ?match_compile tst
-  in
-
-  let process_file ((user_acc, already_read) as acc) st fln =
-    if user_test ~pre_stat:st fln then
-      (exec user_acc fln), already_read
-    else
-      acc
-  in
+  let user_test = compile_filter ?match_compile tst in
 
   let skip_action =
     match follow with
-      | Skip | AskFollow _ | Follow ->
-          ignore
-      | SkipInform f ->
-          f
+      | Skip | AskFollow _ | Follow -> ignore
+      | SkipInform f -> f
   in
 
   let should_skip fln already_followed =
     match follow with
-      | Skip | SkipInform _ ->
-          true
+      | Skip | SkipInform _ -> true
       | AskFollow f ->
           if not already_followed then
             f fln
@@ -890,44 +877,45 @@ let find ?(follow = Skip) ?match_compile tst fln exec user_acc =
             false
   in
 
-  let rec find_aux acc fln =
-    try
-      let st = stat fln in
-        if st.kind = Dir then begin
-          if st.is_link then begin
-            let user_acc, dir_links =
-              acc
-            in
-            let cur_link =
-               readlink fln
-            in
-            let dir_links, already_followed =
-              try
-                (prevent_recursion dir_links cur_link), false
-              with RecursiveLink _ ->
-                dir_links, true
-            in
-            let acc =
-              user_acc, dir_links
-            in
-              if should_skip fln already_followed then begin
-                skip_action fln;
-                acc
-              end else
-                find_in_dir
-                  (process_file acc st fln)
-                  fln
-          end else begin
-            find_in_dir
-              (process_file acc st fln)
-              fln
-          end
-        end else
-          process_file acc st fln
-    with FileDoesntExist _ ->
-      acc
+  let already_read = ref SetFilename.empty in
 
-  and find_in_dir acc drn =
+  let rec find_aux acc fln =
+    let st_opt =
+      try
+        Some (stat fln)
+      with FileDoesntExist _ ->
+        None
+    in
+    let stL_opt =
+      match st_opt with
+        | Some st when st.is_link ->
+            begin
+              try
+                Some (stat ~dereference:true fln)
+              with FileDoesntExist _ ->
+                None
+            end
+        | _ ->
+            st_opt
+    in
+    let acc =
+      if user_test ?st_opt ?stL_opt fln then
+        exec acc fln
+      else
+        acc
+    in
+      match st_opt with
+        | Some st ->
+            if st.kind = Symlink then begin
+              follow_symlink stL_opt acc fln
+            end else if st.kind = Dir then begin
+              enter_dir acc fln
+            end else begin
+              acc
+            end
+        | None -> acc
+
+  and enter_dir acc drn =
     Array.fold_left
       (fun acc rfln ->
          if is_parent rfln || is_current rfln then
@@ -936,14 +924,28 @@ let find ?(follow = Skip) ?match_compile tst fln exec user_acc =
            find_aux acc (concat drn rfln))
       acc
       (Sys.readdir drn)
-  in
 
-  let user_acc, _ =
-    find_aux
-      (user_acc, SetFilename.empty)
-      (reduce fln)
+  and follow_symlink stL_opt acc fln =
+      match stL_opt with
+        | Some stL when stL.kind = Dir ->
+            let cur_link = readlink fln in
+            let already_followed =
+              try
+                already_read := prevent_recursion !already_read cur_link;
+                false
+              with RecursiveLink _ ->
+                true
+            in
+              if should_skip fln already_followed then begin
+                skip_action fln;
+                acc
+              end else begin
+                enter_dir acc fln
+              end
+        | _ ->
+            acc
   in
-    user_acc
+    find_aux user_acc (reduce fln)
 
 
 (** Remove the filename provided. Turn recurse to true in order to
@@ -1004,13 +1006,18 @@ let cp ?(follow=Skip) ?(force=Force) ?(recurse=false) fln_src_lst fln_dst =
       close_out ch_out
     in
     let st = stat fln_src in
-    match st.kind with
-      File ->
-       cpfile ()
-    | Dir ->
-      mkdir fln_dst
-    | Fifo | Dev_char | Dev_block | Socket ->
-      raise (CpCannotCopy fln_src)
+    let () =
+      match st.kind with
+        File ->
+          cpfile ()
+      | Dir ->
+          mkdir fln_dst
+      | Symlink ->
+          Unix.symlink (Unix.readlink fln_src) fln_dst
+      | Fifo | Dev_char | Dev_block | Socket ->
+        raise (CpCannotCopy fln_src)
+    in
+      ()
   in
   let cpfull dir_src dir_dst fln =
     find (And(Custom(doit force), Is_dir)) fln

@@ -48,6 +48,7 @@ Executable BenchFind
   BuildDepends: fileutils
   Build$: flag(tests)
   Install: false
+  CompiledObject: best
 
 Executable test
   Path: test
