@@ -20,6 +20,27 @@
 (******************************************************************************)
 
 
+(* What should be the fastest possible function in OCaml. *)
+let rec simple fn =
+  let st = Unix.lstat fn in
+    match st.Unix.st_kind with
+      | Unix.S_DIR ->
+          begin
+            let fd = Unix.opendir fn in
+              try
+                while true do
+                  let bn = Unix.readdir fd in
+                    if bn <> "." && bn <> ".." then
+                      simple (Filename.concat fn bn)
+                done
+              with End_of_file ->
+                Unix.closedir fd
+          end
+      | Unix.S_LNK ->
+          ()
+      | _ ->
+          ()
+
 let () =
   let dir =
     "/home/gildor"
@@ -62,6 +83,9 @@ let () =
   in
   let time_fileutils =
     time "FileUtil find" fileutils_find
+  in
+  let _time_simple =
+    time "Simple" (fun () -> simple dir)
   in
     Printf.eprintf "Performance: %.2f%%\n%!"
       (100.0 *. (time_ref /. time_fileutils))
