@@ -878,6 +878,31 @@ let test_fileutil =
          cp ~recurse:true [dir1] dir2;
          assert_bool "cp" (test Exists (make_filename [dir2; "file.txt"])));
 
+    "Cp preserve" >::
+    (fun test_ctxt ->
+       let tmp_dir = bracket_tmpdir test_ctxt in
+       let dir1 = make_filename [tmp_dir; "dir1"] in
+       let fn1 = make_filename [dir1; "fn1.txt"] in
+       let dir2 = make_filename [tmp_dir; "dir2"] in
+       let fn2 = make_filename [dir2; "fn1.txt"] in
+       let assert_equal_time ?msg exp got =
+         assert_equal ?msg ~printer:string_of_float exp got
+       in
+         mkdir dir1;
+         touch ~time:(Touch_timestamp 1.0) ~mtime:true fn1;
+         touch ~time:(Touch_timestamp 2.0) ~atime:true fn1;
+         touch ~time:(Touch_timestamp 3.0) ~mtime:true dir1;
+         touch ~time:(Touch_timestamp 4.0) ~atime:true dir1;
+         assert_equal_time ~msg:"fn1 mtime"  1.0 (stat fn1).modification_time;
+         assert_equal_time ~msg:"fn1 atime"  2.0 (stat fn1).access_time;
+         assert_equal_time ~msg:"dir1 mtime" 3.0 (stat dir1).modification_time;
+         assert_equal_time ~msg:"dir1 atime" 4.0 (stat dir1).access_time;
+         cp ~recurse:true ~preserve:true [dir1] dir2;
+         assert_equal_time ~msg:"fn2 mtime"  1.0 (stat fn2).modification_time;
+         assert_equal_time ~msg:"fn2 atime"  2.0 (stat fn2).access_time;
+         assert_equal_time ~msg:"dir2 mtime" 3.0 (stat dir2).modification_time;
+         assert_equal_time ~msg:"dir2 atime" 4.0 (stat dir2).access_time);
+
     "Mv simple" >::
     (fun test_ctxt ->
        let tmp_dir = bracket_tmpdir test_ctxt in

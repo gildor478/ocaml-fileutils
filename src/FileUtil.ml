@@ -644,7 +644,7 @@ let all_upper_dir fln =
 (**/**)
 
 (** Test a file.
-    See {{:http://pubs.opengroup.org/onlinepubs/007904875/utilities/test.html#tag_04_140}POSIX documentation}.
+    See {{:http://pubs.opengroup.org/onlinepubs/007904875/utilities/test.html}POSIX documentation}.
   *)
 let test ?match_compile tst =
   let ctst =
@@ -653,12 +653,16 @@ let test ?match_compile tst =
     fun fln -> ctst (solve_dirname fln)
 
 
-(** Return the currend dir *)
+(** Return the currend dir
+    See {{:http://pubs.opengroup.org/onlinepubs/007904875/utilities/pwd.html}POSIX documentation}.
+  *)
 let pwd () =
   reduce (Sys.getcwd ())
 
 
-(** Resolve to the real filename removing symlink *)
+(** Resolve to the real filename removing symlink
+    Non POSIX command.
+  *)
 let readlink fln =
   let ctst = compile_filter Is_link in
   let rec readlink_aux already_read fln =
@@ -681,6 +685,7 @@ let readlink fln =
 
 
 (** List the content of a directory
+    See {{:http://pubs.opengroup.org/onlinepubs/007904875/utilities/ls.html}POSIX documentation}.
   *)
 let ls dirname =
   let array_dir = Sys.readdir (solve_dirname dirname) in
@@ -698,6 +703,7 @@ let filter flt lst =
 
 (** Try to find the executable in the PATH. Use environement variable
     PATH if none is provided
+    Non POSIX command.
   *)
 let which ?(path) fln =
   let real_path =
@@ -783,6 +789,7 @@ let which ?(path) fln =
 (** Create the directory which name is provided. Turn parent to true
     if you also want to create every topdir of the path. Use mode to
     provide some specific right (default 755).
+    See {{:http://pubs.opengroup.org/onlinepubs/007904875/utilities/mkdir.html}POSIX documentation}.
   *)
 let mkdir ?(parent=false) ?(mode=0o0755) fln =
   let mkdir_simple fln =
@@ -807,40 +814,50 @@ let mkdir ?(parent=false) ?(mode=0o0755) fln =
 
 
 (** Modify the timestamp of the given filename.
-    @param atime  modify access time, default true
-    @param mtime  modify modification time, default true
+    See {{:http://pubs.opengroup.org/onlinepubs/007904875/utilities/touch.html}POSIX documentation}.
+    If atime and mtime are not specified, they are both considered true. If only
+    atime or mtime is sepcified, the other is false.
+    @param atime  modify access time.
+    @param mtime  modify modification time.
     @param create if file doesn't exist, create it, default true
     @param time   what time to set, default Touch_now
   *)
-let touch
-      ?(atime=true)
-      ?(mtime=true)
-      ?(create=true)
-      ?(time=Touch_now)
-      fln =
+let touch ?atime ?mtime ?(create=true) ?(time=Touch_now) fln =
+
+  let atime, mtime =
+    match atime, mtime with
+      | None, None -> true, true
+      | Some b, None -> b, false
+      | None, Some b -> false, b
+      | Some b1, Some b2 -> b1, b2
+  in
 
   let set_time () =
-    let ftime =
+    let fatime, fmtime =
       match time with
         | Touch_now ->
-            Unix.gettimeofday ()
+            0.0, 0.0
         | Touch_timestamp time_ref ->
-            time_ref
+            time_ref, time_ref
         | Touch_file_time fln_ref ->
-            (Unix.stat fln_ref).Unix.st_mtime
+            let st = stat fln_ref in
+              st.access_time, st.modification_time
     in
-    let cur_stat =
-      Unix.stat fln
+    let fatime, fmtime =
+      if not (atime && mtime) then begin
+        let st = stat fln in
+          (if atime then fatime else st.access_time),
+          (if mtime then fmtime else st.modification_time)
+      end else begin
+        fatime, fmtime
+      end
     in
-      Unix.utimes
-        fln
-        (if atime then ftime else cur_stat.Unix.st_atime)
-        (if mtime then ftime else cur_stat.Unix.st_mtime)
+      Unix.utimes fln fatime fmtime
   in
     (* Create file if required *)
-    if test Exists fln then
+    if test Exists fln then begin
       set_time ()
-    else if create then begin
+    end else if create then begin
       close_out (open_out fln);
       set_time ()
     end
@@ -851,6 +868,7 @@ let touch
     [current_dir] and [parent_dir]. For every file found, the action [exec] is
     done, using the [accu] to start. For a simple file listing, you can use
     [find True "." (fun x y -> y :: x) []]
+    See {{:http://pubs.opengroup.org/onlinepubs/007904875/utilities/find.html}POSIX documentation}.
   *)
 let find ?(follow = Skip) ?match_compile tst fln exec user_acc =
 
@@ -950,6 +968,7 @@ let find ?(follow = Skip) ?match_compile tst fln exec user_acc =
 
 (** Remove the filename provided. Turn recurse to true in order to
     completely delete a directory
+    See {{:http://pubs.opengroup.org/onlinepubs/007904875/utilities/rm.html}POSIX documentation}.
   *)
 let rm ?(force=Force) ?(recurse=false) fln_lst =
   let test_dir =
@@ -990,9 +1009,25 @@ let rm ?(force=Force) ?(recurse=false) fln_lst =
 
 
 (** Copy the hierarchy of files/directory to another destination
+    See {{:http://pubs.opengroup.org/onlinepubs/007904875/utilities/cp.html}POSIX documentation}.
   *)
-let cp ?(follow=Skip) ?(force=Force) ?(recurse=false) fln_src_lst fln_dst =
-  let cpfile fln_src fln_dst =
+let cp ?(follow=Skip)
+       ?(force=Force)
+       ?(recurse=false)
+       ?(preserve=false)
+       fln_src_lst fln_dst =
+  let copy_props ?(time=true) fln_src atime fln_dst =
+    if preserve then begin
+      (* TODO: chmod/chown. *)
+      if time then begin
+        touch ~time:(Touch_file_time fln_src) ~create:false fln_dst;
+        touch ~time:(Touch_timestamp atime) ~atime:true ~create:false fln_dst;
+      end;
+      ()
+    end
+  in
+  let post_props = Stack.create () in
+  let cp_one fln_src fln_dst =
     let cpfile () =
       let buffer_len = 1024 in
       let buffer = String.make buffer_len ' ' in
@@ -1003,27 +1038,46 @@ let cp ?(follow=Skip) ?(force=Force) ?(recurse=false) fln_src_lst fln_dst =
         output ch_out buffer 0 !read_len
       done;
       close_in ch_in;
-      close_out ch_out
+      close_out ch_out;
     in
     let st = stat fln_src in
     let () =
       match st.kind with
         File ->
-          cpfile ()
+          cpfile ();
+          copy_props fln_src st.access_time fln_dst
       | Dir ->
+          Stack.push (fln_src, st.access_time, fln_dst) post_props;
           mkdir fln_dst
       | Symlink ->
-          Unix.symlink (Unix.readlink fln_src) fln_dst
+          Unix.symlink (Unix.readlink fln_src) fln_dst;
+          (* Changing time for symlink is actually not available with Unix
+           * module, because we need lutimes syscall.
+           *)
+          copy_props ~time:false fln_src st.access_time fln_dst
       | Fifo | Dev_char | Dev_block | Socket ->
-        raise (CpCannotCopy fln_src)
+          raise (CpCannotCopy fln_src)
     in
       ()
   in
   let cpfull dir_src dir_dst fln =
+    (* TODO: use a visit_fs_tree function with enter_dir/leave_dir function. *)
+
+    (* Copy directory structure. *)
     find (And(Custom(doit force), Is_dir)) fln
-      (fun () fln_src -> cpfile fln_src (reparent dir_src dir_dst fln_src)) ();
+      (fun () fln_src -> cp_one fln_src (reparent dir_src dir_dst fln_src)) ();
+
+    (* Copy files. *)
     find (And(Custom(doit force), Not(Is_dir))) fln
-      (fun () fln_src -> cpfile fln_src (reparent dir_src dir_dst fln_src)) ()
+      (fun () fln_src -> cp_one fln_src (reparent dir_src dir_dst fln_src)) ();
+
+    (* Propage directories properties, esp. useful for copying read-only
+     * directories that contain files.
+     *)
+    while not (Stack.is_empty post_props) do
+      let fln_src, atime, fln_dst = Stack.pop post_props in
+        copy_props fln_src atime fln_dst
+    done
   in
   (* Test sur l'existence des fichiers source et création des noms de fichiers
      absolu
@@ -1056,6 +1110,7 @@ let cp ?(follow=Skip) ?(force=Force) ?(recurse=false) fln_src_lst fln_dst =
 
 
 (** Move files/directories to another destination
+    See {{:http://pubs.opengroup.org/onlinepubs/007904875/utilities/mv.html}POSIX documentation}.
   *)
 let rec mv ?(force=Force) fln_src fln_dst =
   let fln_src_abs =  make_absolute (pwd ()) fln_src in
@@ -1085,6 +1140,7 @@ let rec mv ?(force=Force) fln_src fln_dst =
     [skip1] [skip2] and returning the first octect where a difference occurs.
     Returns [Some -1] if one of the file is not readable or if it is not a
     file.
+    See {{:http://pubs.opengroup.org/onlinepubs/007904875/utilities/cmp.html}POSIX documentation}.
   *)
 let cmp ?(skip1 = 0) fln1 ?(skip2 = 0) fln2 =
   if (reduce fln1) = (reduce fln2) then
@@ -1141,7 +1197,8 @@ let cmp ?(skip1 = 0) fln1 ?(skip2 = 0) fln2 =
 
 (** [du fln_lst] Return the amount of space of all the file
     which are subdir of fln_lst. Also return details for each
-    file scanned
+    file scanned.
+    See {{:http://pubs.opengroup.org/onlinepubs/007904875/utilities/du.html}POSIX documentation}.
   *)
 let du fln_lst =
   let du_aux (sz, lst) fln =
