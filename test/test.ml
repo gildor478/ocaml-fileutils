@@ -839,6 +839,79 @@ let test_fileutil =
         ]
     );
 
+    "Chmod" >::
+    (fun test_ctxt ->
+       let fn, chn = bracket_tmpfile test_ctxt in
+       let () = close_out chn in
+
+       let assert_perm fn exp =
+          assert_equal
+            ~msg:(Printf.sprintf "permission of '%s'" fn)
+            ~printer:(Printf.sprintf "0o%04o")
+            exp (int_of_permission (stat fn).permission)
+       in
+
+       let iter_chmod =
+         List.iter
+           (fun (ini, mode, exp) ->
+              Unix.chmod fn ini;
+              chmod mode [fn];
+              assert_perm fn exp)
+       in
+
+       let () =
+         if Sys.os_type = "Unix" then begin
+           iter_chmod
+             [
+               0o0000, `Symbolic [`User (`Add `Exec)],     0o0100;
+               0o0100, `Symbolic [`User (`Remove `Exec)],  0o0000;
+               0o0000, `Symbolic [`Group (`Add `Exec)],    0o0010;
+               0o0010, `Symbolic [`Group (`Remove `Exec)], 0o0000;
+               0o0000, `Symbolic [`Other (`Add `Exec)],    0o0001;
+               0o0001, `Symbolic [`Other (`Remove `Exec)], 0o0000;
+               0o0000, `Symbolic [`All (`Add `Exec)],      0o0111;
+               0o0111, `Symbolic [`All (`Remove `Exec)],   0o0000;
+               0o0000, `Symbolic [`User (`Add `ExecX)],    0o0000;
+               0o0010, `Symbolic [`User (`Add `ExecX)],    0o0110;
+               0o0001, `Symbolic [`User (`Add `ExecX)],    0o0101;
+             ]
+         end;
+         iter_chmod
+           [
+               0o0200, `Symbolic [`User (`Add `Write)],     0o0200;
+               0o0000, `Symbolic [`User (`Add `Write)],     0o0200;
+               0o0200, `Symbolic [`User (`Remove `Write)],  0o0000;
+               0o0000, `Symbolic [`Group (`Add `Write)],    0o0020;
+               0o0020, `Symbolic [`Group (`Remove `Write)], 0o0000;
+               0o0000, `Symbolic [`Other (`Add `Write)],    0o0002;
+               0o0002, `Symbolic [`Other (`Remove `Write)], 0o0000;
+               0o0000, `Symbolic [`All (`Add `Write)],      0o0222;
+               0o0222, `Symbolic [`All (`Remove `Write)],   0o0000;
+               0o0000, `Symbolic [`User (`Add `Read)],      0o0400;
+               0o0400, `Symbolic [`User (`Remove `Read)],   0o0000;
+               0o0000, `Symbolic [`Group (`Add `Read)],     0o0040;
+               0o0040, `Symbolic [`Group (`Remove `Read)],  0o0000;
+               0o0000, `Symbolic [`Other (`Add `Read)],     0o0004;
+               0o0004, `Symbolic [`Other (`Remove `Read)],  0o0000;
+               0o0000, `Symbolic [`All (`Add `Read)],       0o0444;
+               0o0444, `Symbolic [`All (`Remove `Read)],    0o0000;
+               0o0000, `Octal 0o644,                        0o0644;
+               0o0100,
+               (* u=r,g=u,u+w *)
+               `Symbolic [`User (`Set `Read);
+                          `Group (`Set `User);
+                          `User (`Add `Write)],
+               0o640;
+           ]
+       in
+       let tmp_dir = bracket_tmpdir test_ctxt in
+       let fn =  make_filename [tmp_dir; "essai6"] in
+         touch fn;
+         Unix.chmod fn 0o0000;
+         chmod ~recurse:true (`Symbolic [`User (`Add `Read)]) [tmp_dir];
+         assert_perm fn 0o0400);
+
+
     "Cp v1" >::
     (fun test_ctxt ->
        let tmp_dir = bracket_tmpdir test_ctxt in
