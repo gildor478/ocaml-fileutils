@@ -48,6 +48,13 @@ let assert_equal_set_filename ?msg st_ref st =
     (DiffSetFilename.of_list (SetFilename.elements st_ref))
     (DiffSetFilename.of_list (SetFilename.elements st))
 
+
+let assert_perm fn exp =
+  assert_equal
+    ~msg:(Printf.sprintf "permission of '%s'" fn)
+    ~printer:(Printf.sprintf "0o%04o")
+    exp (Unix.lstat fn).Unix.st_perm
+
 (** Ensure that we are dealing with generated file (and not random
     file on the filesystem).
   *)
@@ -844,13 +851,6 @@ let test_fileutil =
        let fn, chn = bracket_tmpfile test_ctxt in
        let () = close_out chn in
 
-       let assert_perm fn exp =
-          assert_equal
-            ~msg:(Printf.sprintf "permission of '%s'" fn)
-            ~printer:(Printf.sprintf "0o%04o")
-            exp (int_of_permission (stat fn).permission)
-       in
-
        let iter_chmod =
          List.iter
            (fun (ini, mode, exp) ->
@@ -949,7 +949,27 @@ let test_fileutil =
          mkdir dir1;
          touch (make_filename [dir1; "file.txt"]);
          cp ~recurse:true [dir1] dir2;
-         assert_bool "cp" (test Exists (make_filename [dir2; "file.txt"])));
+         assert_bool "cp" (test Exists (make_filename [dir2; "file.txt"]));
+         cp ~recurse:true [dir1] dir2;
+         assert_bool "cp dir" (test Is_dir (make_filename [dir2; "dir1"])));
+
+    "Cp ACL" >::
+    (fun test_ctxt ->
+       let tmp_dir = bracket_tmpdir test_ctxt in
+       let fn1 = make_filename [tmp_dir; "foo1.txt"] in
+       let fn2 = make_filename [tmp_dir; "foo2.txt"] in
+       let fn3 = make_filename [tmp_dir; "foo3.txt"] in
+         touch fn1;
+         Unix.chmod fn1 0o444;
+         assert_perm fn1 0o444;
+         cp [fn1] fn2;
+         assert_perm fn2 0o444;
+         if Sys.os_type = "Unix" then begin
+           Unix.chmod fn1 0o555;
+           assert_perm fn1 0o555;
+           cp [fn1] fn3;
+           assert_perm fn3 0o555
+         end);
 
     "Cp preserve" >::
     (fun test_ctxt ->
@@ -975,6 +995,16 @@ let test_fileutil =
          assert_equal_time ~msg:"fn2 atime"  2.0 (stat fn2).access_time;
          assert_equal_time ~msg:"dir2 mtime" 3.0 (stat dir2).modification_time;
          assert_equal_time ~msg:"dir2 atime" 4.0 (stat dir2).access_time);
+
+    "Cp POSIX" >::
+    (fun test_ctxt ->
+       let tmp_dir1 = bracket_tmpdir test_ctxt in
+       let tmp_dir2 = bracket_tmpdir test_ctxt in
+         touch (concat tmp_dir1 "foo.txt");
+         with_bracket_chdir test_ctxt tmp_dir1
+           (fun test_ctxt ->
+              cp ~recurse:true [current_dir] tmp_dir2);
+         assert_bool "file" (test Is_file (concat tmp_dir2 "foo.txt")));
 
     "Mv simple" >::
     (fun test_ctxt ->

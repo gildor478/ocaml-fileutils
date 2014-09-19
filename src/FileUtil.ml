@@ -39,10 +39,7 @@ exception RmDirNotEmpty of filename
 exception RmDirNoRecurse of filename
 exception MkdirMissingComponentPath of filename
 exception MkdirDirnameAlreadyUsed of filename
-exception CpCannotCopy of filename
-exception CpNoSourceFile of filename
-exception CpCannotCopyFilesToFile of (filename list) * filename
-exception CpCannotCopyDir of filename
+exception CpError of string
 exception MvNoSourceFile
 
 (** Policy concerning links which are directories *)
@@ -121,6 +118,8 @@ type stat =
     access_time: float;
     modification_time: float;
     creation_time: float;
+    device: int;
+    inode: int;
   }
 
 
@@ -441,6 +440,8 @@ let stat ?(dereference=false) (fln: filename) =
         access_time       = ustat.Unix.LargeFile.st_atime;
         modification_time = ustat.Unix.LargeFile.st_mtime;
         creation_time     = ustat.Unix.LargeFile.st_ctime;
+        device            = ustat.Unix.LargeFile.st_dev;
+        inode             = ustat.Unix.LargeFile.st_ino;
       }
   with Unix.Unix_error(Unix.ENOENT, _, _) ->
     raise (FileDoesntExist fln)
@@ -778,6 +779,10 @@ let test ?match_compile tst =
   in
     fun fln -> ctst (solve_dirname fln)
 
+(**/**)
+let test_exists =
+  test (Or(Exists, Is_link))
+(**/**)
 
 (** Return the currend dir
     See {{:http://pubs.opengroup.org/onlinepubs/007904875/utilities/pwd.html}POSIX documentation}.
@@ -900,15 +905,27 @@ let which ?(path) fln =
       | Some fn -> fn
       | None -> raise Not_found
 
+(**/**)
+let apply_umask m =
+  let cmask = Unix.umask 0o777 in
+  let _mask: int = Unix.umask cmask in
+    m land (lnot cmask)
+(**/**)
+
 
 (** Create the directory which name is provided. Turn parent to true
     if you also want to create every topdir of the path. Use mode to
     provide some specific right (default 755).
     See {{:http://pubs.opengroup.org/onlinepubs/007904875/utilities/mkdir.html}POSIX documentation}.
   *)
-let mkdir ?(parent=false) ?(mode=0o0755) fln =
+let mkdir ?(parent=false) ?mode fln =
+  let mode =
+    match mode with
+      | Some m -> m
+      | None -> apply_umask 0o0777
+  in
   let mkdir_simple fln =
-    if test Exists fln then begin
+    if test_exists fln then begin
       if test (Not Is_dir) fln then
         raise (MkdirDirnameAlreadyUsed fln)
     end else begin
@@ -970,7 +987,7 @@ let touch ?atime ?mtime ?(create=true) ?(time=Touch_now) fln =
       Unix.utimes fln fatime fmtime
   in
     (* Create file if required *)
-    if test Exists fln then begin
+    if test_exists fln then begin
       set_time ()
     end else if create then begin
       close_out (open_out fln);
@@ -985,7 +1002,7 @@ let touch ?atime ?mtime ?(create=true) ?(time=Touch_now) fln =
     [find True "." (fun x y -> y :: x) []]
     See {{:http://pubs.opengroup.org/onlinepubs/007904875/utilities/find.html}POSIX documentation}.
   *)
-let find ?(follow = Skip) ?match_compile tst fln exec user_acc =
+let find ?(follow=Skip) ?match_compile tst fln exec user_acc =
 
   let user_test = compile_filter ?match_compile tst in
 
@@ -1123,6 +1140,14 @@ let rm ?(force=Force) ?(recurse=false) fln_lst =
     rm_aux fln_lst
 
 
+(**/**)
+exception CpSkip
+
+
+let same_file st1 st2 =
+  st1.device = st2.device && st1.inode = st2.inode
+(**/**)
+
 (** Copy the hierarchy of files/directory to another destination
     See {{:http://pubs.opengroup.org/onlinepubs/007904875/utilities/cp.html}POSIX documentation}.
   *)
@@ -1130,98 +1155,232 @@ let cp ?(follow=Skip)
        ?(force=Force)
        ?(recurse=false)
        ?(preserve=false)
+       ?(error=(fun str _ -> raise (CpError str)))
        fln_src_lst fln_dst =
-  let copy_props ?(time=true) fln_src atime fln_dst =
+
+  let handle_error e =
+    let exs () e =
+      match e with
+        | Unix.Unix_error(err, _, _) -> Unix.error_message err
+        | e -> Printexc.to_string e
+    in
+    let spf fmt = Printf.sprintf fmt in
+    let str =
+      match e with
+        | `CannotRemoveDstFile(fn_dst, e) ->
+            spf "Cannot remove destination file '%s': %a." fn_dst exs e
+        | `CannotOpenDstFile(fn_dst, e) ->
+            spf "Cannot open destination file '%s': %a." fn_dst exs e
+        | `CannotOpenSrcFile(fn_src, e) ->
+            spf "Cannot open source file '%s': %a." fn_src exs e
+        | `ErrorRead(fn_src, e) ->
+            spf "Error reading file '%s': %a." fn_src exs e
+        | `ErrorWrite(fn_dst, e) ->
+            spf "Error writing file '%s': %a." fn_dst exs e
+        | `PartialWrite(fn_dst, read, written) ->
+            spf
+              "Partial write to file '%s': %d read, %d written."
+              fn_dst
+              read
+              written
+        | `CannotCopyDir fn_src ->
+            spf "Cannot copy directory '%s' recursively." fn_src
+        | `DstDirNotDir fn_dst ->
+            spf "Destination '%s' is not a directory." fn_dst
+        | `CannotCreateDir(fn_dst, e) ->
+            spf "Cannot create directory '%s': %a." fn_dst exs e
+        | `CannotListSrcDir(fn_src, e) ->
+            spf "Cannot list directory '%s': %a." fn_src exs e
+        | `CannotChmodDstDir(fn_dst, e) ->
+            spf "'Cannot chmod directory %s': %a." fn_dst exs e
+        | `NoSourceFile fn_src ->
+            spf "Source file '%s' doesn't exist." fn_src
+        | `SameFile(fn_src, fn_dst) ->
+            spf "'%s' and '%s' are the same file." fn_src fn_dst
+        | `UnhandledType(fn_src, _) ->
+            spf "Cannot handle the type of kind for file '%s'." fn_src
+        | `CannotCopyFilesToFile(fn_src_lst, fn_dst) ->
+            spf "Cannot copy a list of files to another file '%s'." fn_dst
+    in
+      error str e;
+      raise CpSkip
+  in
+
+  let handle_exception f a h =
+    try
+      f a
+    with e ->
+      handle_error (h e)
+  in
+
+  let copy_time_props st_src fln_dst =
     if preserve then begin
-      (* TODO: chmod/chown. *)
-      if time then begin
-        touch ~time:(Touch_file_time fln_src) ~create:false fln_dst;
-        touch ~time:(Touch_timestamp atime) ~atime:true ~create:false fln_dst;
-      end;
-      ()
+        touch
+          ~time:(Touch_timestamp st_src.modification_time)
+          ~mtime:true
+          ~create:false
+          fln_dst;
+        touch
+          ~time:(Touch_timestamp st_src.access_time)
+          ~atime:true
+          ~create:false
+          fln_dst;
     end
   in
-  let post_props = Stack.create () in
-  let cp_one fln_src fln_dst =
-    let cpfile () =
-      let buffer_len = 1024 in
-      let buffer = String.make buffer_len ' ' in
-      let read_len = ref 0 in
-      let ch_in = open_in_bin fln_src in
-      let ch_out = open_out_bin fln_dst in
-      while (read_len := input ch_in buffer 0 buffer_len; !read_len <> 0) do
-        output ch_out buffer 0 !read_len
-      done;
-      close_in ch_in;
-      close_out ch_out;
+
+  let buffer = String.make 1024 ' ' in
+
+  let cp_file st_src dst_exists fn_src fn_dst =
+    let mode = int_of_permission st_src.permission in
+    (* POSIX conditions: *)
+    (* 3a *)
+    let fd_dst =
+      (* 3ai *)
+      if dst_exists && doit force fn_dst then begin
+        try
+          (* 3aii *)
+          Unix.openfile fn_dst [Unix.O_WRONLY; Unix.O_TRUNC] mode
+        with _ ->
+          (* 3aii *)
+          handle_exception
+            rm [fn_dst]
+            (fun e -> `CannotRemoveDstFile(fn_dst, e));
+          handle_exception
+            (Unix.openfile fn_dst [Unix.O_WRONLY; Unix.O_CREAT]) mode
+            (fun e -> `CannotOpenDstFile(fn_dst, e))
+      end else if not dst_exists then begin
+        handle_exception
+          (Unix.openfile fn_dst [Unix.O_WRONLY; Unix.O_CREAT]) mode
+          (fun e -> `CannotOpenDstFile(fn_dst, e))
+      end else begin
+        raise CpSkip
+      end
     in
-    let st = stat fln_src in
-    let () =
-      match st.kind with
-        File ->
-          cpfile ();
-          copy_props fln_src st.access_time fln_dst
-      | Dir ->
-          Stack.push (fln_src, st.access_time, fln_dst) post_props;
-          mkdir fln_dst
-      | Symlink ->
-          Unix.symlink (Unix.readlink fln_src) fln_dst;
-          (* Changing time for symlink is actually not available with Unix
-           * module, because we need lutimes syscall.
-           *)
-          copy_props ~time:false fln_src st.access_time fln_dst
-      | Fifo | Dev_char | Dev_block | Socket ->
-          raise (CpCannotCopy fln_src)
+    let read = ref 0 in
+      try
+        let fd_src =
+          handle_exception
+            (Unix.openfile fn_src [Unix.O_RDONLY]) 0o600
+            (fun e -> `CannotOpenSrcFile(fn_src, e))
+        in
+          try
+            while (read :=
+                   handle_exception
+                     (Unix.read fd_src buffer 0) (String.length buffer)
+                     (fun e -> `ErrorRead(fn_src, e));
+                   !read <> 0) do
+              let written =
+                handle_exception
+                  (Unix.write fd_dst buffer 0) !read
+                  (fun e -> `ErrorWrite(fn_dst, e))
+              in
+                if written != !read then
+                  handle_error (`PartialWrite(fn_src, !read, written))
+            done;
+            Unix.close fd_src;
+            Unix.close fd_dst;
+            copy_time_props st_src fn_dst
+          with e ->
+            Unix.close fd_src;
+            raise e
+      with e ->
+        Unix.close fd_dst;
+        raise e
+  in
+
+  let cp_symlink fn_src fn_dst =
+    (* No Unix.lutimes to set time of the symlink. *)
+    Unix.symlink (Unix.readlink fn_src) fn_dst
+  in
+
+  let rec cp_dir st_src dst_exists fn_src fn_dst =
+    (* 2a *)
+    if not recurse then begin
+      handle_error (`CannotCopyDir fn_src)
+    (* 2d, 2c *)
+    end else if dst_exists && (stat fn_dst).kind <> Dir then begin
+      handle_error (`DstDirNotDir fn_dst)
+    end else begin
+      (* 2e *)
+      let dst_created =
+        if not dst_exists then begin
+          let mode =
+            let src_mode = int_of_permission st_src.permission in
+            let dst_mode =
+              if preserve then src_mode else apply_umask src_mode
+            in
+              dst_mode lor 0o0700
+          in
+            handle_exception
+              (mkdir ~mode) fn_dst
+              (fun e -> `CannotCreateDir(fn_dst, e));
+            true
+        end else begin
+          false
+        end
+      in
+        (* 2f *)
+        Array.iter
+          (fun bn ->
+             if not (is_current bn || is_parent bn) then
+               cp_one (concat fn_src bn) (concat fn_dst bn))
+          (handle_exception
+             Sys.readdir fn_src
+             (fun e -> `CannotListSrcDir(fn_src, e)));
+        (* 2g *)
+        if dst_created then begin
+          let mode =
+            let src_mode = int_of_permission st_src.permission in
+              if preserve then src_mode else apply_umask src_mode
+          in
+            handle_exception
+              (chmod (`Octal mode)) [fn_dst]
+              (fun e -> `CannotChmodDstDir(fn_dst, e));
+            copy_time_props st_src fn_dst
+        end
+    end
+
+  and cp_one fn_src fn_dst =
+    let st_src =
+      (* Check existence of source files. *)
+      if test_exists fn_src then
+        stat fn_src
+      else
+        handle_error (`NoSourceFile fn_src)
     in
-      ()
-  in
-  let cpfull dir_src dir_dst fln =
-    (* TODO: use a visit_fs_tree function with enter_dir/leave_dir function. *)
 
-    (* Copy directory structure. *)
-    find (And(Custom(doit force), Is_dir)) fln
-      (fun () fln_src -> cp_one fln_src (reparent dir_src dir_dst fln_src)) ();
+    let same_file, dst_exists =
+      (* Test if fn_dst exists and if it is the same file as fn_src. *)
+      try
+        same_file st_src (stat fn_dst), true
+      with FileDoesntExist _ ->
+        false, false
+    in
 
-    (* Copy files. *)
-    find (And(Custom(doit force), Not(Is_dir))) fln
-      (fun () fln_src -> cp_one fln_src (reparent dir_src dir_dst fln_src)) ();
-
-    (* Propage directories properties, esp. useful for copying read-only
-     * directories that contain files.
-     *)
-    while not (Stack.is_empty post_props) do
-      let fln_src, atime, fln_dst = Stack.pop post_props in
-        copy_props fln_src atime fln_dst
-    done
+      if same_file then begin
+        handle_error (`SameFile(fn_src, fn_dst))
+      end;
+      try
+        match st_src.kind with
+          | Dir -> cp_dir st_src dst_exists fn_src fn_dst
+          | File -> cp_file st_src dst_exists fn_src fn_dst
+          | Symlink -> cp_symlink fn_src fn_dst
+          | Fifo | Dev_char | Dev_block | Socket ->
+              handle_error (`UnhandledType(fn_src, st_src.kind))
+      with CpSkip ->
+        ()
   in
-  (* Test sur l'existence des fichiers source et création des noms de fichiers
-     absolu
-   *)
-  let real_fln_src_lst =
-    List.map (
-      fun x ->
-        if test (Not(Exists)) x then
-          raise (CpNoSourceFile x)
-        else if test Is_dir x && not recurse then
-          raise (CpCannotCopyDir x)
-        else
-          make_absolute (pwd ()) x
-     )
-    fln_src_lst
-  in
-  let real_fln_dst =
-    make_absolute (pwd ()) fln_dst
-  in
-  if test Is_dir real_fln_dst then
-    List.iter (fun x -> cpfull (dirname x) real_fln_dst x) real_fln_src_lst
-  else if (List.length real_fln_src_lst) = 1 then begin
-    let real_fln_src = List.nth real_fln_src_lst 0 in
-      cpfull real_fln_src real_fln_dst real_fln_src
-      (* Off course, reparent will replace the common prefix
-       * of 3rd arg and 1st arg by 2nd arg, which give
-       * fln_src -> fln_dst *)
-  end else
-    raise (CpCannotCopyFilesToFile (real_fln_src_lst, real_fln_dst))
+    if test Is_dir fln_dst then
+      List.iter
+        (fun fn_src ->
+           cp_one fn_src (concat fln_dst (basename fn_src)))
+        fln_src_lst
+    else if List.length fln_src_lst <= 1 then
+      List.iter
+        (fun fn_src -> cp_one fn_src fln_dst)
+        fln_src_lst
+    else
+      handle_error (`CannotCopyFilesToFile(fln_src_lst, fln_dst))
 
 
 (** Move files/directories to another destination
@@ -1231,7 +1390,7 @@ let rec mv ?(force=Force) fln_src fln_dst =
   let fln_src_abs =  make_absolute (pwd ()) fln_src in
   let fln_dst_abs =  make_absolute (pwd ()) fln_dst in
   if compare fln_src_abs fln_dst_abs <> 0 then begin
-    if test Exists fln_dst_abs && doit force fln_dst then begin
+    if test_exists fln_dst_abs && doit force fln_dst then begin
         rm [fln_dst_abs];
         mv fln_src_abs fln_dst_abs
     end else if test Is_dir fln_dst_abs then begin
@@ -1240,7 +1399,7 @@ let rec mv ?(force=Force) fln_src fln_dst =
         (make_absolute
            fln_dst_abs
            (basename fln_src_abs))
-    end else if test Exists fln_src_abs then begin
+    end else if test_exists fln_src_abs then begin
       try
         Sys.rename fln_src_abs fln_dst_abs
       with Sys_error _ ->
@@ -1330,8 +1489,6 @@ let du fln_lst =
 (** For future release:
 - [val pathchk: filename -> boolean * string], check whether file names are
   valid or portable
-- [val chmod: filename -> permission -> unit], change file mode bits (only
-  UNIX bit mask)
 - [val setfacl: filename -> permission -> unit], set file access control
   lists (UNIX + extended attribute)
 - [val getfacl: filename -> permission], get file access control lists
