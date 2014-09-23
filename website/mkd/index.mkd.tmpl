@@ -1,0 +1,40 @@
+${"% OCaml Fileutils "}
+
+ocaml-fileutils is a library of pure OCaml functions to manipulate real files and filenames.
+
+<div id="download-latest">
+  <a href="${ocaml_fileutils.latest.url}">
+    Download version ${ocaml_fileutils.latest.version}
+  </a>
+</div>
+
+Features of the project:
+
+* pure OCaml
+* file functions inspired from GNU fileutils (aiming to be POSIX compatible)
+    * cp: copy files and directories
+    * mv: rename files and directories
+    * rm: remove files and directories
+    * test: check file types and compare values
+    * find: find files that match certain criteria
+    * mkdir: create directory and its parents
+    * ls: list content of a directory
+    * touch: change file timestamps
+    * which: locate a command
+    * readlink: resolve symlink
+    * du: compute disk usage
+    * stat: abstract of Unix.stat
+    * cmp: compare files
+    * chmod: change permissions of a file
+* filename functions support Win32/Unix/MacOS and Cygwin filenames:
+    * Compare: is_subdir, is_updir, compare
+    * Transform: make_absolute, make_relative, reduce
+    * Extension: chop_extension, check_extension
+
+You can browse the online API documentation of the latest version.
+
+ * [API for version ${ocaml_fileutils.latest.version}, the latest stable version](api-fileutils/index.html)
+% for version in ocaml_fileutils_doc.others:
+ * [API for version ${version.version}](api-fileutils-${version.version}/index.html)
+% endfor
+ * [API for the version under development](api-fileutils-dev/index.html)

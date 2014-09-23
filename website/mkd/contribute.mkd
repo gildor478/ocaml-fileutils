@@ -1,0 +1,40 @@
+%Contribute to the OCaml Fileutils project
+
+##Bugs and feature requests
+
+We really appreciate to get your feedback. Use [bug reports][] or
+[features requests][], you need to sign-in forge.ocamlcore.org first.
+
+  [bug reports]: https://forge.ocamlcore.org/tracker/?func=add&group_id=128&atid=589
+  [features requests]: https://forge.ocamlcore.org/tracker/?atid=592&group_id=128&func=add
+
+##Get the source code
+
+The main page for development is the [project on forge.ocamlcore.org][].
+You can browse the source code of the [project][].
+
+  [project on forge.ocamlcore.org]: http://forge.ocamlcore.org/projects/ocaml-fileutils
+  [project]: http://darcs.ocamlcore.org/cgi-bin/darcsweb.cgi?r=ocaml-fileutils;a=summary
+
+To get a copy of the source tree, you must use darcs:
+
+    $> darcs get http://darcs.ocamlcore.org/repos/ocaml-fileutils/ocaml-fileutils
+    $> darcs get scm.ocamlcore.org:/darcsroot/ocaml-fileutils/ocaml-fileutils ocaml-fileutils # if you have write access
+
+Once you have the source code, you can pick a [bug][] or a [feature request][] to fix.
+
+  [bug]: https://forge.ocamlcore.org/tracker/?func=browse&group_id=128&atid=589
+  [feature request]: https://forge.ocamlcore.org/tracker/?atid=592&group_id=128&func=browse
+
+You can send back patches with a [patch report][]
+
+  [patch report]: https://forge.ocamlcore.org/tracker/?func=add&group_id=128&atid=591
+
+
+To update the source code with the latest available version:
+
+    $> darcs pull http://darcs.ocamlcore.org/repos/ocaml-fileutils
+    $> darcs pull scm.ocamlcore.org:/darcsroot/ocaml-fileutils/ocaml-fileutils # if you have write access
+
+Further documentation about darcs on [darcs.net](http://darcs.net/manual/)
+

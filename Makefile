@@ -97,11 +97,37 @@ headache:
 
 .PHONY: headache
 
+doc-dev-dist: doc fix-perms
+	./doc-dist.sh --version dev
+
+.PHONY: doc-dev-dist
+
 # Deploy target
 #  Deploy/release the software.
 
 deploy:
+	./doc-dist.sh --version $(shell oasis query version)
 	admin-gallu-deploy --verbose \
-		--forge_upload --forge_group ocaml-fileutils --forge_user gildor-admin
+		--forge_upload --forge_group ocaml-fileutils --forge_user gildor-admin \
+	  --forge_extra_file "dist/ocaml-fileutils-doc-$(shell oasis query version).tar.gz"
+	admin-gallu-oasis-increment \
+	  --setup_run --setup_args "-setup-update dynamic" --use_vcs
 
 .PHONY: deploy
+
+fix-perms:
+	chmod +x doc-dist.sh
+
+.PHONY: fix-perms
+
+website-clean:
+	cd website && $(MAKE) clean
+
+clean: website-clean
+
+website-distclean:
+	cd website && $(MAKE) distclean
+
+distclean: website-distclean
+
+.PHONY: website-distclean website-clean

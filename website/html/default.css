@@ -1,0 +1,208 @@
+/* General settings */
+
+body 
+{
+  background: #E8F3F8;
+}
+
+#top
+{
+  margin-left: auto;
+  margin-right: auto;
+  width: 960px;
+  margin-top: 10px;
+  border-left:   solid 2px #A4BCC2;
+  border-right:  solid 2px #A4BCC2;
+  border-bottom: solid 2px #A4BCC2;
+}
+
+h1 { color: #555; font-size: xx-large;}
+h2 { color: #552; font-size; large;}
+h3 { color: #662; font-size; medium;}
+
+#content h1 a { color: #555; font-size: xx-large;}
+#content h2 a { color: #552; font-size; large;}
+#content h3 a { color: #662; font-size; medium;}
+
+/* Header */
+#header
+{
+  clear: both;
+  position: relative;
+  height: 85px;
+	background: #A4BCC2;
+}
+
+#header h1.logo
+{
+  position: relative;
+  float: left;
+  padding-top: 0px;
+  padding-left: 15px;
+}
+
+#header h1.logo a 
+{
+  text-decoration: none;
+}
+
+#header h1.logo img
+{
+  border: none;
+}
+
+#header .subtitle
+{
+  color:#FFFFFF;
+  float:left;
+  font-size:16pt;
+  font-weight:bold;
+  margin-top:34px;
+	margin-left:10px;
+}
+
+/* Menu */
+#menu
+{
+  text-align: center;
+  padding: 10px;
+  background: #C2CBCE;
+  border-top: solid 2px #A4BCC2;
+  border-bottom: solid 2px #A4BCC2;
+}
+
+#menu a
+{
+  text-decoration: none;
+  font-weight: bold;
+  font-size: 110%;
+  color: black;
+  margin: 0;
+  padding: 0;
+}
+
+#menu a:hover
+{
+  color: #81A8B8;
+  border-bottom:1px dotted green;
+}
+
+#menu li
+{
+  display: inline;
+  margin: 0;
+  padding: 3em;
+}
+
+#menu ul
+{
+  list-style-type: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Content */
+
+#content #header {
+  display: none;
+}
+
+#content
+{
+  padding: 2em;
+  padding-top: 0.5em;
+  background: #DBE6EC;
+}
+
+#content hr
+{
+  color: grey;
+  width: 90%;
+}
+
+#content a
+{
+  color: #67a76d;
+  text-decoration: none;
+  font-weight: bold;
+}
+
+#content a:hover
+{
+  text-decoration: underline;
+}
+
+#content code
+{
+  font-family: monospace;
+  color: #1e6694;
+}
+
+#content pre
+{
+  border-left-style: double;
+  border-left-color: #1e6694;
+  padding-left: 1em;
+}
+
+#video
+{
+	text-align: center;
+}
+
+#download-latest 
+{
+  text-align: center;
+}
+
+#download-latest a 
+{
+  font-weight: bold;
+  font-size: x-large;
+  padding-left: 24px;
+  background: url(download.png) no-repeat;
+}
+
+#news .subtitle
+{
+  font-style: italic;
+  font-size: 80%;
+}
+
+/* Footer */
+
+#footer {
+  clear: both;
+  position: relative;
+  color: black;
+  font-size: 70%;
+  padding: 5px;
+  background: #C2CBCE;
+  border-top: solid 2px #A4BCC2;
+}
+
+#footer .copyright {
+  position: relative;
+  width: 33%;
+}
+
+#footer .lastmodified {
+  position: relative;
+  float: right;
+  width: 33%;
+  text-align: right;
+}
+
+#footer .badge {
+  position: relative;
+  float: right;
+  width: 33%;
+  text-align: center;
+}
+
+#footer .copyright a {
+	text-decoration: none;
+	color: black;
+}
+
+
