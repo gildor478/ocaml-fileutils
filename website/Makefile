@@ -17,7 +17,7 @@ ONLINE := $(shell (ping -c 1 forge.ocamlcore.org > /dev/null 2>&1 && echo true) 
 FORGE_PAGE = "http://forge.ocamlcore.org/frs/?group_id=128"
 
 # Dev documetation link.
-DEV_DOC_URL = file://$(shell readlink -f "../dist/ocaml-fileutils-doc-dev.tar.gz")
+DEV_DOC_URL = "http://deci.ovh.le-gall.net:8080/job/ocaml-fileutils/label=wheezy64/lastSuccessfulBuild/artifact/dist/ocaml-fileutils-doc-dev.tar.gz"
 
 default: all
 
@@ -25,7 +25,7 @@ include Makefile.scrape
 include website-tools/Makefile.common
 
 GENERATED_HTML=$(patsubst mkd/%.mkd,html/%.html,$(wildcard mkd/*.mkd))
-GENERATED_HTML+=html/documentation.html html/index.html
+GENERATED_HTML+= html/index.html
 GENERATED_IMG=html/logo.png
 
 all: $(GENERATED_HTML) $(GENERATED_IMG) extract-api-documentation

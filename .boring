@@ -117,3 +117,4 @@
 ^dist
 ^test/oUnit.log$
 ^website/website-tools$
+^website/dist$
