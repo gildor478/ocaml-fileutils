@@ -1298,6 +1298,7 @@ let test_fileutil =
 
 
 let () =
+  let _i: int = Unix.umask 0o0024 in
   run_test_tt_main
     ("ocaml-fileutils" >:::
      [
