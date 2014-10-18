@@ -19,7 +19,8 @@ Library "fileutils"
                    FileStringExt,
                    MacOSPath,
                    UnixPath,
-                   Win32Path
+                   Win32Path,
+                   FileUtilMode
   BuildDepends: unix
 
 Library "fileutils-str"

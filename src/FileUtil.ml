@@ -447,6 +447,30 @@ let stat ?(dereference=false) (fln: filename) =
     raise (FileDoesntExist fln)
 
 
+(**/**)
+let get_umask () =
+  let cmask = Unix.umask 0o777 in
+  let _mask: int = Unix.umask cmask in
+    cmask
+
+
+let apply_umask m =
+    m land (lnot (get_umask ()))
+(**/**)
+
+(*
+type mode =
+    [`Octal of int;
+     `Symbolic
+
+ *)
+(*
+let umask ?mode out =
+  match out with
+    |
+ *)
+
+
 (** List the content of a directory
     See {{:http://pubs.opengroup.org/onlinepubs/007904875/utilities/ls.html}POSIX documentation}.
   *)
@@ -462,100 +486,6 @@ let ls dirname =
     See {{:http://pubs.opengroup.org/onlinepubs/007904875/utilities/chmod.html}POSIX documentation}.
   *)
 let chmod ?(recurse=false) mode lst =
-
-  let set_perm who st perm =
-    match who with
-      | `User -> {st with permission = {st.permission with user = perm}}
-      | `Group -> {st with permission = {st.permission with group = perm}}
-      | `Other -> {st with permission = {st.permission with other = perm}}
-  in
-
-  let get_perm who st =
-    match who with
-      | `User -> st.permission.user
-      | `Group -> st.permission.group
-      | `Other -> st.permission.other
-  in
-
-  let perm_list perm =
-    snd
-      (List.split
-         (List.filter
-            fst
-            [perm.exec, `Exec;
-             perm.read, `Read;
-             perm.write, `Write;
-             perm.sticky, `Sticky]))
-  in
-
-  let rec apply_base_perm who b st p =
-    let perm = get_perm who st in
-    let perm' =
-      match p with
-        | `Exec   -> {perm with exec = b}
-        | `Read   -> {perm with read = b}
-        | `Write  -> {perm with write = b}
-        | `Sticky ->
-            begin
-              match who with
-                | `User | `Group -> {perm with sticky = b}
-                | `Other -> perm
-            end
-        | `ExecX ->
-            begin
-              if st.permission.user.exec ||
-                 st.permission.group.exec ||
-                 st.permission.other.exec ||
-                 st.kind = Dir then
-                get_perm who (apply_base_perm who b st `Exec)
-              else
-                perm
-            end
-    in
-      set_perm who st perm'
-  in
-
-  let apply_perm who b st =
-    function
-      | `User | `Group | `Other as permcopy ->
-          List.fold_left
-            (apply_base_perm who b)
-            st
-            (perm_list (get_perm permcopy st))
-      | `List lst ->
-          List.fold_left (apply_base_perm who b) st lst
-      | `Exec | `Read | `Write | `Sticky | `ExecX as p ->
-          apply_base_perm who b st p
-  in
-
-  let rec apply_action who st =
-    function
-      | `Add perm -> apply_perm who true st perm
-      | `Remove perm -> apply_perm who false st perm
-      | `Set perm ->
-          let st' =
-            apply_action who st
-              (`Remove (`List [`Exec; `Read; `Write; `Sticky]))
-          in
-            apply_action who st' (`Add perm)
-  in
-
-  let rec apply_clause st =
-    function
-      | (`All act) :: tl ->
-          apply_clause st (`List ([`User; `Group; `Other], act) :: tl)
-      | (`User act) :: tl -> apply_clause (apply_action `User st act) tl
-      | (`Group act) :: tl -> apply_clause (apply_action `Group st act) tl
-      | (`Other act) :: tl -> apply_clause (apply_action `Other st act) tl
-      | (`List (lst, act)) :: tl ->
-           let st' =
-             List.fold_left (fun st who -> apply_action who st act) st lst
-           in
-             apply_clause st' tl
-      | [] ->
-          int_of_permission st.permission
-  in
-
   let rec chmod_one fn =
     let st = stat fn in
       if st.kind = Dir && recurse then begin
@@ -565,7 +495,11 @@ let chmod ?(recurse=false) mode lst =
         let int_perm =
           match mode with
             | `Octal i -> i
-            | `Symbolic lst -> apply_clause st lst
+            | `Symbolic t ->
+                FileUtilMode.apply
+                  ~is_dir:(st.kind = Dir)
+                  ~umask:(get_umask ())
+                  (int_of_permission st.permission) t
         in
           if int_perm <> int_of_permission st.permission then
             Unix.chmod fn int_perm
@@ -904,13 +838,6 @@ let which ?(path) fln =
     match which_path with
       | Some fn -> fn
       | None -> raise Not_found
-
-(**/**)
-let apply_umask m =
-  let cmask = Unix.umask 0o777 in
-  let _mask: int = Unix.umask cmask in
-    m land (lnot cmask)
-(**/**)
 
 
 (** Create the directory which name is provided. Turn parent to true

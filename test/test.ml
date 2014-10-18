@@ -574,6 +574,81 @@ let test_fileutil =
            "FileUtilStr.Match = false"
            (not (FileUtilStr.test (Match "fileutil") tmp_dir)));
 
+    "Mode" >:::
+    [
+      "to_string" >::
+      (fun test_ctxt ->
+         List.iter
+           (fun (str, mode) ->
+              assert_equal
+                ~printer:(fun s -> s)
+                str
+                (FileUtilMode.to_string mode))
+           [
+             "u+r", [`User (`Add `Read)];
+             "u+rw", [`User (`Add (`List [`Read; `Write]))];
+             "+rw,u=rw,g=rwx",
+             [
+               `None (`Add (`List [`Read; `Write]));
+               `User (`Set (`List [`Read; `Write]));
+               `Group (`Set (`List [`Read; `Write; `Exec]));
+             ];
+           ]);
+
+      "apply" >::
+      (fun test_ctxt ->
+         List.iter
+           (fun (is_dir, umask, i, m, e) ->
+              assert_equal
+                ~msg:(Printf.sprintf "0o%04o + %s" i (FileUtilMode.to_string m))
+                ~printer:(Printf.sprintf "0o%04o")
+                e (FileUtilMode.apply ~is_dir ~umask i m))
+           [
+             false, 0o022, 0o0600,
+             [`Group (`Add `Read)], 0o0640;
+
+             false, 0o022, 0o0600,
+             [`Group (`Add (`List [`Read; `Write]))], 0o0660;
+
+             false, 0o022, 0o0600,
+             [`Other (`Add (`List [`Read; `Write]))], 0o0606;
+
+             false, 0o022, 0o0600,
+             [`User (`Set (`List [`Read; `Write; `Exec]))], 0o0700;
+
+             false, 0o022, 0o0600,
+             [`User (`Set (`List [`Read; `Write; `Exec]))], 0o0700;
+
+             false, 0o022, 0o0600,
+             [`None (`Add (`List [`Read; `Write; `Exec]))], 0o0755;
+
+             false, 0o022, 0o0600,
+             [`Group (`Add `ExecX)], 0o0600;
+
+             false, 0o022, 0o0700,
+             [`Group (`Add `ExecX)], 0o0710;
+
+             true, 0o022, 0o0600,
+             [`Group (`Add `ExecX)], 0o0610;
+
+             false, 0o022, 0o0600,
+             [`Group (`Set `User)], 0o0660;
+
+             false, 0o022, 0o0600,
+             [`Group (`Add `StickyO)], 0o0600;
+
+             false, 0o022, 0o0600,
+             [`Group (`Add `Sticky)], 0o2600;
+
+             false, 0o022, 0o0600,
+             [`Other (`Add `StickyO)], 0o1600;
+
+             false, 0o022, 0o0600,
+             [`Other (`Add `Sticky)], 0o0600;
+           ]
+      )
+    ];
+
     "Touch in not existing subdir" >::
     (fun test_ctxt ->
        let tmp_dir = bracket_tmpdir test_ctxt in
