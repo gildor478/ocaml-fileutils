@@ -1034,6 +1034,7 @@ let test_fileutil =
        let fn1 = make_filename [tmp_dir; "foo1.txt"] in
        let fn2 = make_filename [tmp_dir; "foo2.txt"] in
        let fn3 = make_filename [tmp_dir; "foo3.txt"] in
+         logf test_ctxt `Info "umask: 0o%04o" (get_umask ());
          touch fn1;
          Unix.chmod fn1 0o444;
          assert_perm fn1 0o444;
@@ -1298,7 +1299,7 @@ let test_fileutil =
 
 
 let () =
-  let _i: int = Unix.umask 0o0024 in
+  let _i: int = Unix.umask 0o0022 in
   run_test_tt_main
     ("ocaml-fileutils" >:::
      [
