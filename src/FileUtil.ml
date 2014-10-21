@@ -40,6 +40,7 @@ exception RmDirNoRecurse of filename
 exception MkdirMissingComponentPath of filename
 exception MkdirDirnameAlreadyUsed of filename
 exception CpError of string
+exception UmaskError of string
 exception MvNoSourceFile
 
 (** Policy concerning links which are directories *)
@@ -446,29 +447,65 @@ let stat ?(dereference=false) (fln: filename) =
   with Unix.Unix_error(Unix.ENOENT, _, _) ->
     raise (FileDoesntExist fln)
 
-
-(**/**)
-let get_umask () =
-  let cmask = Unix.umask 0o777 in
-  let _mask: int = Unix.umask cmask in
-    cmask
-
-
-let apply_umask m =
-    m land (lnot (get_umask ()))
-(**/**)
-
-(*
-type mode =
-    [`Octal of int;
-     `Symbolic
-
- *)
-(*
-let umask ?mode out =
+(** Get or set the file mode creation mask.
+    See {{:http://pubs.opengroup.org/onlinepubs/007904875/utilities/umask.html}POSIX documentation}.
+  *)
+let umask
+      ?(error=(fun str _ -> raise (UmaskError str)))
+      ?mode out =
+  let handle_error e =
+    let str =
+      match e with
+        | `NoStickyBit i ->
+            Printf.sprintf "Cannot set sticky bit in umask 0o%04o" i
+        | `Unix (Unix.Unix_error(err, _, _)) ->
+            Printf.sprintf "umask: %s" (Unix.error_message err)
+        | `Unix exc ->
+            Printf.sprintf "umask: %s" (Printexc.to_string exc)
+    in
+      error str e
+  in
+  let complement i = 0o0777 land (lnot i) in
+  let try_umask i =
+    try
+      Unix.umask i
+    with e ->
+      handle_error (`Unix e);
+      raise e
+  in
+  let get () =
+    let cmask = try_umask 0o777 in
+    let _mask: int = try_umask cmask in
+      cmask
+  in
+  let set i =
+    let eff_i = i land 0o777 in
+    let _i: int =
+      if i <> eff_i then
+        handle_error (`NoStickyBit i);
+      try_umask eff_i
+    in
+      eff_i
+  in
+  let v =
+    match mode with
+    | Some (`Symbolic s) ->
+        let v = get () in
+          set
+            (complement
+               (FileUtilMode.apply ~is_dir:false ~umask:0 (complement v) s))
+    | Some (`Octal i) -> set i
+    | None -> get ()
+  in
   match out with
-    |
- *)
+    | `Symbolic f -> f (FileUtilMode.of_int (0o0777 land (lnot v)))
+    | `Octal f -> f v
+
+
+(** Apply umask to a given file permission.
+  *)
+let umask_apply m =
+    m land (lnot (umask (`Octal (fun i -> i))))
 
 
 (** List the content of a directory
@@ -498,7 +535,7 @@ let chmod ?(recurse=false) mode lst =
             | `Symbolic t ->
                 FileUtilMode.apply
                   ~is_dir:(st.kind = Dir)
-                  ~umask:(get_umask ())
+                  ~umask:(umask (`Octal (fun i -> i)))
                   (int_of_permission st.permission) t
         in
           if int_perm <> int_of_permission st.permission then
@@ -849,7 +886,7 @@ let mkdir ?(parent=false) ?mode fln =
   let mode =
     match mode with
       | Some m -> m
-      | None -> apply_umask 0o0777
+      | None -> umask_apply 0o0777
   in
   let mkdir_simple fln =
     if test_exists fln then begin
@@ -1234,7 +1271,7 @@ let cp ?(follow=Skip)
           let mode =
             let src_mode = int_of_permission st_src.permission in
             let dst_mode =
-              if preserve then src_mode else apply_umask src_mode
+              if preserve then src_mode else umask_apply src_mode
             in
               dst_mode lor 0o0700
           in
@@ -1258,7 +1295,7 @@ let cp ?(follow=Skip)
         if dst_created then begin
           let mode =
             let src_mode = int_of_permission st_src.permission in
-              if preserve then src_mode else apply_umask src_mode
+              if preserve then src_mode else umask_apply src_mode
           in
             handle_exception
               (chmod (`Octal mode)) [fn_dst]

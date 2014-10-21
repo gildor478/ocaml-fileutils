@@ -13,6 +13,64 @@ type clause = [ `User of actionlist | `Group of actionlist
 
 type t = clause list
 
+
+let all_masks =
+  [
+    `User,  `Sticky,  0o4000;
+    `User,  `Exec,    0o0100;
+    `User,  `Write,   0o0200;
+    `User,  `Read,    0o0400;
+    `Group, `Sticky,  0o2000;
+    `Group, `Exec,    0o0010;
+    `Group, `Write,   0o0020;
+    `Group, `Read,    0o0040;
+    `Other, `StickyO, 0o1000;
+    `Other, `Exec,    0o0001;
+    `Other, `Write,   0o0002;
+    `Other, `Read,    0o0004;
+  ]
+
+
+let mask =
+  let module M =
+    Map.Make
+      (struct
+         type t = who * perm
+         let compare = Pervasives.compare
+       end)
+  in
+  let m =
+    List.fold_left
+      (fun m (who, prm, msk) -> M.add (who, prm) msk m)
+      M.empty all_masks
+  in
+    fun who prm ->
+      try
+        M.find (who, prm) m
+      with Not_found ->
+        0
+
+
+let of_int i =
+  let user, group, other =
+    List.fold_left
+      (fun (user, group, other) (who, perm, mask) ->
+         if (i land mask) <> 0 then begin
+           match who with
+           | `User -> perm :: user, group, other
+           | `Group -> user, perm :: group, other
+           | `Other -> user, group, perm :: other
+         end else begin
+           (user, group, other)
+         end)
+      ([], [], [])
+      all_masks
+  in
+    [`User (`Set (`List user));
+     `Group (`Set (`List group));
+     `Other (`Set (`List other))]
+
+
 let rec to_string: t -> string =
   let perm =
     function
@@ -66,40 +124,6 @@ let rec to_string: t -> string =
   in
     fun t -> String.concat "," (List.map clause t)
 
-let all_masks = 
-  [
-    `User,  `Sticky,  0o4000;
-    `User,  `Exec,    0o0100;
-    `User,  `Write,   0o0200;
-    `User,  `Read,    0o0400;
-    `Group, `Sticky,  0o2000;
-    `Group, `Exec,    0o0010;
-    `Group, `Write,   0o0020;
-    `Group, `Read,    0o0040;
-    `Other, `StickyO, 0o1000;
-    `Other, `Exec,    0o0001;
-    `Other, `Write,   0o0002;
-    `Other, `Read,    0o0004;
-  ]
-
-let mask =
-  let module M =
-    Map.Make
-      (struct
-         type t = who * perm
-         let compare = Pervasives.compare
-       end)
-  in
-  let m = 
-    List.fold_left
-      (fun m (who, prm, msk) -> M.add (who, prm) msk m)
-      M.empty all_masks
-  in
-    fun who prm ->
-      try
-        M.find (who, prm) m
-      with Not_found ->
-        0
 
 let rec apply ~is_dir ~umask i (t: t) = 
   let set who prm b i =

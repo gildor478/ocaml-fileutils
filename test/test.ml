@@ -23,6 +23,27 @@ open OUnit2
 open FilePath
 open FileUtil
 
+
+let test_umask = 0o0022
+
+
+let umask_mutex = OUnitShared.Mutex.create OUnitShared.ScopeProcess
+
+
+let bracket_umask umask =
+  bracket
+    (fun test_ctxt ->
+       OUnitShared.Mutex.lock test_ctxt.OUnitTest.shared umask_mutex;
+       Unix.umask umask)
+    (fun umask test_ctxt ->
+       let _i: int = Unix.umask umask in
+         OUnitShared.Mutex.unlock test_ctxt.OUnitTest.shared umask_mutex)
+
+
+let with_bracket_umask test_ctxt umask f =
+  OUnitBracket.with_bracket test_ctxt (bracket_umask umask) f
+
+
 module SetFilename = Set.Make (struct
     type t = FilePath.DefaultPath.filename
     let compare = FilePath.DefaultPath.compare
@@ -1034,7 +1055,6 @@ let test_fileutil =
        let fn1 = make_filename [tmp_dir; "foo1.txt"] in
        let fn2 = make_filename [tmp_dir; "foo2.txt"] in
        let fn3 = make_filename [tmp_dir; "foo3.txt"] in
-         logf test_ctxt `Info "umask: 0o%04o" (get_umask ());
          touch fn1;
          Unix.chmod fn1 0o444;
          assert_perm fn1 0o444;
@@ -1167,6 +1187,57 @@ let test_fileutil =
        with Not_found ->
          assert_failure "Cannot find ocamlc");
 
+    "Umask" >::
+    (fun test_ctxt ->
+       assert_equal
+         ~printer:(Printf.sprintf "0o%04o")
+         test_umask
+         (umask (`Octal (fun i -> i)));
+       assert_equal
+         ~printer:FileUtilMode.to_string
+         [`User (`Set (`List [`Read; `Write; `Exec]));
+          `Group (`Set (`List [`Read; `Exec]));
+          `Other (`Set (`List [`Read; `Exec]))]
+         (umask (`Symbolic (fun s -> s)));
+       List.iter
+         (fun (i, e) ->
+            assert_equal
+              ~printer:(Printf.sprintf "0o%04o")
+              e (umask_apply i))
+         [
+           0o777, 0o755;
+           0o1777, 0o1755
+         ];
+       with_bracket_umask test_ctxt test_umask
+         (fun _ test_ctxt ->
+            umask ~mode:(`Octal 0o0222) (`Octal ignore);
+            assert_equal
+              ~printer:(Printf.sprintf "0o%04o")
+              0o0222 (umask (`Octal (fun i -> i))));
+       with_bracket_umask test_ctxt test_umask
+         (fun _ test_ctxt ->
+            assert_raises
+              (UmaskError("Cannot set sticky bit in umask 0o1222"))
+              (fun () ->
+                 umask ~mode:(`Octal 0o1222) (`Octal ignore)));
+       List.iter
+         (fun (s, e) ->
+            with_bracket_umask test_ctxt test_umask
+              (fun msk test_ctxt ->
+                 assert_equal
+                   ~msg:(Printf.sprintf
+                           "0o%04o + %s -> 0o%04o"
+                           msk (FileUtilMode.to_string s) e)
+                   ~printer:(Printf.sprintf "0o%04o")
+                   e (umask ~mode:(`Symbolic s) (`Octal (fun i -> i)))))
+         [
+           [`None (`Add `Read)], 0o0022;
+           [`None (`Add (`List [`Read; `Write]))], 0o0000;
+           [`All (`Remove `Read)], 0o0466;
+           [`Group (`Set (`List [`Read; `Write; `Exec]))], 0o0002;
+         ];
+       ()
+    );
 
     "Size" >:::
     [
@@ -1299,7 +1370,7 @@ let test_fileutil =
 
 
 let () =
-  let _i: int = Unix.umask 0o0022 in
+  let _i: int = Unix.umask test_umask in
   run_test_tt_main
     ("ocaml-fileutils" >:::
      [
