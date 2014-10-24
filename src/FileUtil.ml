@@ -879,7 +879,7 @@ let which ?(path) fln =
 
 (** Create the directory which name is provided. Turn parent to true
     if you also want to create every topdir of the path. Use mode to
-    provide some specific right (default 755).
+    provide some specific right.
     See {{:http://pubs.opengroup.org/onlinepubs/007904875/utilities/mkdir.html}POSIX documentation}.
   *)
 let mkdir ?(parent=false) ?mode fln =
