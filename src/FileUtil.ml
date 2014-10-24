@@ -37,8 +37,7 @@ exception FileDoesntExist of filename
 exception RecursiveLink of filename
 exception RmDirNotEmpty of filename
 exception RmDirNoRecurse of filename
-exception MkdirMissingComponentPath of filename
-exception MkdirDirnameAlreadyUsed of filename
+exception MkdirError of string
 exception CpError of string
 exception UmaskError of string
 exception MvNoSourceFile
@@ -727,18 +726,6 @@ let compile_filter ?(match_compile=(fun s fn -> s = fn)) flt =
         eval cflt
 
 
-let all_upper_dir fln =
-  let rec all_upper_dir_aux lst fln =
-    let dir = dirname fln in
-    match lst with
-      prev_dir :: tl when prev_dir = dir ->
-      lst
-    | _ ->
-	all_upper_dir_aux (dir :: lst) dir
-    in
-      all_upper_dir_aux [fln] fln
-
-
 (**/**)
 
 (** Test a file.
@@ -766,6 +753,16 @@ let pwd () =
     Non POSIX command.
   *)
 let readlink fln =
+  (* TODO: simplify. *)
+  let all_upper_dir fln =
+    let rec all_upper_dir_aux lst fln =
+      let dir = dirname fln in
+        match lst with
+        | prev_dir :: tl when prev_dir = dir -> lst
+        | _ -> all_upper_dir_aux (dir :: lst) dir
+    in
+      all_upper_dir_aux [fln] fln
+  in
   let ctst = compile_filter Is_link in
   let rec readlink_aux already_read fln =
     let newly_read = prevent_recursion already_read fln in
@@ -876,37 +873,64 @@ let which ?(path) fln =
       | Some fn -> fn
       | None -> raise Not_found
 
-
 (** Create the directory which name is provided. Turn parent to true
     if you also want to create every topdir of the path. Use mode to
     provide some specific right.
     See {{:http://pubs.opengroup.org/onlinepubs/007904875/utilities/mkdir.html}POSIX documentation}.
   *)
-let mkdir ?(parent=false) ?mode fln =
-  let mode =
+let mkdir
+      ?(error=(fun str _ -> raise (MkdirError str)))
+      ?(parent=false)
+      ?mode dn =
+  let handle_error e =
+    let str =
+      match e with
+        | `DirnameAlreadyUsed fn ->
+            Printf.sprintf "Directory %s already exists and is a file." fn
+        | `MissingComponentPath fn ->
+            Printf.sprintf
+              "Unable to create directory %s, an upper directory is missing."
+              fn
+        | `Exc (Unix.Unix_error(err, nm, arg)) ->
+            Printf.sprintf "umask: %s (%s, %S)" (Unix.error_message err) nm arg
+        | `Exc exc ->
+            Printf.sprintf "umask: %s" (Printexc.to_string exc)
+    in
+      error str e
+  in
+  let mode_apply =
+    FileUtilMode.apply ~is_dir:true ~umask:(umask (`Octal (fun i -> i)))
+  in
+  let mode_self =
     match mode with
-      | Some m -> m
+      | Some (`Octal m) -> m
+      | Some (`Symbolic t) -> mode_apply 0o777 t
       | None -> umask_apply 0o0777
   in
-  let mkdir_simple fln =
-    if test_exists fln then begin
-      if test (Not Is_dir) fln then
-        raise (MkdirDirnameAlreadyUsed fln)
+  let mode_parent =
+    umask
+      (`Symbolic
+         (fun t ->
+            mode_apply 0 (t @ [`User (`Add (`List [`Write; `Exec]))])))
+  in
+  let rec mkdir_simple mode dn =
+    if test_exists dn then begin
+      if test (Not Is_dir) dn then
+        handle_error (`DirnameAlreadyUsed dn)
     end else begin
+      if parent then
+        mkdir_simple mode_parent (dirname dn);
       try
-        Unix.mkdir fln mode
+        Unix.mkdir dn mode;
+        chmod (`Octal mode) [dn]
       with Unix.Unix_error(Unix.ENOENT, _, _)
         | Unix.Unix_error(Unix.ENOTDIR, _, _) ->
-        raise (MkdirMissingComponentPath fln)
+            handle_error (`MissingComponentPath dn)
+        | e ->
+            handle_error (`Exc e)
     end
   in
-  let directories =
-    if parent then
-      all_upper_dir fln
-    else
-      [fln]
-  in
-  List.iter mkdir_simple directories
+    mkdir_simple mode_self dn
 
 
 (** Modify the timestamp of the given filename.
@@ -1273,7 +1297,7 @@ let cp ?(follow=Skip)
             let dst_mode =
               if preserve then src_mode else umask_apply src_mode
             in
-              dst_mode lor 0o0700
+              `Octal (dst_mode lor 0o0700)
           in
             handle_exception
               (mkdir ~mode) fn_dst
@@ -1295,10 +1319,10 @@ let cp ?(follow=Skip)
         if dst_created then begin
           let mode =
             let src_mode = int_of_permission st_src.permission in
-              if preserve then src_mode else umask_apply src_mode
+              `Octal (if preserve then src_mode else umask_apply src_mode)
           in
             handle_exception
-              (chmod (`Octal mode)) [fn_dst]
+              (chmod mode) [fn_dst]
               (fun e -> `CannotChmodDstDir(fn_dst, e));
             copy_time_props st_src fn_dst
         end

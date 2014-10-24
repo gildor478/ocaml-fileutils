@@ -728,29 +728,35 @@ let test_fileutil =
     (fun test_ctxt ->
        let tmp_dir = bracket_tmpdir test_ctxt in
        let dir = make_filename [tmp_dir; "essai3"] in
-         mkdir ~mode:0o0700 dir;
+         mkdir ~mode:(`Octal 0o0700) dir;
          assert_bool "mkdir" (test Is_dir dir));
 
     "Mkdir recurse v2" >::
     (fun test_ctxt ->
-       try
-         let tmp_dir = bracket_tmpdir test_ctxt in
-         let dir = make_filename [tmp_dir; "essai4"; "essai5"] in
-           mkdir dir;
-           assert_failure "mkdir"
-       with MkdirMissingComponentPath _ ->
-         ());
+       let tmp_dir = bracket_tmpdir test_ctxt in
+       let dir = make_filename [tmp_dir; "essai4"; "essai5"] in
+       let exc = ref false in
+         mkdir
+           ~error:(fun _ e ->
+                     match e with
+                       | `MissingComponentPath _ -> exc := true
+                       | _ -> ())
+           dir;
+         assert_bool "missing component path" !exc);
 
     "Mkdir && already exist v3" >::
     (fun test_ctxt ->
        let tmp_dir = bracket_tmpdir test_ctxt in
-         try
-           let dir = make_filename [tmp_dir; "essai0"] in
-             touch dir;
-             mkdir dir;
-             assert_failure "mkdir"
-         with MkdirDirnameAlreadyUsed _ ->
-           ());
+       let dir = make_filename [tmp_dir; "essai0"] in
+       let exc = ref false in
+         touch dir;
+         mkdir
+           ~error:(fun _ e ->
+                     match e with
+                       | `DirnameAlreadyUsed _ -> exc := true
+                       | _ -> ())
+             dir;
+         assert_bool "dirname already used" !exc);
 
     "Mkdir recurse v4" >::
     (fun test_ctxt ->
@@ -758,7 +764,31 @@ let test_fileutil =
        let dir1 = (make_filename [tmp_dir; "essai4"]) in
        let dir2 = (make_filename [dir1; "essai5"]) in
          mkdir ~parent:true dir2;
-         assert_bool "mkdir" (test Is_dir dir2));
+         assert_bool "mkdir" (test Is_dir dir2);
+         assert_perm dir1 0o0755;
+         assert_perm dir2 0o0755;
+         rm ~recurse:true [dir1];
+         assert_bool "no dir" (not (test Exists dir2));
+
+         mkdir
+           ~parent:true
+           ~mode:(`Symbolic [`Group (`Add `Write); `Other (`Set (`List []))])
+           dir2;
+         assert_bool "mkdir" (test Is_dir dir2);
+         assert_perm dir1 0o0755;
+         assert_perm dir2 0o0770;
+         rm ~recurse:true [dir1];
+         assert_bool "no dir" (not (test Exists dir2));
+
+         mkdir
+           ~parent:true
+           ~mode:(`Octal 0o0770)
+           dir2;
+         assert_bool "mkdir" (test Is_dir dir2);
+         assert_perm dir1 0o0755;
+         assert_perm dir2 0o0770;
+         rm ~recurse:true [dir1];
+         assert_bool "no dir" (not (test Exists dir2)));
 
     "Find v0" >::
     (fun test_ctxt ->
