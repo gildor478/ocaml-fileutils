@@ -35,12 +35,11 @@ open FilePath
 exception SizeInvalid
 exception FileDoesntExist of filename
 exception RecursiveLink of filename
-exception RmDirNotEmpty of filename
-exception RmDirNoRecurse of filename
+exception RmError of string
 exception MkdirError of string
 exception CpError of string
 exception UmaskError of string
-exception MvNoSourceFile
+exception MvError of string
 
 (** Policy concerning links which are directories *)
 type action_link =
@@ -405,6 +404,25 @@ let solve_dirname dirname =
     reduce dirname
 
 
+type exc = [ `Exc of exn ]
+
+
+let handle_error_gen nm error custom =
+  let handle_exception exc =
+    let str =
+      match exc with
+        | Unix.Unix_error(err, nm, arg) ->
+            Printf.sprintf "%s: %s (%s, %S)" nm (Unix.error_message err) nm arg
+        | exc ->
+            Printf.sprintf "%s: %s" nm (Printexc.to_string exc)
+    in
+      error str (`Exc exc)
+  in
+  let handle_error e =
+    let str = custom e in
+      error str e
+  in
+    handle_error, handle_exception
 (**/**)
 
 (** [stat fln] Return information about the file (like Unix.stat)
@@ -452,24 +470,19 @@ let stat ?(dereference=false) (fln: filename) =
 let umask
       ?(error=(fun str _ -> raise (UmaskError str)))
       ?mode out =
-  let handle_error e =
-    let str =
-      match e with
-        | `NoStickyBit i ->
-            Printf.sprintf "Cannot set sticky bit in umask 0o%04o" i
-        | `Unix (Unix.Unix_error(err, _, _)) ->
-            Printf.sprintf "umask: %s" (Unix.error_message err)
-        | `Unix exc ->
-            Printf.sprintf "umask: %s" (Printexc.to_string exc)
-    in
-      error str e
+  let handle_error, handle_exception =
+    handle_error_gen "umask" error
+      (function
+         | `NoStickyBit i ->
+             Printf.sprintf "Cannot set sticky bit in umask 0o%04o" i
+         | #exc -> "")
   in
   let complement i = 0o0777 land (lnot i) in
   let try_umask i =
     try
       Unix.umask i
     with e ->
-      handle_error (`Unix e);
+      handle_exception e;
       raise e
   in
   let get () =
@@ -742,7 +755,7 @@ let test_exists =
   test (Or(Exists, Is_link))
 (**/**)
 
-(** Return the currend dir
+(** Return the current dir
     See {{:http://pubs.opengroup.org/onlinepubs/007904875/utilities/pwd.html}POSIX documentation}.
   *)
 let pwd () =
@@ -753,7 +766,6 @@ let pwd () =
     Non POSIX command.
   *)
 let readlink fln =
-  (* TODO: simplify. *)
   let all_upper_dir fln =
     let rec all_upper_dir_aux lst fln =
       let dir = dirname fln in
@@ -882,21 +894,16 @@ let mkdir
       ?(error=(fun str _ -> raise (MkdirError str)))
       ?(parent=false)
       ?mode dn =
-  let handle_error e =
-    let str =
-      match e with
-        | `DirnameAlreadyUsed fn ->
-            Printf.sprintf "Directory %s already exists and is a file." fn
-        | `MissingComponentPath fn ->
-            Printf.sprintf
-              "Unable to create directory %s, an upper directory is missing."
-              fn
-        | `Exc (Unix.Unix_error(err, nm, arg)) ->
-            Printf.sprintf "umask: %s (%s, %S)" (Unix.error_message err) nm arg
-        | `Exc exc ->
-            Printf.sprintf "umask: %s" (Printexc.to_string exc)
-    in
-      error str e
+  let handle_error, handle_exception =
+    handle_error_gen "mkdir" error
+      (function
+         | `DirnameAlreadyUsed fn ->
+             Printf.sprintf "Directory %s already exists and is a file." fn
+         | `MissingComponentPath fn ->
+             Printf.sprintf
+               "Unable to create directory %s, an upper directory is missing."
+               fn
+         | #exc -> "")
   in
   let mode_apply =
     FileUtilMode.apply ~is_dir:true ~umask:(umask (`Octal (fun i -> i)))
@@ -927,7 +934,7 @@ let mkdir
         | Unix.Unix_error(Unix.ENOTDIR, _, _) ->
             handle_error (`MissingComponentPath dn)
         | e ->
-            handle_error (`Exc e)
+            handle_exception e
     end
   in
     mkdir_simple mode_self dn
@@ -1090,18 +1097,32 @@ let find ?(follow=Skip) ?match_compile tst fln exec user_acc =
     completely delete a directory
     See {{:http://pubs.opengroup.org/onlinepubs/007904875/utilities/rm.html}POSIX documentation}.
   *)
-let rm ?(force=Force) ?(recurse=false) fln_lst =
-  let test_dir =
-    test (And(Is_dir, Not(Is_link)))
+let rm
+      ?(error=fun str _ -> raise (RmError str))
+      ?(force=Force)
+      ?(recurse=false)
+      fln_lst =
+  let handle_error, handle_exception =
+    handle_error_gen "rm" error
+      (function
+         | `DirNotEmpty fn ->
+             Printf.sprintf "Directory %s not empty." fn
+         | `NoRecurse fn ->
+             Printf.sprintf
+               "Cannot delete directory %s when recurse is not set."
+               fn
+         | #exc -> "")
   in
-
+  let test_dir = test (And(Is_dir, Not(Is_link))) in
   let rmdir fn =
     try
       Unix.rmdir fn
-    with Unix.Unix_error(Unix.ENOTEMPTY, _, _) ->
-      raise (RmDirNotEmpty fn)
+    with
+      | Unix.Unix_error(Unix.ENOTEMPTY, _, _) ->
+          handle_error (`DirNotEmpty fn)
+      | e ->
+          handle_exception e
   in
-
   let rec rm_aux lst =
     List.iter
       (fun fn ->
@@ -1118,13 +1139,12 @@ let rm ?(force=Force) ?(recurse=false) fln_lst =
                rm_aux (ls fn);
                rmdir fn
              end else
-               raise (RmDirNoRecurse fn)
+               handle_error (`NoRecurse fn)
            end else
              Unix.unlink fn
          end)
       lst
   in
-
     rm_aux fln_lst
 
 
@@ -1146,59 +1166,58 @@ let cp ?(follow=Skip)
        ?(error=(fun str _ -> raise (CpError str)))
        fln_src_lst fln_dst =
 
-  let handle_error e =
+  let herror, _ =
+    let spf fmt = Printf.sprintf fmt in
     let exs () e =
       match e with
-        | Unix.Unix_error(err, _, _) -> Unix.error_message err
-        | e -> Printexc.to_string e
+      | Unix.Unix_error(err, _, _) -> Unix.error_message err
+      | e -> Printexc.to_string e
     in
-    let spf fmt = Printf.sprintf fmt in
-    let str =
-      match e with
-        | `CannotRemoveDstFile(fn_dst, e) ->
-            spf "Cannot remove destination file '%s': %a." fn_dst exs e
-        | `CannotOpenDstFile(fn_dst, e) ->
-            spf "Cannot open destination file '%s': %a." fn_dst exs e
-        | `CannotOpenSrcFile(fn_src, e) ->
-            spf "Cannot open source file '%s': %a." fn_src exs e
-        | `ErrorRead(fn_src, e) ->
-            spf "Error reading file '%s': %a." fn_src exs e
-        | `ErrorWrite(fn_dst, e) ->
-            spf "Error writing file '%s': %a." fn_dst exs e
-        | `PartialWrite(fn_dst, read, written) ->
-            spf
-              "Partial write to file '%s': %d read, %d written."
-              fn_dst
-              read
-              written
-        | `CannotCopyDir fn_src ->
-            spf "Cannot copy directory '%s' recursively." fn_src
-        | `DstDirNotDir fn_dst ->
-            spf "Destination '%s' is not a directory." fn_dst
-        | `CannotCreateDir(fn_dst, e) ->
-            spf "Cannot create directory '%s': %a." fn_dst exs e
-        | `CannotListSrcDir(fn_src, e) ->
-            spf "Cannot list directory '%s': %a." fn_src exs e
-        | `CannotChmodDstDir(fn_dst, e) ->
-            spf "'Cannot chmod directory %s': %a." fn_dst exs e
-        | `NoSourceFile fn_src ->
-            spf "Source file '%s' doesn't exist." fn_src
-        | `SameFile(fn_src, fn_dst) ->
-            spf "'%s' and '%s' are the same file." fn_src fn_dst
-        | `UnhandledType(fn_src, _) ->
-            spf "Cannot handle the type of kind for file '%s'." fn_src
-        | `CannotCopyFilesToFile(fn_src_lst, fn_dst) ->
-            spf "Cannot copy a list of files to another file '%s'." fn_dst
-    in
-      error str e;
-      raise CpSkip
+    handle_error_gen "cp" error
+      (function
+         | `CannotRemoveDstFile(fn_dst, e) ->
+             spf "Cannot remove destination file '%s': %a." fn_dst exs e
+         | `CannotOpenDstFile(fn_dst, e) ->
+             spf "Cannot open destination file '%s': %a." fn_dst exs e
+         | `CannotOpenSrcFile(fn_src, e) ->
+             spf "Cannot open source file '%s': %a." fn_src exs e
+         | `ErrorRead(fn_src, e) ->
+             spf "Error reading file '%s': %a." fn_src exs e
+         | `ErrorWrite(fn_dst, e) ->
+             spf "Error writing file '%s': %a." fn_dst exs e
+         | `PartialWrite(fn_dst, read, written) ->
+             spf
+               "Partial write to file '%s': %d read, %d written."
+               fn_dst
+               read
+               written
+         | `CannotCopyDir fn_src ->
+             spf "Cannot copy directory '%s' recursively." fn_src
+         | `DstDirNotDir fn_dst ->
+             spf "Destination '%s' is not a directory." fn_dst
+         | `CannotCreateDir(fn_dst, e) ->
+             spf "Cannot create directory '%s': %a." fn_dst exs e
+         | `CannotListSrcDir(fn_src, e) ->
+             spf "Cannot list directory '%s': %a." fn_src exs e
+         | `CannotChmodDstDir(fn_dst, e) ->
+             spf "'Cannot chmod directory %s': %a." fn_dst exs e
+         | `NoSourceFile fn_src ->
+             spf "Source file '%s' doesn't exist." fn_src
+         | `SameFile(fn_src, fn_dst) ->
+             spf "'%s' and '%s' are the same file." fn_src fn_dst
+         | `UnhandledType(fn_src, _) ->
+             spf "Cannot handle the type of kind for file '%s'." fn_src
+         | `CannotCopyFilesToFile(fn_src_lst, fn_dst) ->
+             spf "Cannot copy a list of files to another file '%s'." fn_dst
+         | #exc -> "")
   in
-
+  let handle_error e = herror e; raise CpSkip in
   let handle_exception f a h =
     try
       f a
     with e ->
-      handle_error (h e)
+      herror (h e);
+      raise CpSkip
   in
 
   let copy_time_props st_src fln_dst =
@@ -1374,7 +1393,22 @@ let cp ?(follow=Skip)
 (** Move files/directories to another destination
     See {{:http://pubs.opengroup.org/onlinepubs/007904875/utilities/mv.html}POSIX documentation}.
   *)
-let rec mv ?(force=Force) fln_src fln_dst =
+let rec mv
+      ?(error=fun str _ -> raise (MvError str))
+      ?(force=Force)
+      fln_src fln_dst =
+  let handle_error, handle_exception =
+    handle_error_gen "mv" error
+      (function
+         | `NoSourceFile ->
+             "Cannot move an empty list of files."
+         | `MvCp (fn_src, fn_dst, str, _) ->
+             Printf.sprintf
+               "Recursive error in 'cp %s %s': %s" fn_src fn_dst str
+         | `MvRm (fn, str, e) ->
+             Printf.sprintf "Recursive error in 'rm %s': %s" fn str
+         | #exc -> "")
+  in
   let fln_src_abs =  make_absolute (pwd ()) fln_src in
   let fln_dst_abs =  make_absolute (pwd ()) fln_dst in
   if compare fln_src_abs fln_dst_abs <> 0 then begin
@@ -1382,7 +1416,7 @@ let rec mv ?(force=Force) fln_src fln_dst =
         rm [fln_dst_abs];
         mv fln_src_abs fln_dst_abs
     end else if test Is_dir fln_dst_abs then begin
-      mv ~force
+      mv ~force ~error
         fln_src_abs
         (make_absolute
            fln_dst_abs
@@ -1391,10 +1425,15 @@ let rec mv ?(force=Force) fln_src fln_dst =
       try
         Sys.rename fln_src_abs fln_dst_abs
       with Sys_error _ ->
-        cp ~force ~recurse:true [fln_src_abs] fln_dst_abs;
-        rm ~force ~recurse:true [fln_src_abs]
+        cp ~force
+          ~error:(fun str e -> handle_error
+                                 (`MvCp (fln_src_abs, fln_dst_abs, str, e)))
+          ~recurse:true [fln_src_abs] fln_dst_abs;
+        rm ~force
+          ~error:(fun str e -> handle_error (`MvRm (fln_src_abs, str, e)))
+          ~recurse:true [fln_src_abs]
     end else
-      raise MvNoSourceFile
+      handle_error `NoSourceFile
   end
 
 

@@ -737,10 +737,10 @@ let test_fileutil =
        let dir = make_filename [tmp_dir; "essai4"; "essai5"] in
        let exc = ref false in
          mkdir
-           ~error:(fun _ e ->
-                     match e with
-                       | `MissingComponentPath _ -> exc := true
-                       | _ -> ())
+           ~error:(fun _ ->
+                     function
+                     | `MissingComponentPath _ -> exc := true
+                     | _ -> ())
            dir;
          assert_bool "missing component path" !exc);
 
@@ -751,10 +751,10 @@ let test_fileutil =
        let exc = ref false in
          touch dir;
          mkdir
-           ~error:(fun _ e ->
-                     match e with
-                       | `DirnameAlreadyUsed _ -> exc := true
-                       | _ -> ())
+           ~error:(fun _ ->
+                     function
+                     | `DirnameAlreadyUsed _ -> exc := true
+                     | _ -> ())
              dir;
          assert_bool "dirname already used" !exc);
 
@@ -969,6 +969,13 @@ let test_fileutil =
                    ()
                with Unix.Unix_error(Unix.ENOENT, _, _) ->
                  assert_failure "dead link not copied.");
+
+          "Readlink" >::
+          (fun test_ctxt ->
+             let tmp_dir, fn, sfs = mk_symlink test_ctxt in
+               assert_equal
+                 ~printer:(Printf.sprintf "%S")
+                 tmp_dir (readlink fn));
         ]
     );
 
@@ -1176,13 +1183,16 @@ let test_fileutil =
        let tmp_dir = bracket_tmpdir test_ctxt in
        let dir = (make_filename [tmp_dir; "essai4"]) in
        let sfs = SafeFS.create tmp_dir ["essai4"] ["essai0"] in
+       let exc = ref false in
          mkdir dir;
-         try
-           rm ~force:(SafeFS.auto_ask_user sfs) [dir];
-           assert_failure
-             ("rm should have failed because "^dir^" is a directory")
-         with RmDirNoRecurse _ ->
-           ());
+         rm ~error:(fun _ ->
+                      function
+                      | `NoRecurse _ -> exc := true
+                      | _ -> ())
+           ~force:(SafeFS.auto_ask_user sfs) [dir];
+         assert_bool
+           ("rm should have failed because "^dir^" is a directory")
+           !exc);
 
     "Rm ask duplicate" >::
     (fun test_ctxt ->
