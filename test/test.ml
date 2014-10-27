@@ -23,6 +23,7 @@ open OUnit2
 open FilePath
 open FileUtil
 
+exception ExpectedException
 
 let test_umask = 0o0022
 
@@ -75,6 +76,14 @@ let assert_perm fn exp =
     ~msg:(Printf.sprintf "permission of '%s'" fn)
     ~printer:(Printf.sprintf "0o%04o")
     exp (Unix.lstat fn).Unix.st_perm
+
+
+let assert_error msg e f =
+  assert_raises
+    ~msg
+    ExpectedException
+    (fun () ->
+       f (fun _ err -> if e err then raise ExpectedException))
 
 (** Ensure that we are dealing with generated file (and not random
     file on the filesystem).
@@ -735,28 +744,24 @@ let test_fileutil =
     (fun test_ctxt ->
        let tmp_dir = bracket_tmpdir test_ctxt in
        let dir = make_filename [tmp_dir; "essai4"; "essai5"] in
-       let exc = ref false in
-         mkdir
-           ~error:(fun _ ->
-                     function
-                     | `MissingComponentPath _ -> exc := true
-                     | _ -> ())
-           dir;
-         assert_bool "missing component path" !exc);
+         assert_error
+           "missing component path"
+           (function
+              | `MissingComponentPath _ -> true
+              | _ -> false)
+           (fun error -> mkdir ~error dir));
 
     "Mkdir && already exist v3" >::
     (fun test_ctxt ->
        let tmp_dir = bracket_tmpdir test_ctxt in
        let dir = make_filename [tmp_dir; "essai0"] in
-       let exc = ref false in
          touch dir;
-         mkdir
-           ~error:(fun _ ->
-                     function
-                     | `DirnameAlreadyUsed _ -> exc := true
-                     | _ -> ())
-             dir;
-         assert_bool "dirname already used" !exc);
+         assert_error
+           "dirname already used"
+           (function
+              | `DirnameAlreadyUsed _ -> true
+              | _ -> false)
+           (fun error -> mkdir ~error dir));
 
     "Mkdir recurse v4" >::
     (fun test_ctxt ->
@@ -1183,16 +1188,13 @@ let test_fileutil =
        let tmp_dir = bracket_tmpdir test_ctxt in
        let dir = (make_filename [tmp_dir; "essai4"]) in
        let sfs = SafeFS.create tmp_dir ["essai4"] ["essai0"] in
-       let exc = ref false in
          mkdir dir;
-         rm ~error:(fun _ ->
-                      function
-                      | `NoRecurse _ -> exc := true
-                      | _ -> ())
-           ~force:(SafeFS.auto_ask_user sfs) [dir];
-         assert_bool
-           ("rm should have failed because "^dir^" is a directory")
-           !exc);
+         assert_error
+           "rm should have failed trying to delete a directory"
+           (function
+              | `NoRecurse _ -> true
+              | _ -> false)
+           (fun error -> rm ~error ~force:(SafeFS.auto_ask_user sfs) [dir]));
 
     "Rm ask duplicate" >::
     (fun test_ctxt ->

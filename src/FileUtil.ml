@@ -40,6 +40,13 @@ exception MkdirError of string
 exception CpError of string
 exception UmaskError of string
 exception MvError of string
+exception ChmodError of string
+
+(** Raised when an error reporting function didn't trigger an exception but the
+    rest of the workflow logic cannot handle the default case.
+  *)
+exception Fatal of string
+
 
 (** Policy concerning links which are directories *)
 type action_link =
@@ -408,19 +415,27 @@ type exc = [ `Exc of exn ]
 
 
 let handle_error_gen nm error custom =
-  let handle_exception exc =
+  let handle_error ~fatal e =
     let str =
-      match exc with
-        | Unix.Unix_error(err, nm, arg) ->
+      match e with
+        | `Exc (Unix.Unix_error(err, nm, arg)) ->
             Printf.sprintf "%s: %s (%s, %S)" nm (Unix.error_message err) nm arg
-        | exc ->
+        | `Exc exc ->
             Printf.sprintf "%s: %s" nm (Printexc.to_string exc)
+        | e -> custom e
     in
-      error str (`Exc exc)
+      if fatal then begin
+        try
+          error str e;
+          raise (Fatal str)
+        with exc ->
+          raise exc
+      end else begin
+        error str e
+      end
   in
-  let handle_error e =
-    let str = custom e in
-      error str e
+  let handle_exception ~fatal exc =
+      handle_error ~fatal (`Exc exc)
   in
     handle_error, handle_exception
 (**/**)
@@ -482,7 +497,7 @@ let umask
     try
       Unix.umask i
     with e ->
-      handle_exception e;
+      handle_exception ~fatal:true e;
       raise e
   in
   let get () =
@@ -494,7 +509,7 @@ let umask
     let eff_i = i land 0o777 in
     let _i: int =
       if i <> eff_i then
-        handle_error (`NoStickyBit i);
+        handle_error ~fatal:true (`NoStickyBit i);
       try_umask eff_i
     in
       eff_i
@@ -534,7 +549,13 @@ let ls dirname =
 (** Change permissions of files.
     See {{:http://pubs.opengroup.org/onlinepubs/007904875/utilities/chmod.html}POSIX documentation}.
   *)
-let chmod ?(recurse=false) mode lst =
+let chmod
+      ?(error=fun str _ -> raise (ChmodError str))
+      ?(recurse=false)
+      mode lst =
+  let _, handle_exception =
+    handle_error_gen "chmod" error (function #exc -> "")
+  in
   let rec chmod_one fn =
     let st = stat fn in
       if st.kind = Dir && recurse then begin
@@ -551,7 +572,10 @@ let chmod ?(recurse=false) mode lst =
                   (int_of_permission st.permission) t
         in
           if int_perm <> int_of_permission st.permission then
-            Unix.chmod fn int_perm
+            try
+              Unix.chmod fn int_perm
+            with e ->
+              handle_exception ~fatal:true e
       end
   in
     List.iter chmod_one lst
@@ -903,6 +927,10 @@ let mkdir
              Printf.sprintf
                "Unable to create directory %s, an upper directory is missing."
                fn
+         | `MkdirChmod (dn, mode, str, e) ->
+             Printf.sprintf
+               "Recursive error in 'mkdir %s' in 'chmod %04o %s': %s"
+               dn mode dn str
          | #exc -> "")
   in
   let mode_apply =
@@ -923,18 +951,21 @@ let mkdir
   let rec mkdir_simple mode dn =
     if test_exists dn then begin
       if test (Not Is_dir) dn then
-        handle_error (`DirnameAlreadyUsed dn)
+        handle_error ~fatal:true (`DirnameAlreadyUsed dn);
     end else begin
       if parent then
         mkdir_simple mode_parent (dirname dn);
       try
         Unix.mkdir dn mode;
-        chmod (`Octal mode) [dn]
+        chmod
+          ~error:(fun str e ->
+                    handle_error ~fatal:true
+                      (`MkdirChmod (dn, mode, str, e)))
+          (`Octal mode) [dn]
       with Unix.Unix_error(Unix.ENOENT, _, _)
         | Unix.Unix_error(Unix.ENOTDIR, _, _) ->
-            handle_error (`MissingComponentPath dn)
-        | e ->
-            handle_exception e
+            handle_error ~fatal:true (`MissingComponentPath dn)
+        | e -> handle_exception ~fatal:true e
     end
   in
     mkdir_simple mode_self dn
@@ -1119,9 +1150,9 @@ let rm
       Unix.rmdir fn
     with
       | Unix.Unix_error(Unix.ENOTEMPTY, _, _) ->
-          handle_error (`DirNotEmpty fn)
+          handle_error ~fatal:true (`DirNotEmpty fn)
       | e ->
-          handle_exception e
+          handle_exception ~fatal:true e
   in
   let rec rm_aux lst =
     List.iter
@@ -1139,7 +1170,7 @@ let rm
                rm_aux (ls fn);
                rmdir fn
              end else
-               handle_error (`NoRecurse fn)
+               handle_error ~fatal:true (`NoRecurse fn)
            end else
              Unix.unlink fn
          end)
@@ -1211,12 +1242,15 @@ let cp ?(follow=Skip)
              spf "Cannot copy a list of files to another file '%s'." fn_dst
          | #exc -> "")
   in
-  let handle_error e = herror e; raise CpSkip in
+  let handle_error e =
+    herror ~fatal:false e;
+    raise CpSkip
+  in
   let handle_exception f a h =
     try
       f a
     with e ->
-      herror (h e);
+      herror ~fatal:false (h e);
       raise CpSkip
   in
 
@@ -1404,9 +1438,11 @@ let rec mv
              "Cannot move an empty list of files."
          | `MvCp (fn_src, fn_dst, str, _) ->
              Printf.sprintf
-               "Recursive error in 'cp %s %s': %s" fn_src fn_dst str
+               "Recursive error in 'mv %s %s' for 'cp %s %s': %s"
+               fn_src fn_dst fn_src fn_dst str
          | `MvRm (fn, str, e) ->
-             Printf.sprintf "Recursive error in 'rm %s': %s" fn str
+             Printf.sprintf "Recursive error in 'mv %s ..' for 'rm %s': %s"
+               fn fn str
          | #exc -> "")
   in
   let fln_src_abs =  make_absolute (pwd ()) fln_src in
@@ -1426,14 +1462,17 @@ let rec mv
         Sys.rename fln_src_abs fln_dst_abs
       with Sys_error _ ->
         cp ~force
-          ~error:(fun str e -> handle_error
-                                 (`MvCp (fln_src_abs, fln_dst_abs, str, e)))
+          ~error:(fun str e ->
+                    handle_error ~fatal:true
+                      (`MvCp (fln_src_abs, fln_dst_abs, str, e)))
           ~recurse:true [fln_src_abs] fln_dst_abs;
         rm ~force
-          ~error:(fun str e -> handle_error (`MvRm (fln_src_abs, str, e)))
+          ~error:(fun str e ->
+                    handle_error ~fatal:true
+                      (`MvRm (fln_src_abs, str, e)))
           ~recurse:true [fln_src_abs]
     end else
-      handle_error `NoSourceFile
+      handle_error ~fatal:true `NoSourceFile
   end
 
 
