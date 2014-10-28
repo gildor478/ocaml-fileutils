@@ -92,7 +92,11 @@ test: precommit
 #  Fix license header of file.
 
 headache:
-	find ./ -name _darcs -prune -false -o -name _build -prune -false -o -type f \
+	find ./ \
+		-name _darcs -prune -false -o \
+		-name .git -prune -false -o \
+		-name _build -prune -false -o \
+		-type f \
 		| xargs headache -h _header -c _headache.config
 
 .PHONY: headache

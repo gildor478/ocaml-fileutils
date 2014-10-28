@@ -19,27 +19,57 @@
 (*  Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA             *)
 (******************************************************************************)
 
-include FileUtilTypes
-include FileUtilPermission
-include FileUtilSize
-include FileUtilSTAT
-include FileUtilUMASK
-include FileUtilLS
-include FileUtilCHMOD
-include FileUtilTEST
-include FileUtilPWD
-include FileUtilREADLINK
-include FileUtilWHICH
-include FileUtilMKDIR
-include FileUtilTOUCH
-include FileUtilFIND
-include FileUtilRM
-include FileUtilCP
-include FileUtilMV
-include FileUtilCMP
-include FileUtilDU
+open FileUtilTypes
 
-type exc = FileUtilMisc.exc
-type 'a error_handler = string -> 'a -> unit
 
-module Mode = FileUtilMode
+let permission_of_int pr =
+  let perm_match oct =
+    (pr land oct) <> 0
+  in
+  {
+    user =
+      {
+        sticky = perm_match 0o4000;
+        exec   = perm_match 0o0100;
+        write  = perm_match 0o0200;
+        read   = perm_match 0o0400;
+      };
+    group =
+      {
+        sticky = perm_match 0o2000;
+        exec   = perm_match 0o0010;
+        write  = perm_match 0o0020;
+        read   = perm_match 0o0040;
+      };
+    other =
+      {
+        sticky = perm_match 0o1000;
+        exec   = perm_match 0o0001;
+        write  = perm_match 0o0002;
+        read   = perm_match 0o0004;
+      };
+  }
+
+
+let int_of_permission pr =
+  let permission_int = [
+    (pr.user.sticky,  0o4000);
+    (pr.user.exec,    0o0100);
+    (pr.user.write,   0o0200);
+    (pr.user.read,    0o0400);
+    (pr.group.sticky, 0o2000);
+    (pr.group.exec,   0o0010);
+    (pr.group.write,  0o0020);
+    (pr.group.read,   0o0040);
+    (pr.other.sticky, 0o1000);
+    (pr.other.exec,   0o0001);
+    (pr.other.write,  0o0002);
+    (pr.other.read,   0o0004)
+  ]
+  in
+  List.fold_left (fun full_perm (b, perm) ->
+    if b then
+      perm lor full_perm
+    else
+      full_perm)
+    0o0000 permission_int

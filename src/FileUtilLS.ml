@@ -19,27 +19,12 @@
 (*  Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA             *)
 (******************************************************************************)
 
-include FileUtilTypes
-include FileUtilPermission
-include FileUtilSize
-include FileUtilSTAT
-include FileUtilUMASK
-include FileUtilLS
-include FileUtilCHMOD
-include FileUtilTEST
-include FileUtilPWD
-include FileUtilREADLINK
-include FileUtilWHICH
-include FileUtilMKDIR
-include FileUtilTOUCH
-include FileUtilFIND
-include FileUtilRM
-include FileUtilCP
-include FileUtilMV
-include FileUtilCMP
-include FileUtilDU
+open FileUtilMisc
 
-type exc = FileUtilMisc.exc
-type 'a error_handler = string -> 'a -> unit
 
-module Mode = FileUtilMode
+let ls dirname =
+  let array_dir = Sys.readdir (solve_dirname dirname) in
+  let list_dir = Array.to_list array_dir in
+    List.map
+      (fun x -> FilePath.concat dirname x)
+      list_dir

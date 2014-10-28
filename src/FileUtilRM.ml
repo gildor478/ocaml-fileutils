@@ -19,27 +19,66 @@
 (*  Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA             *)
 (******************************************************************************)
 
-include FileUtilTypes
-include FileUtilPermission
-include FileUtilSize
-include FileUtilSTAT
-include FileUtilUMASK
-include FileUtilLS
-include FileUtilCHMOD
-include FileUtilTEST
-include FileUtilPWD
-include FileUtilREADLINK
-include FileUtilWHICH
-include FileUtilMKDIR
-include FileUtilTOUCH
-include FileUtilFIND
-include FileUtilRM
-include FileUtilCP
-include FileUtilMV
-include FileUtilCMP
-include FileUtilDU
+open FileUtilTypes
+open FilePath
+open FileUtilMisc
+open FileUtilTEST
+open FileUtilLS
 
-type exc = FileUtilMisc.exc
-type 'a error_handler = string -> 'a -> unit
+exception RmError of string
 
-module Mode = FileUtilMode
+type rm_error =
+  [ `DirNotEmpty of filename
+  | `Exc of exn
+  | `NoRecurse of filename ]
+
+
+let rm
+      ?(error=fun str _ -> raise (RmError str))
+      ?(force=Force)
+      ?(recurse=false)
+      fln_lst =
+  let handle_error, handle_exception =
+    handle_error_gen "rm" error
+      (function
+         | `DirNotEmpty fn ->
+             Printf.sprintf "Directory %s not empty." fn
+         | `NoRecurse fn ->
+             Printf.sprintf
+               "Cannot delete directory %s when recurse is not set."
+               fn
+         | #exc -> "")
+  in
+  let test_dir = test (And(Is_dir, Not(Is_link))) in
+  let rmdir fn =
+    try
+      Unix.rmdir fn
+    with
+      | Unix.Unix_error(Unix.ENOTEMPTY, _, _) ->
+          handle_error ~fatal:true (`DirNotEmpty fn)
+      | e ->
+          handle_exception ~fatal:true e
+  in
+  let rec rm_aux lst =
+    List.iter
+      (fun fn ->
+         let exists =
+           try
+             let _st: Unix.stats = Unix.lstat fn in
+               true
+           with Unix.Unix_error(Unix.ENOENT, _, _) ->
+             false
+         in
+         if exists && (doit force fn) then begin
+           if test_dir fn then begin
+             if recurse then begin
+               rm_aux (ls fn);
+               rmdir fn
+             end else
+               handle_error ~fatal:true (`NoRecurse fn)
+           end else
+             Unix.unlink fn
+         end)
+      lst
+  in
+    rm_aux fln_lst

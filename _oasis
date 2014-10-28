@@ -20,7 +20,27 @@ Library "fileutils"
                    MacOSPath,
                    UnixPath,
                    Win32Path,
-                   FileUtilMode
+                   FileUtilMode,
+                   FileUtilTypes,
+                   FileUtilPermission,
+                   FileUtilSize,
+                   FileUtilMisc,
+                   FileUtilSTAT,
+                   FileUtilUMASK,
+                   FileUtilLS,
+                   FileUtilCHMOD,
+                   FileUtilTEST,
+                   FileUtilPWD,
+                   FileUtilREADLINK,
+                   FileUtilWHICH,
+                   FileUtilMKDIR,
+                   FileUtilTOUCH,
+                   FileUtilFIND,
+                   FileUtilRM,
+                   FileUtilCP,
+                   FileUtilMV,
+                   FileUtilCMP,
+                   FileUtilDU
   BuildDepends: unix
 
 Library "fileutils-str"

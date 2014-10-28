@@ -19,27 +19,43 @@
 (*  Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA             *)
 (******************************************************************************)
 
-include FileUtilTypes
-include FileUtilPermission
-include FileUtilSize
-include FileUtilSTAT
-include FileUtilUMASK
-include FileUtilLS
-include FileUtilCHMOD
-include FileUtilTEST
-include FileUtilPWD
-include FileUtilREADLINK
-include FileUtilWHICH
-include FileUtilMKDIR
-include FileUtilTOUCH
-include FileUtilFIND
-include FileUtilRM
-include FileUtilCP
-include FileUtilMV
-include FileUtilCMP
-include FileUtilDU
+open FileUtilTypes
+open FileUtilPermission
 
-type exc = FileUtilMisc.exc
-type 'a error_handler = string -> 'a -> unit
 
-module Mode = FileUtilMode
+let stat ?(dereference=false) fln =
+  let kind_of_stat ustat =
+    match ustat.Unix.LargeFile.st_kind with
+      | Unix.S_REG -> File
+      | Unix.S_DIR -> Dir
+      | Unix.S_CHR -> Dev_char
+      | Unix.S_BLK -> Dev_block
+      | Unix.S_FIFO -> Fifo
+      | Unix.S_SOCK -> Socket
+      | Unix.S_LNK -> Symlink
+  in
+  try
+    let ustat = Unix.LargeFile.lstat fln in
+    let is_link = (kind_of_stat ustat = Symlink) in
+    let ustat =
+      if is_link && dereference then
+        Unix.LargeFile.stat fln
+      else
+        ustat
+    in
+      {
+        kind              = kind_of_stat ustat;
+        is_link           = is_link;
+        permission        = permission_of_int ustat.Unix.LargeFile.st_perm;
+        size              = B ustat.Unix.LargeFile.st_size;
+        owner             = ustat.Unix.LargeFile.st_uid;
+        group_owner       = ustat.Unix.LargeFile.st_gid;
+        access_time       = ustat.Unix.LargeFile.st_atime;
+        modification_time = ustat.Unix.LargeFile.st_mtime;
+        creation_time     = ustat.Unix.LargeFile.st_ctime;
+        device            = ustat.Unix.LargeFile.st_dev;
+        inode             = ustat.Unix.LargeFile.st_ino;
+      }
+  with Unix.Unix_error(Unix.ENOENT, _, _) ->
+    raise (FileDoesntExist fln)
+

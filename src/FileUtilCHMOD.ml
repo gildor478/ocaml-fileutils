@@ -19,27 +19,45 @@
 (*  Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA             *)
 (******************************************************************************)
 
-include FileUtilTypes
-include FileUtilPermission
-include FileUtilSize
-include FileUtilSTAT
-include FileUtilUMASK
-include FileUtilLS
-include FileUtilCHMOD
-include FileUtilTEST
-include FileUtilPWD
-include FileUtilREADLINK
-include FileUtilWHICH
-include FileUtilMKDIR
-include FileUtilTOUCH
-include FileUtilFIND
-include FileUtilRM
-include FileUtilCP
-include FileUtilMV
-include FileUtilCMP
-include FileUtilDU
+open FileUtilTypes
+open FileUtilMisc
+open FileUtilPermission
+open FileUtilSTAT
+open FileUtilLS
+open FileUtilUMASK
 
-type exc = FileUtilMisc.exc
-type 'a error_handler = string -> 'a -> unit
+exception ChmodError of string
 
-module Mode = FileUtilMode
+type chmod_error = [`Exc of exn]
+
+
+let chmod
+      ?(error=fun str _ -> raise (ChmodError str))
+      ?(recurse=false)
+      mode lst =
+  let _, handle_exception =
+    handle_error_gen "chmod" error (function #exc -> "")
+  in
+  let rec chmod_one fn =
+    let st = stat fn in
+      if st.kind = Dir && recurse then begin
+        List.iter chmod_one (ls fn)
+      end;
+      if not st.is_link then begin
+        let int_perm =
+          match mode with
+            | `Octal i -> i
+            | `Symbolic t ->
+                FileUtilMode.apply
+                  ~is_dir:(st.kind = Dir)
+                  ~umask:(umask (`Octal (fun i -> i)))
+                  (int_of_permission st.permission) t
+        in
+          if int_perm <> int_of_permission st.permission then
+            try
+              Unix.chmod fn int_perm
+            with e ->
+              handle_exception ~fatal:true e
+      end
+  in
+    List.iter chmod_one lst

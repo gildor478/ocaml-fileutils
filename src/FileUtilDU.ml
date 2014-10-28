@@ -19,27 +19,19 @@
 (*  Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA             *)
 (******************************************************************************)
 
-include FileUtilTypes
-include FileUtilPermission
-include FileUtilSize
-include FileUtilSTAT
-include FileUtilUMASK
-include FileUtilLS
-include FileUtilCHMOD
-include FileUtilTEST
-include FileUtilPWD
-include FileUtilREADLINK
-include FileUtilWHICH
-include FileUtilMKDIR
-include FileUtilTOUCH
-include FileUtilFIND
-include FileUtilRM
-include FileUtilCP
-include FileUtilMV
-include FileUtilCMP
-include FileUtilDU
+open FileUtilTypes
+open FileUtilSize
+open FileUtilSTAT
+open FileUtilFIND
 
-type exc = FileUtilMisc.exc
-type 'a error_handler = string -> 'a -> unit
 
-module Mode = FileUtilMode
+let du fln_lst =
+  let du_aux (sz, lst) fln =
+    let st = stat fln in
+      (size_add sz st.size, (fln, st.size) :: lst)
+  in
+    List.fold_left
+      (fun accu fln -> find True fln du_aux accu)
+      (B 0L, [])
+    fln_lst
+

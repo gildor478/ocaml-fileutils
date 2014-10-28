@@ -19,27 +19,61 @@
 (*  Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA             *)
 (******************************************************************************)
 
-include FileUtilTypes
-include FileUtilPermission
-include FileUtilSize
-include FileUtilSTAT
-include FileUtilUMASK
-include FileUtilLS
-include FileUtilCHMOD
-include FileUtilTEST
-include FileUtilPWD
-include FileUtilREADLINK
-include FileUtilWHICH
-include FileUtilMKDIR
-include FileUtilTOUCH
-include FileUtilFIND
-include FileUtilRM
-include FileUtilCP
-include FileUtilMV
-include FileUtilCMP
-include FileUtilDU
+open FileUtilTypes
+open FilePath
 
-type exc = FileUtilMisc.exc
-type 'a error_handler = string -> 'a -> unit
+module SetFilename = Set.Make (struct
+  type t = filename
+  let compare = FilePath.compare
+end)
 
-module Mode = FileUtilMode
+
+let doit force fln =
+  match force with
+    Force -> true
+  | Ask ask -> ask fln
+
+
+let prevent_recursion fln_set fln =
+  (* TODO: use a set of dev/inode *)
+  if SetFilename.mem fln fln_set then
+    raise (RecursiveLink fln)
+  else
+    SetFilename.add fln fln_set
+
+
+let solve_dirname dirname =
+  (* We have an ambiguity concerning "" and "." *)
+  if is_current dirname then
+    current_dir
+  else
+    reduce dirname
+
+
+type exc = [ `Exc of exn ]
+
+
+let handle_error_gen nm error custom =
+  let handle_error ~fatal e =
+    let str =
+      match e with
+        | `Exc (Unix.Unix_error(err, nm, arg)) ->
+            Printf.sprintf "%s: %s (%s, %S)" nm (Unix.error_message err) nm arg
+        | `Exc exc ->
+            Printf.sprintf "%s: %s" nm (Printexc.to_string exc)
+        | e -> custom e
+    in
+      if fatal then begin
+        try
+          error str e;
+          raise (Fatal str)
+        with exc ->
+          raise exc
+      end else begin
+        error str e
+      end
+  in
+  let handle_exception ~fatal exc =
+      handle_error ~fatal (`Exc exc)
+  in
+    handle_error, handle_exception
