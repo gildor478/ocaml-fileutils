@@ -18,7 +18,7 @@ You can browse the source code of the [project][].
 
 To get a copy of the source tree, you must use darcs:
 
-    $> darcs get http://darcs.ocamlcore.org/repos/ocaml-fileutils/ocaml-fileutils
+    $> darcs get http://darcs.ocamlcore.org/repos/ocaml-fileutils
     $> darcs get scm.ocamlcore.org:/darcsroot/ocaml-fileutils/ocaml-fileutils ocaml-fileutils # if you have write access
 
 Once you have the source code, you can pick a [bug][] or a [feature request][] to fix.

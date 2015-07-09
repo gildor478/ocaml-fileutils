@@ -22,32 +22,39 @@
 (** POSIX utilities for files and directories.
 
     A module to provide the core POSIX utilities to manipulate files and
-    directories. All function nearly match common POSIX utilities but in
-    rewritten OCaml.
+    directories. All functions try to mimic common POSIX utilities but are
+    written in pure OCaml.
 
     @author Sylvain Le Gall
   *)
 
 open FilePath
 
-(** {2 Types and exceptions }*)
 
-exception SizeInvalid
+(*********************************************************************)
+(**
+
+  {2 Types and exceptions }
+
+  *)
+
 exception FileDoesntExist of filename
 exception RecursiveLink of filename
-exception RmError of string
-exception MkdirError of string
-exception CpError of string
-exception UmaskError of string
-exception MvError of string
-exception ChmodError of string
 
-(** Raised when an error reporting function didn't trigger an exception but the
-    rest of the workflow logic cannot handle the default case.
+(** Generic error handling functions. Whenever such a function is available it
+    helps report the error and allows to raise an exception. The [string]
+    provided is the human readable version of ['a]. In most cases ['a] is a
+    polymorphic variant.
+  *)
+type 'a error_handler = string -> 'a -> unit
+
+(** Exception raised when after an [error_handler] the execution cannot
+    continue. The rest of the workflow logic cannot handle the default case and
+    the whole operation can be in the middle of transformation.
   *)
 exception Fatal of string
 
-(** Policy concerning links which are directories *)
+(** Policy concerning links which are directories. *)
 type action_link =
   | Follow
     (** We consider link as simple directory (it is dangerous) *)
@@ -65,6 +72,71 @@ type interactive =
   | Force (** Do it anyway *)
   | Ask of (filename -> bool) (** Promp the user *)
 
+
+(*********************************************************************)
+(**
+
+   {2 Permission }
+ 
+  *)
+
+(** Base permission. This is the permission corresponding to one user or group.
+  *)
+type base_permission =
+  {
+    sticky: bool;
+    exec: bool;
+    write: bool;
+    read: bool;
+  }
+
+(** Full permission. All the base permissions of a file.
+  *)
+type permission =
+  {
+    user: base_permission;
+    group: base_permission;
+    other: base_permission;
+  }
+
+(** Translate POSIX integer permission. *)
+val permission_of_int: int -> permission
+
+(** Return the POSIX integer permission *)
+val int_of_permission: permission -> int
+
+(** Permission symbolic mode. *)
+module Mode:
+sig
+  type who = [`User | `Group | `Other | `All]
+  type wholist = [ who | `List of who list ]
+  type permcopy = [`User | `Group | `Other]
+  type perm = [ `Read | `Write | `Exec | `ExecX | `Sticky | `StickyO ]
+  type permlist = [ perm | `List of perm list ]
+  type actionarg = [ permlist | permcopy ]
+  type action = [ `Set of actionarg | `Add of actionarg | `Remove of actionarg]
+  type actionlist = [ action | `List of action list ]
+  type clause = [ `User of actionlist | `Group of actionlist
+                | `Other of actionlist | `All of actionlist
+                | `None of actionlist ]
+
+  (** Typical symbolic mode:
+   - g+r -> [`Group (`Add `Read)]
+   - u=rw,g+rw,o-rwx ->
+     [`User (`Set (`List [`Read; `Write]));
+      `Group (`Add (`List [`Read; `Write]));
+      `Other (`Remove (`List [`Read; `Write; `Exec]))]
+   *)
+  type t = clause list
+end
+
+(*********************************************************************)
+(**
+
+   {2 Size operation}
+ 
+  *)
+
 (** File size
   *)
 type size =
@@ -73,6 +145,30 @@ type size =
   | MB of int64 (** Mega bytes *)
   | KB of int64 (** Kilo bytes *)
   | B  of int64 (** Bytes *)
+
+(** Convert size to bytes. *)
+val byte_of_size: size -> int64
+
+(** Add two sizes. *)
+val size_add: size -> size -> size
+
+(** Compare two sizes, using the classical compare function. If fuzzy is set to
+    true, the comparison is done on the most significant size unit of both
+    value.
+  *)
+val size_compare: ?fuzzy:bool -> size -> size -> int
+
+(** Convert a value to a string representation. If fuzzy is set to true, only
+    consider the most significant unit
+  *)
+val string_of_size: ?fuzzy:bool -> size -> string
+
+(*********************************************************************)
+(**
+
+   {2 stat }
+
+  *)
 
 (** Kind of file. This set is a combination of all POSIX file, some of them
     doesn't exist at all on certain file system or OS.
@@ -85,27 +181,6 @@ type kind =
   | Fifo
   | Socket
   | Symlink (** @since 0.4.6 *)
-
-
-(** Base permission. This is the permission corresponding to one user or group.
-  *)
-type base_permission =
-  {
-    sticky: bool;
-    exec: bool;
-    write: bool;
-    read: bool;
-  }
-
-
-(** Full permission. All the base permissions of a file.
-  *)
-type permission =
-  {
-    user: base_permission;
-    group: base_permission;
-    other: base_permission;
-  }
 
 
 (** Information about a file. This type is derived from Unix.stat
@@ -125,6 +200,43 @@ type stat =
     inode: int;
   }
 
+
+(** [stat fln] Return information about the file (like Unix.stat)
+    Non POSIX command.
+  *)
+val stat: ?dereference:bool -> filename -> stat
+
+(*********************************************************************)
+(**
+ 
+  {2 umask }
+   
+  *)
+
+exception UmaskError of string
+
+(** Possible umask errors. *)
+type umask_error = [ `Exc of exn | `NoStickyBit of int ]
+
+(** Get or set the file mode creation mask.
+    See {{:http://pubs.opengroup.org/onlinepubs/007904875/utilities/umask.html}POSIX documentation}.
+  *)
+val umask:
+  ?error:(umask_error error_handler) ->
+  ?mode:[< `Octal of int | `Symbolic of Mode.t ] ->
+  [< `Octal of int -> 'a | `Symbolic of Mode.t -> 'a] ->
+  'a
+
+(** Apply umask to a given file permission.
+  *)
+val umask_apply: int -> int
+
+(*********************************************************************)
+(**
+
+  {2 test }
+
+  *)
 
 (** Pattern you can use to test file. If the file doesn't exist the result is
     always false.
@@ -172,95 +284,21 @@ type test_file =
   | Custom of (filename -> bool) (** Custom operation on filename *)
 
 
-(** Time for file *)
-type touch_time_t =
-  | Touch_now                   (** Use Unix.gettimeofday *)
-  | Touch_file_time of filename (** Get mtime of file *)
-  | Touch_timestamp of float    (** Use GMT timestamp *)
-
-(** {2 Classical permission } *)
-
-(** Translate POSIX integer permission. *)
-val permission_of_int: int -> permission
-
-(** Return the POSIX integer permission *)
-val int_of_permission: permission -> int
-
-(** {2 Size operation} *)
-
-(** Convert size to bytes. *)
-val byte_of_size: size -> int64
-
-(** Add two sizes. *)
-val size_add: size -> size -> size
-
-(** Compare two size, using the classical compare function. If fuzzy is set to
-    true, the comparison is done on the most significant size unit of both
-    value.
+(** Test a file.
+    See {{:http://pubs.opengroup.org/onlinepubs/007904875/utilities/test.html}POSIX documentation}.
   *)
-val size_compare: ?fuzzy:bool -> size -> size -> int
+val test:
+  ?match_compile:(filename -> filename -> bool) ->
+  test_file -> filename -> bool
 
-(** Convert a value to a string representation. If fuzzy is set to true, only
-    consider the most significant unit
+(*********************************************************************)
+(**
+
+  {2 chmod }
+
   *)
-val string_of_size: ?fuzzy:bool -> size -> string
 
-(** {2 Operations on files and directories} *)
-
-(** [stat fln] Return information about the file (like Unix.stat)
-    Non POSIX command.
-  *)
-val stat: ?dereference:bool -> filename -> stat
-
-(** Permission symbolic mode. *)
-module Mode:
-sig
-  type who = [`User | `Group | `Other | `All]
-  type wholist = [ who | `List of who list ]
-  type permcopy = [`User | `Group | `Other]
-  type perm = [ `Read | `Write | `Exec | `ExecX | `Sticky | `StickyO ]
-  type permlist = [ perm | `List of perm list ]
-  type actionarg = [ permlist | permcopy ]
-  type action = [ `Set of actionarg | `Add of actionarg | `Remove of actionarg]
-  type actionlist = [ action | `List of action list ]
-  type clause = [ `User of actionlist | `Group of actionlist
-                | `Other of actionlist | `All of actionlist
-                | `None of actionlist ]
-
-  (** Typical symbolic mode:
-   - g+r -> [`Group (`Add `Read)]
-   - u=rw,g+rw,o-rwx ->
-     [`User (`Set (`List [`Read; `Write]));
-      `Group (`Add (`List [`Read; `Write]));
-      `Other (`Remove (`List [`Read; `Write; `Exec]))]
-   *)
-  type t = clause list
-end
-
-(** Generic error handling functions. *)
-type 'a error_handler = string -> 'a -> unit
-
-
-(** Possible umask errors. *)
-type umask_error = [ `Exc of exn | `NoStickyBit of int ]
-
-(** Get or set the file mode creation mask.
-    See {{:http://pubs.opengroup.org/onlinepubs/007904875/utilities/umask.html}POSIX documentation}.
-  *)
-val umask:
-  ?error:(umask_error error_handler) ->
-  ?mode:[< `Octal of int | `Symbolic of Mode.t ] ->
-  [< `Octal of int -> 'a | `Symbolic of Mode.t -> 'a] ->
-  'a
-
-(** Apply umask to a given file permission.
-  *)
-val umask_apply: int -> int
-
-(** List the content of a directory
-    See {{:http://pubs.opengroup.org/onlinepubs/007904875/utilities/ls.html}POSIX documentation}.
-  *)
-val ls: filename -> filename list
+exception ChmodError of string
 
 (** Possible chmod errors. *)
 type chmod_error = [`Exc of exn]
@@ -274,33 +312,14 @@ val chmod:
   [< `Octal of Unix.file_perm | `Symbolic of Mode.t ] ->
   filename list -> unit
 
-(** Test a file.
-    See {{:http://pubs.opengroup.org/onlinepubs/007904875/utilities/test.html}POSIX documentation}.
-  *)
-val test:
-  ?match_compile:(filename -> filename -> bool) ->
-  test_file -> filename -> bool
+(*********************************************************************)
+(**
 
-(** Return the current dir
-    See {{:http://pubs.opengroup.org/onlinepubs/007904875/utilities/pwd.html}POSIX documentation}.
-  *)
-val pwd: unit -> filename
+  {2 mkdir }
 
-(** Resolve to the real filename removing symlink
-    Non POSIX command.
   *)
-val readlink: filename -> filename
 
-(** Apply a filtering pattern to a filename
-  *)
-val filter: test_file -> filename list -> filename list
-
-(** Try to find the executable in the PATH. Use environement variable
-    PATH if none is provided
-    Non POSIX command.
-  *)
-val which:
-  ?path:filename list -> filename -> filename
+exception MkdirError of string
 
 (** Possible mkdir errors. *)
 type mkdir_error =
@@ -309,8 +328,8 @@ type mkdir_error =
   | `MissingComponentPath of filename
   | `MkdirChmod of filename * Unix.file_perm * string * chmod_error ]
 
-(** Create the directory which name is provided. Turn parent to true
-    if you also want to create every topdir of the path. Use mode to
+(** Create the directory which name is provided. Set [~parent] to true
+    if you also want to create every directory of the path. Use mode to
     provide some specific right.
     See {{:http://pubs.opengroup.org/onlinepubs/007904875/utilities/mkdir.html}POSIX documentation}.
   *)
@@ -320,32 +339,14 @@ val mkdir:
   ?mode:[< `Octal of Unix.file_perm | `Symbolic of FileUtilMode.t ] ->
   filename -> unit
 
-(** Modify the timestamp of the given filename.
-    See {{:http://pubs.opengroup.org/onlinepubs/007904875/utilities/touch.html}POSIX documentation}.
-    If atime and mtime are not specified, they are both considered true. If only
-    atime or mtime is sepcified, the other is false.
-    @param atime  modify access time.
-    @param mtime  modify modification time.
-    @param create if file doesn't exist, create it, default true
-    @param time   what time to set, default Touch_now
-  *)
-val touch:
-  ?atime:bool ->
-  ?mtime:bool ->
-  ?create:bool -> ?time:touch_time_t -> filename -> unit
+(*********************************************************************)
+(**
 
-(** [find ~follow:fol tst fln exec accu] Descend the directory tree starting
-    from the given filename and using the test provided. You cannot match
-    [current_dir] and [parent_dir]. For every file found, the action [exec] is
-    done, using the [accu] to start. For a simple file listing, you can use
-    [find True "." (fun x y -> y :: x) []]
-    See {{:http://pubs.opengroup.org/onlinepubs/007904875/utilities/find.html}POSIX documentation}.
+    {2 rm }
+
   *)
-val find:
-  ?follow:action_link ->
-  ?match_compile:(filename -> filename -> bool) ->
-  test_file ->
-  filename -> ('a -> filename -> 'a) -> 'a -> 'a
+
+exception RmError of string
 
 (** Possible rm errors. *)
 type rm_error =
@@ -353,13 +354,22 @@ type rm_error =
   | `Exc of exn
   | `NoRecurse of filename ]
 
-(** Remove the filename provided. Turn recurse to true in order to
-    completely delete a directory
+(** Remove the filename provided. Set [~recurse] to true in order to
+    completely delete a directory.
     See {{:http://pubs.opengroup.org/onlinepubs/007904875/utilities/rm.html}POSIX documentation}.
   *)
 val rm:
   ?error:(rm_error error_handler) ->
   ?force:interactive -> ?recurse:bool -> filename list -> unit
+
+(*********************************************************************)
+(**
+
+    {2 cp }
+
+  *)
+
+exception CpError of string
 
 (** Possible cp errors. *)
 type cp_error =
@@ -380,7 +390,7 @@ type cp_error =
   | `SameFile of filename * filename
   | `UnhandledType of filename * kind ]
 
-(** Copy the hierarchy of files/directory to another destination
+(** Copy the hierarchy of files/directory to another destination.
     See {{:http://pubs.opengroup.org/onlinepubs/007904875/utilities/cp.html}POSIX documentation}.
   *)
 val cp:
@@ -391,6 +401,14 @@ val cp:
   ?error:(cp_error error_handler) ->
   filename list -> filename -> unit
 
+(*********************************************************************)
+(**
+
+    {2 mv }
+
+  *)
+
+exception MvError of string
 
 (** Possible mv errors. *)
 type mv_error =
@@ -399,12 +417,81 @@ type mv_error =
   | `MvRm of  filename * string * rm_error
   | `NoSourceFile ]
 
-(** Move files/directories to another destination
+(** Move files/directories to another destination.
     See {{:http://pubs.opengroup.org/onlinepubs/007904875/utilities/mv.html}POSIX documentation}.
   *)
 val mv:
   ?error:(mv_error error_handler) ->
   ?force:interactive -> filename -> filename -> unit
+
+
+(*********************************************************************)
+(**
+
+   {2 touch }
+
+  *)
+
+(** Time for file *)
+type touch_time_t =
+  | Touch_now                   (** Use Unix.gettimeofday *)
+  | Touch_file_time of filename (** Get mtime of file *)
+  | Touch_timestamp of float    (** Use GMT timestamp *)
+
+
+(** Modify the timestamp of the given filename.
+    See {{:http://pubs.opengroup.org/onlinepubs/007904875/utilities/touch.html}POSIX documentation}.
+    If atime and mtime are not specified, they are both considered true. If only
+    atime or mtime is sepcified, the other is false.
+    @param atime  modify access time.
+    @param mtime  modify modification time.
+    @param create if file doesn't exist, create it, default true
+    @param time   what time to set, default Touch_now
+  *)
+val touch:
+  ?atime:bool ->
+  ?mtime:bool ->
+  ?create:bool -> ?time:touch_time_t -> filename -> unit
+
+(*********************************************************************)
+(**
+
+   {2 ls }
+
+  *)
+
+(** Apply a filtering pattern to a filename.
+  *)
+val filter: test_file -> filename list -> filename list
+
+(** List the content of a directory.
+    See {{:http://pubs.opengroup.org/onlinepubs/007904875/utilities/ls.html}POSIX documentation}.
+  *)
+val ls: filename -> filename list
+
+(*********************************************************************)
+(**
+
+  {2 Misc operations }
+
+  *)
+
+(** Return the current dir.
+    See {{:http://pubs.opengroup.org/onlinepubs/007904875/utilities/pwd.html}POSIX documentation}.
+  *)
+val pwd: unit -> filename
+
+(** Resolve to the real filename removing symlink.
+    Non POSIX command.
+  *)
+val readlink: filename -> filename
+
+(** Try to find the executable in the PATH. Use environement variable
+    PATH if none is provided.
+    Non POSIX command.
+  *)
+val which:
+  ?path:filename list -> filename -> filename
 
 (** [cmp skip1 fln1 skip2 fln2] Compare files [fln1] and [fln2] starting at pos
     [skip1] [skip2] and returning the first octect where a difference occurs.
@@ -422,6 +509,19 @@ val cmp:
     See {{:http://pubs.opengroup.org/onlinepubs/007904875/utilities/du.html}POSIX documentation}.
   *)
 val du: filename list -> size * (filename * size) list
+
+(** [find ~follow:fol tst fln exec accu] Descend the directory tree starting
+    from the given filename and using the test provided. You cannot match
+    [current_dir] and [parent_dir]. For every file found, the action [exec] is
+    done, using the [accu] to start. For a simple file listing, you can use
+    [find True "." (fun x y -> y :: x) []]
+    See {{:http://pubs.opengroup.org/onlinepubs/007904875/utilities/find.html}POSIX documentation}.
+  *)
+val find:
+  ?follow:action_link ->
+  ?match_compile:(filename -> filename -> bool) ->
+  test_file ->
+  filename -> ('a -> filename -> 'a) -> 'a -> 'a
 
 (** For future release:
 - [val pathchk: filename -> boolean * string], check whether file names are

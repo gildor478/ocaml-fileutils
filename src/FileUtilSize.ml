@@ -21,9 +21,6 @@
 
 open FileUtilTypes
 
-exception SizeInvalid
-
-
 let byte_of_size sz =
   let rec mul_1024 n i =
     if n > 0 then
