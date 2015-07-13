@@ -1,3 +1,25 @@
+v0.5.0:
+  * Major release to account all the API changes:
+  * Rebuild the exception/reporting framework:
+    - Remove exceptions in favor of a single exception per command and a
+      polymorphic variant tag.
+    - Use a reporting function that can be passed as  a parameter
+      [?error:'a error_handler] to most of the functions.
+  * Reimplement functions to be more POSIX compliant implementation (Closes: #761):
+    (functions: cp, umask, chmod, mkdir, rm, mv, touch)
+  * Make sure dead symlinks are handled properly (Closes: #712, #711):
+    - derefenced when needed (functions: test)
+    - offer the choice when possible (function: stat)
+  * Implement symbolic mode that may have contextual meaning.
+  * Improve documentation (add links to POSIX doc, reorganize content in section).
+  * Split FileUtil.ml into multiple files.
+  * Implement chmod (Closes: #416).
+  * [cp] now propagate timestamp when invoked with [~preserve] (Closes: #709).
+  * Upgrade OUnit to OUnit2.
+  * Fix typo in cp (Closes: #816, #1317).
+
+ -- Sylvain Le Gall  Fri, 10 Jul 2015 01:44:54 +0200
+
 v0.4.5:
   * Fix fd leaking cmp (Closes: #1012).
   * Fix test suite for BSD system.
