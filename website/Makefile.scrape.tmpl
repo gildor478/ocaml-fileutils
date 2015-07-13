@@ -23,6 +23,6 @@ DOC_VERSIONS=dev ${ocaml_fileutils_doc.latest.version}
 cache/ocaml-fileutils-doc-${ocaml_fileutils_doc.latest.version}.tar.gz: URL = ${ocaml_fileutils_doc.latest.url}
 % for version in ocaml_fileutils_doc.others:
 DOC_VERSIONS+=${version.version}
-cache/ounit-doc-${version.version}.tar.gz: URL = ${version.url}
+cache/ocaml-fileutils-doc-${version.version}.tar.gz: URL = ${version.url}
 % endfor
 LATEST_VERSION=${ocaml_fileutils.latest.version}
