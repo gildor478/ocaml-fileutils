@@ -1,0 +1,15 @@
+opam-version: "1.2"
+dev-repo: "https://github.com/gildor478/ocaml-fileutils.git"
+build: [
+  ["oasis" "setup"]
+  ["./configure"]
+  [make]
+]
+install: [[make "install"]]
+remove: [["ocamlfind" "remove" "fileutils"]]
+depends: [
+  "ocamlfind" {build}
+  "ounit" {build}
+  "ocamlbuild" {build}
+  "oasis" {build}
+]
