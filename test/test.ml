@@ -889,6 +889,22 @@ let test_fileutil =
           SafeFS.mark sfs symlink;
           tmp_dir, symlink, sfs
       in
+      let mk_filelink test_ctxt =
+        let () =
+          skip_if (Sys.os_type <> "Unix") "Synlink only works on Unix."
+        in
+        let tmp_dir = bracket_tmpdir test_ctxt in
+        let symlink = make_filename [tmp_dir; "recurse"] in
+        let source  = make_filename [tmp_dir; "essai_file"] in
+        let sfs =
+          SafeFS.create tmp_dir
+            []
+            ["essai_file"]
+        in
+        Unix.symlink source symlink;
+        SafeFS.mark sfs symlink;
+        tmp_dir, symlink, sfs
+      in
       let mk_deadlink test_ctxt =
         let () =
           skip_if (Sys.os_type <> "Unix") "Synlink only works on Unix."
@@ -974,6 +990,13 @@ let test_fileutil =
                    ()
                with Unix.Unix_error(Unix.ENOENT, _, _) ->
                  assert_failure "dead link not copied.");
+
+          "Live filelink + cp" >::
+          (fun test_ctxt ->
+             let tmp_dir, symlink, dir1 = mk_filelink test_ctxt in
+             let dest = make_filename [tmp_dir; "dest"] in
+             cp [symlink] dest;
+             assert_bool "regular" (not(test Is_link dest)));
 
           "Readlink" >::
           (fun test_ctxt ->
