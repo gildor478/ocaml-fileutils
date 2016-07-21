@@ -249,10 +249,12 @@ let cp ?(follow=Skip)
     end
 
   and cp_one fn_src fn_dst =
-    let st_src =
+    let st_src, st_src_deref =
       (* Check existence of source files. *)
       if test_exists fn_src then
-        stat fn_src
+        match stat fn_src with
+        | {kind=Symlink} as st -> st, stat ~dereference:true fn_src
+        | st -> st,st
       else
         handle_error (`NoSourceFile fn_src)
     in
@@ -272,7 +274,10 @@ let cp ?(follow=Skip)
         match st_src.kind with
           | Dir -> cp_dir st_src dst_exists fn_src fn_dst
           | File -> cp_file st_src dst_exists fn_src fn_dst
-          | Symlink -> cp_symlink fn_src fn_dst
+          | Symlink ->
+            if st_src_deref.kind = Dir
+            then cp_symlink fn_src fn_dst
+            else cp_file st_src_deref dst_exists fn_src fn_dst
           | Fifo | Dev_char | Dev_block | Socket ->
               handle_error (`UnhandledType(fn_src, st_src.kind))
       with CpSkip ->
