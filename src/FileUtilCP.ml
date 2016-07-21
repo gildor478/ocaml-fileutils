@@ -57,12 +57,14 @@ let same_file st1 st2 =
   st1.device = st2.device && st1.inode = st2.inode
 
 
-let cp ?(follow=Skip)
-       ?(force=Force)
-       ?(recurse=false)
-       ?(preserve=false)
-       ?(error=(fun str _ -> raise (CpError str)))
-       fln_src_lst fln_dst =
+let cp
+    ?(follow=Skip)
+    ?(force=Force)
+    ?(recurse=false)
+    ?(preserve=false)
+    ?(error=(fun str _ -> raise (CpError str)))
+    fln_src_lst
+    fln_dst =
 
   let herror, _ =
     let spf fmt = Printf.sprintf fmt in
@@ -73,41 +75,41 @@ let cp ?(follow=Skip)
     in
     handle_error_gen "cp" error
       (function
-         | `CannotRemoveDstFile(fn_dst, e) ->
-             spf "Cannot remove destination file '%s': %a." fn_dst exs e
-         | `CannotOpenDstFile(fn_dst, e) ->
-             spf "Cannot open destination file '%s': %a." fn_dst exs e
-         | `CannotOpenSrcFile(fn_src, e) ->
-             spf "Cannot open source file '%s': %a." fn_src exs e
-         | `ErrorRead(fn_src, e) ->
-             spf "Error reading file '%s': %a." fn_src exs e
-         | `ErrorWrite(fn_dst, e) ->
-             spf "Error writing file '%s': %a." fn_dst exs e
-         | `PartialWrite(fn_dst, read, written) ->
-             spf
-               "Partial write to file '%s': %d read, %d written."
-               fn_dst
-               read
-               written
-         | `CannotCopyDir fn_src ->
-             spf "Cannot copy directory '%s' recursively." fn_src
-         | `DstDirNotDir fn_dst ->
-             spf "Destination '%s' is not a directory." fn_dst
-         | `CannotCreateDir(fn_dst, e) ->
-             spf "Cannot create directory '%s': %a." fn_dst exs e
-         | `CannotListSrcDir(fn_src, e) ->
-             spf "Cannot list directory '%s': %a." fn_src exs e
-         | `CannotChmodDstDir(fn_dst, e) ->
-             spf "'Cannot chmod directory %s': %a." fn_dst exs e
-         | `NoSourceFile fn_src ->
-             spf "Source file '%s' doesn't exist." fn_src
-         | `SameFile(fn_src, fn_dst) ->
-             spf "'%s' and '%s' are the same file." fn_src fn_dst
-         | `UnhandledType(fn_src, _) ->
-             spf "Cannot handle the type of kind for file '%s'." fn_src
-         | `CannotCopyFilesToFile(fn_src_lst, fn_dst) ->
-             spf "Cannot copy a list of files to another file '%s'." fn_dst
-         | #exc -> "")
+       | `CannotRemoveDstFile(fn_dst, e) ->
+           spf "Cannot remove destination file '%s': %a." fn_dst exs e
+       | `CannotOpenDstFile(fn_dst, e) ->
+           spf "Cannot open destination file '%s': %a." fn_dst exs e
+       | `CannotOpenSrcFile(fn_src, e) ->
+           spf "Cannot open source file '%s': %a." fn_src exs e
+       | `ErrorRead(fn_src, e) ->
+           spf "Error reading file '%s': %a." fn_src exs e
+       | `ErrorWrite(fn_dst, e) ->
+           spf "Error writing file '%s': %a." fn_dst exs e
+       | `PartialWrite(fn_dst, read, written) ->
+           spf
+             "Partial write to file '%s': %d read, %d written."
+             fn_dst
+             read
+             written
+       | `CannotCopyDir fn_src ->
+           spf "Cannot copy directory '%s' recursively." fn_src
+       | `DstDirNotDir fn_dst ->
+           spf "Destination '%s' is not a directory." fn_dst
+       | `CannotCreateDir(fn_dst, e) ->
+           spf "Cannot create directory '%s': %a." fn_dst exs e
+       | `CannotListSrcDir(fn_src, e) ->
+           spf "Cannot list directory '%s': %a." fn_src exs e
+       | `CannotChmodDstDir(fn_dst, e) ->
+           spf "'Cannot chmod directory %s': %a." fn_dst exs e
+       | `NoSourceFile fn_src ->
+           spf "Source file '%s' doesn't exist." fn_src
+       | `SameFile(fn_src, fn_dst) ->
+           spf "'%s' and '%s' are the same file." fn_src fn_dst
+       | `UnhandledType(fn_src, _) ->
+           spf "Cannot handle the type of kind for file '%s'." fn_src
+       | `CannotCopyFilesToFile(fn_src_lst, fn_dst) ->
+           spf "Cannot copy a list of files to another file '%s'." fn_dst
+       | #exc -> "")
   in
   let handle_error e =
     herror ~fatal:false e;
@@ -123,16 +125,16 @@ let cp ?(follow=Skip)
 
   let copy_time_props st_src fln_dst =
     if preserve then begin
-        touch
-          ~time:(Touch_timestamp st_src.modification_time)
-          ~mtime:true
-          ~create:false
-          fln_dst;
-        touch
-          ~time:(Touch_timestamp st_src.access_time)
-          ~atime:true
-          ~create:false
-          fln_dst;
+      touch
+        ~time:(Touch_timestamp st_src.modification_time)
+        ~mtime:true
+        ~create:false
+        fln_dst;
+      touch
+        ~time:(Touch_timestamp st_src.access_time)
+        ~atime:true
+        ~create:false
+        fln_dst;
     end
   in
 
@@ -151,7 +153,7 @@ let cp ?(follow=Skip)
         with _ ->
           (* 3aii *)
           handle_exception
-            rm [fn_dst]
+            (fun lst -> rm lst) [fn_dst]
             (fun e -> `CannotRemoveDstFile(fn_dst, e));
           handle_exception
             (Unix.openfile fn_dst [Unix.O_WRONLY; Unix.O_CREAT]) mode
@@ -220,7 +222,7 @@ let cp ?(follow=Skip)
               `Octal (dst_mode lor 0o0700)
           in
             handle_exception
-              (mkdir ~mode) fn_dst
+              (fun fn -> mkdir ~mode fn) fn_dst
               (fun e -> `CannotCreateDir(fn_dst, e));
             true
         end else begin
@@ -249,12 +251,18 @@ let cp ?(follow=Skip)
     end
 
   and cp_one fn_src fn_dst =
-    let st_src =
+    let st_src, st_src_deref =
       (* Check existence of source files. *)
-      if test_exists fn_src then
-        stat fn_src
-      else
+      if test_exists fn_src then begin
+        let st = stat fn_src in
+        if st.kind = Symlink && not recurse then begin
+          st, stat ~dereference:true fn_src
+        end else begin
+          st, st
+        end
+      end else begin
         handle_error (`NoSourceFile fn_src)
+      end
     in
 
     let same_file, dst_exists =
@@ -272,7 +280,11 @@ let cp ?(follow=Skip)
         match st_src.kind with
           | Dir -> cp_dir st_src dst_exists fn_src fn_dst
           | File -> cp_file st_src dst_exists fn_src fn_dst
-          | Symlink -> cp_symlink fn_src fn_dst
+          | Symlink ->
+            if st_src_deref.kind = Dir || recurse then
+              cp_symlink fn_src fn_dst
+            else
+              cp_file st_src_deref dst_exists fn_src fn_dst
           | Fifo | Dev_char | Dev_block | Socket ->
               handle_error (`UnhandledType(fn_src, st_src.kind))
       with CpSkip ->

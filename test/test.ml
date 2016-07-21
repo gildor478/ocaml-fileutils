@@ -889,6 +889,22 @@ let test_fileutil =
           SafeFS.mark sfs symlink;
           tmp_dir, symlink, sfs
       in
+      let mk_filelink test_ctxt =
+        let () =
+          skip_if (Sys.os_type <> "Unix") "Synlink only works on Unix."
+        in
+        let tmp_dir = bracket_tmpdir test_ctxt in
+        let symlink = make_filename [tmp_dir; "recurse"] in
+        let source  = make_filename [tmp_dir; "essai_file"] in
+        let sfs =
+          SafeFS.create tmp_dir
+            []
+            ["essai_file"]
+        in
+        Unix.symlink source symlink;
+        SafeFS.mark sfs symlink;
+        tmp_dir, symlink, sfs
+      in
       let mk_deadlink test_ctxt =
         let () =
           skip_if (Sys.os_type <> "Unix") "Synlink only works on Unix."
@@ -961,7 +977,7 @@ let test_fileutil =
              let _, _, dir = mk_deadlink test_ctxt in
                rm ~recurse:true [dir]);
 
-          "Dead symlink + cp" >::
+          "Dead symlink + cp -r" >::
           (fun test_ctxt ->
              let tmp_dir, _, dir1 = mk_deadlink test_ctxt in
              let dir2 = make_filename [tmp_dir; "dir2"] in
@@ -971,9 +987,38 @@ let test_fileutil =
                  let _st: Unix.stats =
                    Unix.lstat (make_filename [dir2; "dead"])
                  in
-                   ()
+                 ()
                with Unix.Unix_error(Unix.ENOENT, _, _) ->
                  assert_failure "dead link not copied.");
+
+          "Dead symlink + cp -r v2" >::
+          (fun test_ctxt ->
+             let tmp_dir, symlink, _ = mk_deadlink test_ctxt in
+             let dir2 = make_filename [tmp_dir; "dir2"] in
+               cp ~recurse:true [symlink] dir2;
+               try
+                 (* test Is_link *)
+                 let _st: Unix.stats = Unix.lstat dir2 in
+                 ()
+               with Unix.Unix_error(Unix.ENOENT, _, _) ->
+                 assert_failure "dead link not copied.");
+
+          "Dead symlink + cp" >::
+          (fun test_ctxt ->
+             let tmp_dir, symlink, _ = mk_deadlink test_ctxt in
+             let dir2 = make_filename [tmp_dir; "dir2"] in
+               try
+                 cp [symlink] dir2;
+                 assert_failure "dead link should not copied."
+               with FileDoesntExist _ ->
+                 ());
+
+          "Live filelink + cp" >::
+          (fun test_ctxt ->
+             let tmp_dir, symlink, _ = mk_filelink test_ctxt in
+             let dest = make_filename [tmp_dir; "dest"] in
+             cp [symlink] dest;
+             assert_bool "regular" (not(test Is_link dest)));
 
           "Readlink" >::
           (fun test_ctxt ->
