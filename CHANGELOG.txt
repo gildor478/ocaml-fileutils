@@ -1,3 +1,10 @@
+v0.5.1:
+  * Minor release:
+    - Fix non POSIX behavior of cp with links when "recurse:false".
+    (Closes: #1649)
+
+  -- Sylvain Le Gall  Wed, 02 Nov 2016 00:19:58 +0100
+
 v0.5.0:
   * Major release to account all the API changes:
   * Rebuild the exception/reporting framework:
