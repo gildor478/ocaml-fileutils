@@ -876,7 +876,7 @@ let test_fileutil =
     (
       let mk_symlink test_ctxt =
         let () =
-          skip_if (Sys.os_type <> "Unix") "Synlink only works on Unix."
+          skip_if (Sys.os_type <> "Unix") "Symlink only works on Unix."
         in
         let tmp_dir = bracket_tmpdir test_ctxt in
         let symlink = make_filename [tmp_dir; "recurse"] in
@@ -891,7 +891,7 @@ let test_fileutil =
       in
       let mk_filelink test_ctxt =
         let () =
-          skip_if (Sys.os_type <> "Unix") "Synlink only works on Unix."
+          skip_if (Sys.os_type <> "Unix") "Symlink only works on Unix."
         in
         let tmp_dir = bracket_tmpdir test_ctxt in
         let symlink = make_filename [tmp_dir; "recurse"] in
@@ -907,7 +907,7 @@ let test_fileutil =
       in
       let mk_deadlink test_ctxt =
         let () =
-          skip_if (Sys.os_type <> "Unix") "Synlink only works on Unix."
+          skip_if (Sys.os_type <> "Unix") "Symlink only works on Unix."
         in
         let tmp_dir = bracket_tmpdir test_ctxt in
         let dir = make_filename [tmp_dir; "dir1"] in
