@@ -91,7 +91,7 @@ let of_int i =
      `Other (`Set (`List other))]
 
 
-let rec to_string: t -> string =
+let to_string =
   let perm =
     function
     | `Read -> "r"
@@ -145,7 +145,7 @@ let rec to_string: t -> string =
     fun t -> String.concat "," (List.map clause t)
 
 
-let rec apply ~is_dir ~umask i (t: t) = 
+let apply ~is_dir ~umask i (t: t) =
   let set who prm b i =
     let m = mask who prm in
       if b then i lor m else i land (lnot m)
@@ -154,13 +154,13 @@ let rec apply ~is_dir ~umask i (t: t) =
     let m = mask who prm in
       (i land m) <> 0
   in
-  let permlist who i lst =
+  let permlist _who i lst =
     List.fold_left
       (fun acc ->
          function
          | `Exec | `Read | `Write | `Sticky | `StickyO as a -> a :: acc
          | `ExecX ->
-             if is_dir || 
+             if is_dir ||
                 List.exists (fun who -> get who `Exec i)
                   [`User; `Group; `Other] then
                `Exec :: acc
@@ -171,9 +171,9 @@ let rec apply ~is_dir ~umask i (t: t) =
        | `List lst -> lst
        | #perm as prm -> [prm])
   in
-  let permcopy who i =
+  let permcopy _who i =
     List.fold_left
-      (fun acc (who, prm, _) -> 
+      (fun acc (who, prm, _) ->
          if get who prm i then
            prm :: acc
          else
@@ -183,12 +183,12 @@ let rec apply ~is_dir ~umask i (t: t) =
   let args who i =
     function
     | #permlist as lst -> permlist who i lst
-    | #permcopy as who -> permcopy who i 
+    | #permcopy as who -> permcopy who i
   in
   let rec action who i act =
-    match act with 
+    match act with
     | `Set arg ->
-        action who 
+        action who
           (action who i (`Remove (`List (permcopy who i))))
           (`Add arg)
     | `Add arg ->
@@ -203,7 +203,7 @@ let rec apply ~is_dir ~umask i (t: t) =
   in
   let actionlist_none i lst =
     let numask = lnot umask in
-    let arg_set_if_mask who i arg b = 
+    let arg_set_if_mask who i arg b =
       List.fold_left
         (fun i prm ->
            if get who prm numask then

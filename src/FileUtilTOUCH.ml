@@ -28,33 +28,31 @@ let touch ?atime ?mtime ?(create=true) ?(time=Touch_now) fln =
 
   let atime, mtime =
     match atime, mtime with
-      | None, None -> true, true
-      | Some b, None -> b, false
-      | None, Some b -> false, b
-      | Some b1, Some b2 -> b1, b2
+    | None, None -> true, true
+    | Some b, None -> b, false
+    | None, Some b -> false, b
+    | Some b1, Some b2 -> b1, b2
   in
 
   let set_time () =
     let fatime, fmtime =
       match time with
-        | Touch_now ->
-            0.0, 0.0
-        | Touch_timestamp time_ref ->
-            time_ref, time_ref
-        | Touch_file_time fln_ref ->
-            let st = stat fln_ref in
-              st.access_time, st.modification_time
+      | Touch_now -> 0.0, 0.0
+      | Touch_timestamp time_ref -> time_ref, time_ref
+      | Touch_file_time fln_ref ->
+        let st = stat fln_ref in
+        st.access_time, st.modification_time
     in
     let fatime, fmtime =
       if not (atime && mtime) then begin
         let st = stat fln in
-          (if atime then fatime else st.access_time),
-          (if mtime then fmtime else st.modification_time)
+        (if atime then fatime else st.access_time),
+        (if mtime then fmtime else st.modification_time)
       end else begin
         fatime, fmtime
       end
     in
-      Unix.utimes fln fatime fmtime
+    Unix.utimes fln fatime fmtime
   in
     (* Create file if required *)
     if test_exists fln then begin

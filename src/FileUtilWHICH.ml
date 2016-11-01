@@ -36,70 +36,54 @@ let which ?(path) fln =
       | Some x ->
         x
   in
-
-  let exec_test =
-    test (And(Is_exec, Is_file))
-  in
-
+  let exec_test = test (And(Is_exec, Is_file)) in
   let which_path =
     match Sys.os_type with
-      | "Win32" ->
-          (
-            let real_ext =
-              List.map
-                (fun dot_ext ->
-                   (* Remove leading "." if it exists *)
-                   if (String.length dot_ext) >= 1 && dot_ext.[0] = '.' then
-                     String.sub dot_ext 1 ((String.length dot_ext) - 1)
-                   else
-                     dot_ext)
-                (* Extract possible extension from PATHEXT *)
-                (path_of_string
-                   (try
-                      Sys.getenv "PATHEXT"
-                    with Not_found ->
-                      ""))
-            in
-
-            let to_filename dirname ext =
-              add_extension (concat dirname fln) ext
-            in
-
-            let ctst dirname ext =
-              exec_test (to_filename dirname ext)
-            in
-
-              List.fold_left
-                (fun found dirname ->
-                   if found = None then begin
-                     try
-                       let ext =
-                         List.find (ctst dirname) real_ext
-                       in
-                         Some (to_filename dirname ext)
-                     with Not_found ->
-                       None
-                   end else
-                     found)
-                None
-                real_path
-          )
-      | _ ->
-          (
-            let to_filename dirname =
-              concat dirname fln
-            in
-
-            try
-              Some
-                (to_filename
-                   (List.find
-                      (fun dirname ->
-                         exec_test (to_filename dirname)) real_path))
-            with Not_found ->
-              None
-          )
+    | "Win32" ->
+      begin
+        let real_ext =
+          List.map
+            (fun dot_ext ->
+               (* Remove leading "." if it exists *)
+               if (String.length dot_ext) >= 1 && dot_ext.[0] = '.' then
+                 String.sub dot_ext 1 ((String.length dot_ext) - 1)
+               else
+                 dot_ext)
+            (* Extract possible extension from PATHEXT *)
+            (path_of_string
+               (try
+                  Sys.getenv "PATHEXT"
+                with Not_found ->
+                  ""))
+        in
+        let to_filename dirname ext = add_extension (concat dirname fln) ext in
+        let ctst dirname ext = exec_test (to_filename dirname ext) in
+        List.fold_left
+          (fun found dirname ->
+             if found = None then begin
+               try
+                 let ext = List.find (ctst dirname) real_ext in
+                 Some (to_filename dirname ext)
+               with Not_found ->
+                 None
+             end else
+               found)
+          None
+          real_path
+      end
+    | _ ->
+      begin
+        let to_filename dirname = concat dirname fln in
+        try
+          Some
+            (to_filename
+               (List.find
+                  (fun dirname ->
+                     exec_test (to_filename dirname)) real_path))
+        with Not_found ->
+          None
+      end
   in
-    match which_path with
-      | Some fn -> fn
-      | None -> raise Not_found
+  match which_path with
+  | Some fn -> fn
+  | None -> raise Not_found

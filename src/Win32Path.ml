@@ -26,28 +26,26 @@ include CommonPath
 
 let rec dir_writer lst =
   match lst with
-      Root s :: tl ->
-        (s^":\\")^(dir_writer tl)
-    | [ CurrentDir Short ] ->
-        ""
-    | lst ->
-        let dir_writer_aux cmp =
-          match cmp with
-              (* We should raise an exception here *)
-              Root s -> s
-            | ParentDir -> ".."
-            | CurrentDir _ -> "."
-            | Component s -> s
-        in
-          String.concat "\\" (List.map dir_writer_aux lst)
+    Root s :: tl -> (s^":\\")^(dir_writer tl)
+  | [ CurrentDir Short ] -> ""
+  | lst ->
+    let dir_writer_aux cmp =
+      match cmp with
+      (* We should raise an exception here *)
+        Root s -> s
+      | ParentDir -> ".."
+      | CurrentDir _ -> "."
+      | Component s -> s
+    in
+    String.concat "\\" (List.map dir_writer_aux lst)
 
 
 let dir_reader str =
   let fn_part_of_string =
     function
-      | ".." -> ParentDir
-      | "."  -> CurrentDir Long
-      | str  -> Component str
+    | ".." -> ParentDir
+    | "."  -> CurrentDir Long
+    | str  -> Component str
   in
   let fn_part_split str =
     let lst =
@@ -56,27 +54,19 @@ let dir_reader str =
            (StringExt.split ~map:fn_part_of_string '\\')
            (StringExt.split ~map:(fun s -> s) '/' str))
     in
-      match lst with
-        (* TODO: we don't make the difference between c:a and c:\a *)
-        | Component "" :: tl -> tl
-        | lst -> lst
+    match lst with
+    (* TODO: we don't make the difference between c:a and c:\a *)
+    | Component "" :: tl -> tl
+    | lst -> lst
   in
-    try
-      (
-        let drive_letter, str =
-          StringExt.break_at_first ':' str
-        in
-          Root drive_letter :: (fn_part_split str)
-      )
-    with Not_found ->
-      (
-        fn_part_split str
-      )
+  try
+    let drive_letter, str = StringExt.break_at_first ':' str in
+    Root drive_letter :: (fn_part_split str)
+  with Not_found ->
+    fn_part_split str
 
 
-let path_writer lst =
-  String.concat ";" lst
+let path_writer lst = String.concat ";" lst
 
 
-let path_reader str =
-  StringExt.split ~map:(fun s -> s) ';' str
+let path_reader str = StringExt.split ~map:(fun s -> s) ';' str

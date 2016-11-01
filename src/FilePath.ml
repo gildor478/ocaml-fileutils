@@ -174,10 +174,8 @@ struct
               (string_of_filename [hd2])
             )
         end
-      | (subdir, []) ->
-        SubDir
-      | ([], updir) ->
-        UpDir
+      | (_, []) -> SubDir
+      | ([], _) -> UpDir
     in
     relation_of_filename_aux path1 path2
 
@@ -244,19 +242,15 @@ struct
 
   let basename path =
     match List.rev path with
-      hd :: tl ->
-      [hd]
-    | [] ->
-      raise EmptyFilename
+    | hd :: _ -> [hd]
+    | [] -> raise EmptyFilename
 
   (* Dirname *)
 
   let dirname path =
     match List.rev path with
-      hd :: tl ->
-      List.rev tl
-    | [] ->
-      raise EmptyFilename
+    | _ :: tl -> List.rev tl
+    | [] -> raise EmptyFilename
 
   (* Extension manipulation *)
 
@@ -323,7 +317,7 @@ struct
         make_relative_aux tl_base tl_path
       | _, _ ->
         let back_to_base = List.rev_map
-          (fun x -> ParentDir)
+          (fun _ -> ParentDir)
           lst_base
         in
           back_to_base @ lst_path

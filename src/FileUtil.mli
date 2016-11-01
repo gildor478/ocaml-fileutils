@@ -77,7 +77,7 @@ type interactive =
 (**
 
    {2 Permission }
- 
+
   *)
 
 (** Base permission. This is the permission corresponding to one user or group.

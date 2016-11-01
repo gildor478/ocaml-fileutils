@@ -164,44 +164,44 @@ struct
 
   let reduce (exp, res) =
     (test_name "reduce") >::
-     (fun test_ctxt ->
+     (fun _ ->
         assert_equal_string
           ~msg:(test_label "reduce" exp)
           res (OsPath.reduce ~no_symlink:true exp))
 
   let make_path (exp, res) =
     (test_name "make_path") >::
-     (fun test_ctxt ->
+     (fun _ ->
         assert_equal_string ~msg:(test_label_list "make_path" exp)
           res (OsPath.string_of_path exp))
 
   let make_absolute (base, rela, res) =
     (test_name "make_absolute") >::
-     (fun test_ctxt ->
+     (fun _ ->
         assert_equal_string ~msg:(test_label_pair "make_absolute" (base, rela))
           res (OsPath.reduce ~no_symlink:true (OsPath.make_absolute base rela)))
 
   let make_relative (base, abs, res) =
     (test_name "make_relative") >::
-     (fun test_ctxt ->
+     (fun _ ->
         assert_equal_string ~msg:(test_label_pair "make_relative" (base, abs))
           res (OsPath.make_relative base abs))
 
   let valid exp =
     (test_name "valid") >::
-     (fun test_ctxt ->
+     (fun _ ->
         assert_bool (test_label "is_valid" exp)
           (OsPath.is_valid exp))
 
   let identity exp =
     (test_name "identity") >::
-     (fun test_ctxt ->
+     (fun _ ->
         assert_equal_string ~msg:(test_label "identity" exp)
           exp (OsPath.identity exp))
 
   let extension (filename, basename, extension) =
     (test_name "extension") >::
-     (fun test_ctxt ->
+     (fun _ ->
         assert_equal_string ~msg:(test_label "chop_extension" filename)
           (OsPath.chop_extension filename) basename;
 
@@ -219,7 +219,7 @@ struct
 
   let is_relative (filename, res) =
     (test_name "is_relative") >::
-     (fun test_ctxt ->
+     (fun _ ->
         assert_equal
           res
           (OsPath.is_relative filename))
@@ -552,7 +552,7 @@ let test_fileutil =
         in
         let non_fatal_test file (stest, expr, res) =
           non_fatal test_ctxt
-            (fun test_ctxt ->
+            (fun _ ->
                assert_bool
                  ("Test "^stest^" on "^file)
                  (res = (test expr file)))
@@ -607,7 +607,7 @@ let test_fileutil =
     "Mode" >:::
     [
       "to_string" >::
-      (fun test_ctxt ->
+      (fun _ ->
          List.iter
            (fun (str, mode) ->
               assert_equal
@@ -626,7 +626,7 @@ let test_fileutil =
            ]);
 
       "apply" >::
-      (fun test_ctxt ->
+      (fun _ ->
          List.iter
            (fun (is_dir, umask, i, m, e) ->
               assert_equal
@@ -799,8 +799,8 @@ let test_fileutil =
     (fun test_ctxt ->
        let tmp_dir = bracket_tmpdir test_ctxt in
        with_bracket_chdir test_ctxt tmp_dir
-         (fun test_ctxt ->
-            let find_acc dir =
+         (fun _ ->
+            let find_acc _ =
               find True "." (fun acc x -> reduce x :: acc) []
             in
             let lst_dot =
@@ -911,7 +911,7 @@ let test_fileutil =
           (fun test_ctxt ->
              let tmp_dir, _, _ = mk_symlink test_ctxt in
                try
-                 find ~follow:Follow Is_dir tmp_dir (fun () fln -> ()) ();
+                 find ~follow:Follow Is_dir tmp_dir (fun () _ -> ()) ();
                  assert_failure
                    "find follow should have failed, since there is \
                     recursive symlink"
@@ -941,7 +941,7 @@ let test_fileutil =
                    ());
           "Dead link + stat" >::
           (fun test_ctxt ->
-             let tmp_dir, symlink, _ = mk_deadlink test_ctxt in
+             let _, symlink, _ = mk_deadlink test_ctxt in
              let st = stat symlink in
                assert_bool "is marked as a link" st.is_link;
                assert_equal ~msg:"is a link" Symlink st.kind;
@@ -952,18 +952,18 @@ let test_fileutil =
 
           "Dead link + test" >::
           (fun test_ctxt ->
-             let tmp_dir, symlink, _ = mk_deadlink test_ctxt in
+             let _, symlink, _ = mk_deadlink test_ctxt in
                assert_bool "dead link exists"
                  (test Is_link symlink));
 
           "Dead symlink + rm" >::
           (fun test_ctxt ->
-             let tmp_dir, symlink, dir = mk_deadlink test_ctxt in
+             let _, _, dir = mk_deadlink test_ctxt in
                rm ~recurse:true [dir]);
 
           "Dead symlink + cp" >::
           (fun test_ctxt ->
-             let tmp_dir, symlink, dir1 = mk_deadlink test_ctxt in
+             let tmp_dir, _, dir1 = mk_deadlink test_ctxt in
              let dir2 = make_filename [tmp_dir; "dir2"] in
                cp ~recurse:true [dir1] dir2;
                try
@@ -977,7 +977,7 @@ let test_fileutil =
 
           "Readlink" >::
           (fun test_ctxt ->
-             let tmp_dir, fn, sfs = mk_symlink test_ctxt in
+             let tmp_dir, fn, _ = mk_symlink test_ctxt in
                assert_equal
                  ~printer:(Printf.sprintf "%S")
                  tmp_dir (readlink fn));
@@ -1140,7 +1140,7 @@ let test_fileutil =
        let tmp_dir2 = bracket_tmpdir test_ctxt in
          touch (concat tmp_dir1 "foo.txt");
          with_bracket_chdir test_ctxt tmp_dir1
-           (fun test_ctxt ->
+           (fun _ ->
               cp ~recurse:true [current_dir] tmp_dir2);
          assert_bool "file" (test Is_file (concat tmp_dir2 "foo.txt")));
 
@@ -1222,7 +1222,7 @@ let test_fileutil =
            !set_duplicated);
 
     "Which ocamlc" >::
-    (fun test_ctxt ->
+    (fun _ ->
        try
          let _str: string = which "ocamlc" in
            ()
@@ -1251,13 +1251,13 @@ let test_fileutil =
            0o1777, 0o1755
          ];
        with_bracket_umask test_ctxt test_umask
-         (fun _ test_ctxt ->
+         (fun _ _ ->
             umask ~mode:(`Octal 0o0222) (`Octal ignore);
             assert_equal
               ~printer:(Printf.sprintf "0o%04o")
               0o0222 (umask (`Octal (fun i -> i))));
        with_bracket_umask test_ctxt test_umask
-         (fun _ test_ctxt ->
+         (fun _ _ ->
             assert_raises
               (UmaskError("Cannot set sticky bit in umask 0o1222"))
               (fun () ->
@@ -1265,7 +1265,7 @@ let test_fileutil =
        List.iter
          (fun (s, e) ->
             with_bracket_umask test_ctxt test_umask
-              (fun msk test_ctxt ->
+              (fun msk _ ->
                  assert_equal
                    ~msg:(Printf.sprintf
                            "0o%04o + %s -> 0o%04o"
@@ -1294,7 +1294,7 @@ let test_fileutil =
         in
         let test_of_vector fuzzy (str, sz) =
           test_case
-            (fun test_ctxt ->
+            (fun _ ->
                assert_equal
                  ~printer:(fun s -> s)
                  str
@@ -1358,7 +1358,7 @@ let test_fileutil =
       "size_add" >:::
       (let test_of_vector (str, szs) =
          test_case
-           (fun test_ctxt ->
+           (fun _ ->
               assert_equal
                 ~printer:(fun s -> s)
                 str
@@ -1376,7 +1376,7 @@ let test_fileutil =
       (
         let test_of_vector (sz1, sz2, res) =
           test_case
-            (fun test_ctxt ->
+            (fun _ ->
                let cmp =
                  size_compare sz1 sz2
                in

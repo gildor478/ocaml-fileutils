@@ -22,9 +22,6 @@
 (** Manipulate path extension
   *)
 
-open FilePath_type
-
-
 let get fn =
   let start_pos =
     (String.rindex fn '.') + 1

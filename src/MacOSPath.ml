@@ -24,65 +24,52 @@ open FilePath_type
 include CommonPath
 
 
-let rec dir_writer lst =
+let dir_writer lst =
  let buffer = Buffer.create path_length in
  let rec dir_writer_aux lst =
    match lst with
-       Root s :: tl ->
-         Buffer.add_string buffer s;
-         Buffer.add_char   buffer ':';
-         dir_writer_aux tl
-     | (CurrentDir _) :: tl
-     | ParentDir  :: tl ->
-         Buffer.add_char   buffer ':';
-         dir_writer_aux tl
-     | (Component "") :: tl ->
-         dir_writer_aux tl
-     | (Component s) :: [] ->
-         Buffer.add_string buffer s;
-         dir_writer_aux []
-     | (Component s) :: tl ->
-         Buffer.add_string buffer s;
-         Buffer.add_char   buffer ':';
-         dir_writer_aux tl
-     | [] ->
-         Buffer.contents buffer
+     Root s :: tl ->
+       Buffer.add_string buffer s;
+       Buffer.add_char   buffer ':';
+       dir_writer_aux tl
+   | (CurrentDir _) :: tl
+   | ParentDir  :: tl ->
+       Buffer.add_char   buffer ':';
+       dir_writer_aux tl
+   | (Component "") :: tl ->
+       dir_writer_aux tl
+   | (Component s) :: [] ->
+       Buffer.add_string buffer s;
+       dir_writer_aux []
+   | (Component s) :: tl ->
+       Buffer.add_string buffer s;
+       Buffer.add_char   buffer ':';
+       dir_writer_aux tl
+   | [] ->
+       Buffer.contents buffer
  in
    match lst with
-       ParentDir :: _ ->
-         dir_writer_aux ( (CurrentDir Long) :: lst )
-     | [ CurrentDir Short ] ->
-         ""
-     | _ ->
-         dir_writer_aux lst
+     ParentDir :: _ -> dir_writer_aux ( (CurrentDir Long) :: lst )
+   | [ CurrentDir Short ] -> ""
+   | _ -> dir_writer_aux lst
 
 
 let dir_reader str =
   let rec dir_reader_aux =
     function
-      | [""] ->
-          []
-      | "" :: tl ->
-          ParentDir :: (dir_reader_aux tl)
-      | str :: tl ->
-          Component str :: (dir_reader_aux tl)
-      | [] ->
-          []
+    | [""] -> []
+    | "" :: tl -> ParentDir :: (dir_reader_aux tl)
+    | str :: tl -> Component str :: (dir_reader_aux tl)
+    | [] -> []
   in
     match StringExt.split ~map:(fun s -> s) ':' str with
-      | [] ->
-          [CurrentDir Short]
-      | "" :: tl ->
-          CurrentDir Long :: (dir_reader_aux tl)
-      | [id] ->
-          [Component id]
-      | root :: tl ->
-          Root root :: (dir_reader_aux tl)
+    | [] -> [CurrentDir Short]
+    | "" :: tl -> CurrentDir Long :: (dir_reader_aux tl)
+    | [id] -> [Component id]
+    | root :: tl -> Root root :: (dir_reader_aux tl)
 
 
-let path_writer lst =
-  String.concat ";" lst
+let path_writer lst = String.concat ";" lst
 
 
-let path_reader =
-  StringExt.split ~map:(fun s -> s) ';'
+let path_reader = StringExt.split ~map:(fun s -> s) ';'

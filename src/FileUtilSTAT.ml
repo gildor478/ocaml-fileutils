@@ -43,19 +43,19 @@ let stat ?(dereference=false) fln =
       else
         ustat
     in
-      {
-        kind              = kind_of_stat ustat;
-        is_link           = is_link;
-        permission        = permission_of_int ustat.Unix.LargeFile.st_perm;
-        size              = B ustat.Unix.LargeFile.st_size;
-        owner             = ustat.Unix.LargeFile.st_uid;
-        group_owner       = ustat.Unix.LargeFile.st_gid;
-        access_time       = ustat.Unix.LargeFile.st_atime;
-        modification_time = ustat.Unix.LargeFile.st_mtime;
-        creation_time     = ustat.Unix.LargeFile.st_ctime;
-        device            = ustat.Unix.LargeFile.st_dev;
-        inode             = ustat.Unix.LargeFile.st_ino;
-      }
+    {
+      kind              = kind_of_stat ustat;
+      is_link           = is_link;
+      permission        = permission_of_int ustat.Unix.LargeFile.st_perm;
+      size              = B ustat.Unix.LargeFile.st_size;
+      owner             = ustat.Unix.LargeFile.st_uid;
+      group_owner       = ustat.Unix.LargeFile.st_gid;
+      access_time       = ustat.Unix.LargeFile.st_atime;
+      modification_time = ustat.Unix.LargeFile.st_mtime;
+      creation_time     = ustat.Unix.LargeFile.st_ctime;
+      device            = ustat.Unix.LargeFile.st_dev;
+      inode             = ustat.Unix.LargeFile.st_ino;
+    }
   with Unix.Unix_error(Unix.ENOENT, _, _) ->
     raise (FileDoesntExist fln)
 

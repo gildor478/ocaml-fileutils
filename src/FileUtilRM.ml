@@ -65,7 +65,7 @@ let rm
          let exists =
            try
              let _st: Unix.stats = Unix.lstat fn in
-               true
+             true
            with Unix.Unix_error(Unix.ENOENT, _, _) ->
              false
          in
@@ -81,4 +81,4 @@ let rm
          end)
       lst
   in
-    rm_aux fln_lst
+  rm_aux fln_lst

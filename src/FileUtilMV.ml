@@ -41,7 +41,7 @@ let rec mv
       ?(error=fun str _ -> raise (MvError str))
       ?(force=Force)
       fln_src fln_dst =
-  let handle_error, handle_exception =
+  let handle_error, _ =
     handle_error_gen "mv" error
       (function
          | `NoSourceFile ->
@@ -50,7 +50,7 @@ let rec mv
              Printf.sprintf
                "Recursive error in 'mv %s %s' for 'cp %s %s': %s"
                fn_src fn_dst fn_src fn_dst str
-         | `MvRm (fn, str, e) ->
+         | `MvRm (fn, str, _) ->
              Printf.sprintf "Recursive error in 'mv %s ..' for 'rm %s': %s"
                fn fn str
          | #exc -> "")

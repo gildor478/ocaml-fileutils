@@ -31,16 +31,19 @@ let readlink fln =
     let rec all_upper_dir_aux lst fln =
       let dir = dirname fln in
         match lst with
-        | prev_dir :: tl when prev_dir = dir -> lst
+        | prev_dir :: _ when prev_dir = dir -> lst
         | _ -> all_upper_dir_aux (dir :: lst) dir
     in
-      all_upper_dir_aux [fln] fln
+    all_upper_dir_aux [fln] fln
   in
-  let ctst = compile_filter Is_link in
+  let ctst =
+    let st_opt, stL_opt = None, None in
+    compile_filter ?st_opt ?stL_opt Is_link
+  in
   let rec readlink_aux already_read fln =
     let newly_read = prevent_recursion already_read fln in
     let dirs = all_upper_dir fln in
-      try
+    try
         let src_link = List.find ctst (List.rev dirs) in
         let dst_link = Unix.readlink src_link in
         let real_link =
@@ -49,10 +52,10 @@ let readlink fln =
           else
             reduce dst_link
         in
-          readlink_aux newly_read (reparent src_link real_link fln)
+        readlink_aux newly_read (reparent src_link real_link fln)
       with Not_found ->
         fln
   in
-    readlink_aux SetFilename.empty (make_absolute (pwd ()) fln)
+  readlink_aux SetFilename.empty (make_absolute (pwd ()) fln)
 
 

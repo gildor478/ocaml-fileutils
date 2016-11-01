@@ -32,9 +32,9 @@ let umask
   let handle_error, handle_exception =
     handle_error_gen "umask" error
       (function
-         | `NoStickyBit i ->
-             Printf.sprintf "Cannot set sticky bit in umask 0o%04o" i
-         | #exc -> "")
+       | `NoStickyBit i ->
+           Printf.sprintf "Cannot set sticky bit in umask 0o%04o" i
+       | #exc -> "")
   in
   let complement i = 0o0777 land (lnot i) in
   let try_umask i =
@@ -47,7 +47,7 @@ let umask
   let get () =
     let cmask = try_umask 0o777 in
     let _mask: int = try_umask cmask in
-      cmask
+    cmask
   in
   let set i =
     let eff_i = i land 0o777 in
@@ -56,7 +56,7 @@ let umask
         handle_error ~fatal:true (`NoStickyBit i);
       try_umask eff_i
     in
-      eff_i
+    eff_i
   in
   let v =
     match mode with
@@ -73,5 +73,4 @@ let umask
     | `Octal f -> f v
 
 
-let umask_apply m =
-    m land (lnot (umask (`Octal (fun i -> i))))
+let umask_apply m = m land (lnot (umask (`Octal (fun i -> i))))
