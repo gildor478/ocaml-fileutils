@@ -38,7 +38,7 @@ ONLINE := $(shell (ping -c 1 forge.ocamlcore.org > /dev/null 2>&1 && echo true) 
 FORGE_PAGE = "http://forge.ocamlcore.org/frs/?group_id=128"
 
 # Dev documetation link.
-DEV_DOC_URL = "http://deci.ovh.le-gall.net:8080/job/ocaml-fileutils/label=wheezy64/lastSuccessfulBuild/artifact/dist/ocaml-fileutils-doc-dev.tar.gz"
+DEV_DOC_URL = "https://deci.ovh.le-gall.net/job/ocaml-fileutils/label=wheezy64/lastSuccessfulBuild/artifact/dist/ocaml-fileutils-doc-dev.tar.gz"
 
 default: all
 
