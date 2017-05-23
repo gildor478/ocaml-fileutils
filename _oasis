@@ -2,12 +2,14 @@ OASISFormat:  0.4
 Name:         ocaml-fileutils
 Version:      0.5.3
 Authors:      Sylvain Le Gall
+Maintainers:  Sylvain Le Gall <sylvain+ocaml@le-gall.net>
 Copyrights:   (C) 2003-2014 Sylvain Le Gall
 License:      LGPL-2.1 with OCaml linking exception
 LicenseFile:  LICENSE
 BuildTools:   ocamlbuild
 Plugins:      DevFiles (0.4), StdFiles (0.4), META (0.4)
 Synopsis:     Functions to manipulate real file (POSIX like) and filename.
+BugReports:   https://forge.ocamlcore.org/tracker/?func=add&group_id=128&atid=589
 
 Library "fileutils"
   Path: src/
@@ -59,9 +61,9 @@ Document "api-fileutils"
   XOCamlbuildLibraries: fileutils, fileutils.str
 
 SourceRepository head
-  Type: darcs
-  Location: http://forge.ocamlcore.org/anonscm/darcs/ocaml-fileutils/ocaml-fileutils
-  Browser: http://darcs.ocamlcore.org/cgi-bin/darcsweb.cgi?r=ocaml-fileutils/ocaml-fileutils;a=summary
+  Type: git
+  Location: https://github.com/gildor478/ocaml-fileutils.git
+  Browser: https://github.com/gildor478/ocaml-fileutils
 
 Executable BenchFind
   Path: test
