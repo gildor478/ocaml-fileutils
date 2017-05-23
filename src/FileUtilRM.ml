@@ -64,7 +64,7 @@ let rm
       (fun fn ->
          let exists =
            try
-             let _st: Unix.stats = Unix.lstat fn in
+             let _st: Unix.LargeFile.stats = Unix.LargeFile.lstat fn in
              true
            with Unix.Unix_error(Unix.ENOENT, _, _) ->
              false
