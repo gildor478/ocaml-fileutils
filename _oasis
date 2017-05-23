@@ -9,6 +9,7 @@ LicenseFile:  LICENSE
 BuildTools:   ocamlbuild
 Plugins:      DevFiles (0.4), StdFiles (0.4), META (0.4)
 Synopsis:     Functions to manipulate real file (POSIX like) and filename.
+Homepage:     http://ocaml-fileutils.forge.ocamlcore.org/
 BugReports:   https://forge.ocamlcore.org/tracker/?func=add&group_id=128&atid=589
 
 Library "fileutils"
