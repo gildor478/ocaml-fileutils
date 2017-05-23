@@ -1,3 +1,10 @@
+v0.5.2:
+  * Minor release:
+    - Test file existence with Unix.LargeFile.lstat in FileUtilRM.
+    (Closes: #1749)
+
+  -- Sylvain Le Gall  Tue, 23 May 2017 22:09:38 +0200
+
 v0.5.1:
   * Minor release:
     - Fix non POSIX behavior of cp with links when "recurse:false".
