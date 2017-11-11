@@ -1,6 +1,6 @@
 OASISFormat:  0.4
 Name:         ocaml-fileutils
-Version:      0.5.3
+Version:      0.5.4
 Authors:      Sylvain Le Gall
 Maintainers:  Sylvain Le Gall <sylvain+ocaml@le-gall.net>
 Copyrights:   (C) 2003-2014 Sylvain Le Gall
