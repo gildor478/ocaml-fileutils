@@ -1,3 +1,10 @@
+v0.5.3:
+  * Minor release:
+    - Use bytes rather than string to be compatible with OCaml 4.06.0.
+    (Closes: Issue#5)
+
+  -- Sylvain Le Gall  Sun, 12 Nov 2017 00:29:46 +0100
+
 v0.5.2:
   * Minor release:
     - Test file existence with Unix.LargeFile.lstat in FileUtilRM.

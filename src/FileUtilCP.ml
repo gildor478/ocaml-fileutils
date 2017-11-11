@@ -138,7 +138,7 @@ let cp
     end
   in
 
-  let buffer = String.make 1024 ' ' in
+  let buffer = Bytes.make 1024 ' ' in
 
   let cp_file st_src dst_exists fn_src fn_dst =
     let mode = int_of_permission st_src.permission in
@@ -176,7 +176,7 @@ let cp
           try
             while (read :=
                    handle_exception
-                     (Unix.read fd_src buffer 0) (String.length buffer)
+                     (Unix.read fd_src buffer 0) (Bytes.length buffer)
                      (fun e -> `ErrorRead(fn_src, e));
                    !read <> 0) do
               let written =
