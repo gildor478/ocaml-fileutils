@@ -65,6 +65,21 @@ let dir_reader str =
   with Not_found ->
     fn_part_split str
 
+let fast_is_current fn =
+  if String.length fn = 0 || fn = "." then
+    true
+  else if fn.[0] <> '.' then
+    false
+  else
+    raise CannotHandleFast
+
+let fast_is_parent fn =
+  if fn = ".." then
+    true
+  else if String.length fn < 2 || fn.[0] <> '.' || fn.[1] <> '.' then
+    false
+  else
+    raise CannotHandleFast
 
 let path_writer lst = String.concat ";" lst
 
