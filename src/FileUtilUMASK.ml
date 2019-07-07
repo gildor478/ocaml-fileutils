@@ -38,6 +38,7 @@ let umask
   in
   let complement i = 0o0777 land (lnot i) in
   let try_umask i =
+    if Sys.os_type = "Win32" then 0 else
     try
       Unix.umask i
     with e ->
