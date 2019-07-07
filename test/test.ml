@@ -1457,7 +1457,7 @@ let test_fileutil =
 
 
 let () =
-  let _i: int = Unix.umask test_umask in
+  let _i: int = if Sys.os_type = "Win32" then 0 else Unix.umask test_umask in
   run_test_tt_main
     ("ocaml-fileutils" >:::
      [
