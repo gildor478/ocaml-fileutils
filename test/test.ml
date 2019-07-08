@@ -770,8 +770,10 @@ let test_fileutil =
        let dir2 = (make_filename [dir1; "essai5"]) in
          mkdir ~parent:true dir2;
          assert_bool "mkdir" (test Is_dir dir2);
-         assert_perm dir1 0o0755;
-         assert_perm dir2 0o0755;
+         if Sys.os_type <> "Win32" then begin
+           assert_perm dir1 0o0755;
+           assert_perm dir2 0o0755;
+         end;
          rm ~recurse:true [dir1];
          assert_bool "no dir" (not (test Exists dir2));
 
@@ -780,8 +782,10 @@ let test_fileutil =
            ~mode:(`Symbolic [`Group (`Add `Write); `Other (`Set (`List []))])
            dir2;
          assert_bool "mkdir" (test Is_dir dir2);
-         assert_perm dir1 0o0755;
-         assert_perm dir2 0o0770;
+         if Sys.os_type <> "Win32" then begin
+           assert_perm dir1 0o0755;
+           assert_perm dir2 0o0770;
+         end;
          rm ~recurse:true [dir1];
          assert_bool "no dir" (not (test Exists dir2));
 
@@ -790,8 +794,10 @@ let test_fileutil =
            ~mode:(`Octal 0o0770)
            dir2;
          assert_bool "mkdir" (test Is_dir dir2);
-         assert_perm dir1 0o0755;
-         assert_perm dir2 0o0770;
+         if Sys.os_type	<> "Win32" then begin
+           assert_perm dir1 0o0755;
+           assert_perm dir2 0o0770;
+         end;
          rm ~recurse:true [dir1];
          assert_bool "no dir" (not (test Exists dir2)));
 
@@ -1031,6 +1037,7 @@ let test_fileutil =
 
     "Chmod" >::
     (fun test_ctxt ->
+       let () = skip_if (Sys.os_type <> "Unix") "Chmod only works on Unix." in
        let fn, chn = bracket_tmpfile test_ctxt in
        let () = close_out chn in
 
@@ -1043,7 +1050,6 @@ let test_fileutil =
        in
 
        let () =
-         if Sys.os_type = "Unix" then begin
            iter_chmod
              [
                0o0000, `Symbolic [`User (`Add `Exec)],     0o0100;
@@ -1057,8 +1063,7 @@ let test_fileutil =
                0o0000, `Symbolic [`User (`Add `ExecX)],    0o0000;
                0o0010, `Symbolic [`User (`Add `ExecX)],    0o0110;
                0o0001, `Symbolic [`User (`Add `ExecX)],    0o0101;
-             ]
-         end;
+             ];
          iter_chmod
            [
                0o0200, `Symbolic [`User (`Add `Write)],     0o0200;
@@ -1138,21 +1143,22 @@ let test_fileutil =
 
     "Cp ACL" >::
     (fun test_ctxt ->
+       let () = skip_if (Sys.os_type <> "Unix") "Unix file permissions only work on Unix." in
        let tmp_dir = bracket_tmpdir test_ctxt in
        let fn1 = make_filename [tmp_dir; "foo1.txt"] in
        let fn2 = make_filename [tmp_dir; "foo2.txt"] in
        let fn3 = make_filename [tmp_dir; "foo3.txt"] in
+       begin
          touch fn1;
          Unix.chmod fn1 0o444;
          assert_perm fn1 0o444;
          cp [fn1] fn2;
          assert_perm fn2 0o444;
-         if Sys.os_type = "Unix" then begin
-           Unix.chmod fn1 0o555;
-           assert_perm fn1 0o555;
-           cp [fn1] fn3;
-           assert_perm fn3 0o555
-         end);
+         Unix.chmod fn1 0o555;
+         assert_perm fn1 0o555;
+         cp [fn1] fn3;
+         assert_perm fn3 0o555
+      end);
 
     "Cp preserve" >::
     (fun test_ctxt ->
@@ -1276,6 +1282,7 @@ let test_fileutil =
 
     "Umask" >::
     (fun test_ctxt ->
+       let () = skip_if (Sys.os_type <> "Unix") "Umask only works on Unix." in
        assert_equal
          ~printer:(Printf.sprintf "0o%04o")
          test_umask
