@@ -1162,6 +1162,7 @@ let test_fileutil =
 
     "Cp preserve" >::
     (fun test_ctxt ->
+       let () = skip_if (Sys.os_type = "Win32") "Directory atime/mtime modification is broken on Windows." in
        let tmp_dir = bracket_tmpdir test_ctxt in
        let dir1 = make_filename [tmp_dir; "dir1"] in
        let fn1 = make_filename [dir1; "fn1.txt"] in
