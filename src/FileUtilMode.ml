@@ -56,7 +56,7 @@ let mask =
     Map.Make
       (struct
          type t = who * perm
-         let compare = Pervasives.compare
+         let compare = Stdlib.compare
        end)
   in
   let m =

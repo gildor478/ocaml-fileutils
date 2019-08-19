@@ -43,7 +43,7 @@ Library "fileutils"
                    FileUtilMV,
                    FileUtilCMP,
                    FileUtilDU
-  BuildDepends: unix, bytes
+  BuildDepends: unix, bytes, stdlib-shims
 
 Library "fileutils-str"
   FindlibParent: fileutils
@@ -76,7 +76,7 @@ Executable BenchFind
 Executable test
   Path: test
   MainIs: test.ml
-  BuildDepends: fileutils, fileutils.str, oUnit (>= 2.0.0)
+  BuildDepends: fileutils, fileutils.str, oUnit (>= 2.0.0), stdlib-shims
   Build$: flag(tests)
   Install: false
 
