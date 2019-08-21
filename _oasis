@@ -7,9 +7,8 @@ Copyrights:   (C) 2003-2014 Sylvain Le Gall
 License:      LGPL-2.1 with OCaml linking exception
 LicenseFile:  LICENSE
 BuildTools:   ocamlbuild
-Plugins:      DevFiles (0.4), StdFiles (0.4), META (0.4)
-Synopsis:     Functions to manipulate real file (POSIX like) and filename.
-BugReports:   https://forge.ocamlcore.org/tracker/?func=add&group_id=128&atid=589
+Plugins:      DevFiles (0.4), META (0.4)
+Synopsis:     API to manipulate real files (POSIX like) and filenames.
 
 Library "fileutils"
   Path: src/
