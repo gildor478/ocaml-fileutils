@@ -6,8 +6,8 @@ env:
   global:
     - PACKAGE=fileutils
   matrix:
-    # Only use system (for speed) + latest version of OCaml.
-    - OCAML_VERSION=system
+    # Only use an old version for backward compatibility and the latest version.
+    - OCAML_VERSION=4.05
     - OCAML_VERSION=4.08
 os:
   - linux
