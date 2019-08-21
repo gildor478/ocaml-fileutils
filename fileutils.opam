@@ -7,8 +7,10 @@ dev-repo: "git+https://github.com/gildor478/ocaml-fileutils.git"
 bug-reports: "https://github.com/gildor478/ocaml-fileutils/issues"
 build: [
   ["ocaml" "setup.ml" "-configure" "--prefix" prefix]
+  ["ocaml" "setup.ml" "-configure" "--enable-tests"] {with-test}
   ["ocaml" "setup.ml" "-build"]
   ["ocaml" "setup.ml" "-doc"] {with-doc}
+  ["ocaml" "setup.ml" "-test"] {with-test}
 ]
 install: ["ocaml" "setup.ml" "-install"]
 remove: [
