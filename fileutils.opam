@@ -26,5 +26,5 @@ depends: [
   "oasis" {build}
   "ounit" {with-test & >= "2.0.0"}
 ]
-synopsis: "API to manipulate files (POSIX like) and filenames."
+synopsis: "API to manipulate files (POSIX like) and filenames"
 flags: light-uninstall
