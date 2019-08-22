@@ -1029,9 +1029,13 @@ let test_fileutil =
           "Readlink" >::
           (fun test_ctxt ->
              let tmp_dir, fn, _ = mk_symlink test_ctxt in
+             let real_tmp_dir = readlink tmp_dir in
+               assert_bool
+                 "tmp_dir resolve to non-empty directory"
+                 (real_tmp_dir <> "");
                assert_equal
                  ~printer:(Printf.sprintf "%S")
-                 tmp_dir (readlink fn));
+                 real_tmp_dir (readlink fn));
         ]
     );
 
