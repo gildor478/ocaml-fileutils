@@ -227,18 +227,15 @@ end
 
 
 module TestUnix  = Test(UnixPath)
-module TestMacOS = Test(MacOSPath)
 module TestWin32 = Test(Win32Path)
 let () =
   TestUnix.os_string := "Unix";
-  TestMacOS.os_string := "MacOS";
   TestWin32.os_string := "Win32"
 
 
 (** Static test *)
 let _ =
   assert(UnixPath.get_extension "test.txt" = "txt");
-  assert(MacOSPath.get_extension "test.txt" = "txt");
   assert(Win32Path.get_extension "test.txt" = "txt")
 
 (*********************)
@@ -446,93 +443,6 @@ let test_win32 =
           ]
       )
     )
-
-
-(**********************)
-(* MacOS FilePath test*)
-(**********************)
-let test_macos =
-  let test_path =
-  [
-   ("a:");
-   ("a:::");
-   (":a:b:c");
-   ("");
-   (":");
-   ("::");
-  ]
-  in
-  "MacOS FilePath" >:::
-    (
-      (* Is_valid *)
-      (
-        List.map TestMacOS.valid test_path
-      )
-
-      (* Identity *)
-      @ (
-        List.map TestMacOS.identity test_path
-      )
-
-      (* Reduce path *)
-      @ (
-        List.map TestMacOS.reduce
-        [
-         ("root:a:b:c",       "root:a:b:c");
-         ("root:a:b:c:",      "root:a:b:c");
-         ("root:a:b:c:d::",   "root:a:b:c");
-         ("root:a:d::b:c",    "root:a:b:c");
-         ("root:a:b:c:d::",   "root:a:b:c");
-         ("root:a:b:d::c",    "root:a:b:c");
-         ("root:a:b::d::b:c", "root:a:b:c");
-         ("",                 "");
-         (":",                "");
-         ("::",               "::");
-        ]
-      )
-
-      (* Create path *)
-      @ (
-        List.map TestMacOS.make_path
-        [
-         ([":a"; "b"; ":c:d"], ":a;b;:c:d");
-         ([],                  "");
-        ]
-      )
-
-      (* Convert to absolute *)
-      @ (
-        List.map TestMacOS.make_absolute
-        [
-         ("root:a:b:c", ":",   "root:a:b:c");
-         ("root:a:b:c", ":d",  "root:a:b:c:d");
-         ("root:a:b:c", "::d", "root:a:b:d");
-         ("root:a:b:c", "",    "root:a:b:c");
-         ("root:a:b:c", ":",   "root:a:b:c");
-         ("root:a:b:c", "::",  "root:a:b");
-        ]
-      )
-
-      (* Convert to relative *)
-      @ (
-        List.map TestMacOS.make_relative
-        [
-         ("root:a:b:c", "root:a:b:c", "");
-         ("root:a:b:c", "root:a:b:d", "::d")
-        ]
-      )
-
-      (* Check extension *)
-      @ (
-        List.map TestMacOS.extension
-        [
-         ("root:a:b:c.d",   "root:a:b:c",   "d");
-         ("root:a:b.c:d.e", "root:a:b.c:d", "e");
-         ("a.",         "a",        "");
-        ]
-      )
-    )
-
 
 (*****************)
 (* FileUtil test *)
@@ -1477,7 +1387,6 @@ let () =
        [
          test_unix;
          test_win32;
-         test_macos;
        ];
 
        test_fileutil;

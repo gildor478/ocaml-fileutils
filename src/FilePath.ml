@@ -537,79 +537,66 @@ end
 
 module DefaultPath = GenericStringPath(struct
 
-  let os_depend unix macos win32 =
+  let os_depend unix win32 =
     match Sys.os_type with
       "Unix"
     | "Cygwin" -> unix
-    | "MacOS"  -> macos
     | "Win32"  -> win32
     | s        -> raise (UnrecognizedOS s)
 
   let dir_writer =
     os_depend
       UnixPath.dir_writer
-      MacOSPath.dir_writer
       Win32Path.dir_writer
 
   let dir_reader =
     os_depend
       UnixPath.dir_reader
-      MacOSPath.dir_reader
       Win32Path.dir_reader
 
   let path_writer =
     os_depend
       UnixPath.path_writer
-      MacOSPath.path_writer
       Win32Path.path_writer
 
   let path_reader =
     os_depend
       UnixPath.path_reader
-      MacOSPath.path_reader
       Win32Path.path_reader
 
   let fast_concat =
     os_depend
       UnixPath.fast_concat
-      MacOSPath.fast_concat
       Win32Path.fast_concat
 
   let fast_basename =
     os_depend
       UnixPath.fast_basename
-      MacOSPath.fast_basename
       Win32Path.fast_basename
 
   let fast_dirname =
     os_depend
       UnixPath.fast_dirname
-      MacOSPath.fast_dirname
       Win32Path.fast_dirname
 
   let fast_is_relative =
     os_depend
       UnixPath.fast_is_relative
-      MacOSPath.fast_is_relative
       Win32Path.fast_is_relative
 
   let fast_is_current =
     os_depend
       UnixPath.fast_is_current
-      MacOSPath.fast_is_current
       Win32Path.fast_is_current
 
   let fast_is_parent =
     os_depend
       UnixPath.fast_is_parent
-      MacOSPath.fast_is_parent
       Win32Path.fast_is_parent
 end)
 
 
 module UnixPath =  GenericStringPath(UnixPath)
-
-module MacOSPath = GenericStringPath(MacOSPath)
 
 module Win32Path = GenericStringPath(Win32Path)
 

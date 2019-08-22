@@ -18,7 +18,6 @@ Library "fileutils"
                    ExtensionPath,
                    FilePath_type,
                    FileStringExt,
-                   MacOSPath,
                    UnixPath,
                    Win32Path,
                    FileUtilMode,

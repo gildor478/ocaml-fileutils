@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Migrate CHANGELOG to [Keep a Changelog] format.
 
+### Removed
+
+- Support for MacOS 9, since OCaml doesn't support it since 3.09 (Closes: #8).
+
 ## [0.5.3] - 2017-11-12
 
 * Minor release:

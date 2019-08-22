@@ -292,9 +292,6 @@ module DefaultPath: PATH_STRING_SPECIFICATION
 (** Unix operating system. *)
 module UnixPath: PATH_STRING_SPECIFICATION
 
-(** MacOS operating system. *)
-module MacOSPath: PATH_STRING_SPECIFICATION
-
 (** Win32 operating system. *)
 module Win32Path: PATH_STRING_SPECIFICATION
 
