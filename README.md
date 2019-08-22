@@ -1,6 +1,20 @@
 Fileutils - OCaml API to manipulate real files (POSIX like) and filenames
 =========================================================================
 
+This library provides an API to perform POSIX like operations on files like:
+
+- mv
+- cp
+- rm
+- mkdir
+- touch
+- which...
+
+It also providesa module to manipulate abstract filenames:
+
+- classification
+- make_relative: made a filename relative to another
+- make_absolute
 
 [![Travis status][travis-img]][travis]
 [![AppVeyor status][appveyor-img]][appveyor]
