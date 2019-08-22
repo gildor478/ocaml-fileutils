@@ -14,25 +14,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- Support for MacOS 9, since OCaml doesn't support it since 3.09 (Closes: gildor478/ocaml-fileutils#8).
+- Support for MacOS 9, since OCaml doesn't support it since 3.09 (Closes: #8).
 
 ## [0.5.3] - 2017-11-12
 
 * Minor release:
 	- Use bytes rather than string to be compatible with OCaml 4.06.0.
-	(Closes: Issue#5)
+	(Closes: #5)
 
 ## [0.5.2] - 2017-05-23
 
 * Minor release:
 	- Test file existence with Unix.LargeFile.lstat in FileUtilRM.
-	(Closes: #1749)
+	(Closes: OF#1749)
 
 ## [0.5.1] - 2016-11-02
 
 * Minor release:
 	- Fix non POSIX behavior of cp with links when "recurse:false".
-	(Closes: #1649)
+	(Closes: OF#1649)
 
 ## [0.5.0] - 2015-07-10
 
@@ -42,22 +42,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 		polymorphic variant tag.
 	- Use a reporting function that can be passed as  a parameter
 		[?error:'a error_handler] to most of the functions.
-* Reimplement functions to be more POSIX compliant implementation (Closes: #761):
+* Reimplement functions to be more POSIX compliant implementation (Closes: OF#761):
 	(functions: cp, umask, chmod, mkdir, rm, mv, touch)
-* Make sure dead symlinks are handled properly (Closes: #712, #711):
+* Make sure dead symlinks are handled properly (Closes: OF#712, OF#711):
 	- derefenced when needed (functions: test)
 	- offer the choice when possible (function: stat)
 * Implement symbolic mode that may have contextual meaning.
 * Improve documentation (add links to POSIX doc, reorganize content in section).
 * Split FileUtil.ml into multiple files.
-* Implement chmod (Closes: #416).
-* [cp] now propagate timestamp when invoked with [~preserve] (Closes: #709).
+* Implement chmod (Closes: OF#416).
+* [cp] now propagate timestamp when invoked with [~preserve] (Closes: OF#709).
 * Upgrade OUnit to OUnit2.
-* Fix typo in cp (Closes: #816, #1317).
+* Fix typo in cp (Closes: OF#816, OF#1317).
 
 ## [0.4.5] - 2013-06-03
 
-* Fix fd leaking cmp (Closes: #1012).
+* Fix fd leaking cmp (Closes: OF#1012).
 * Fix test suite for BSD system.
 
 ## [0.4.4] - 2012-06-12
@@ -71,12 +71,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.4.2] - 2010-09-06
 
 * Apply patch from Rüdiger Schmitt, fix handling for '.' in find and ls
-	(Close: #418, #736)
+	(Close: OF#418, OF#736)
 
 ## [0.4.1] - 2010-09-01
 
 * Apply patch from S. Glondu to use the right find function in FileUtilStr
-	(Closes: #731)
+	(Closes: OF#731)
 * Fix some typo in documentation
 * Apply patch from Debian to use a byte plugin for ocamlbuild
 
@@ -132,17 +132,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.2.2]
 
-* Changes the version to 0.2.2 in TopMakefile.in (closes: #33)
-* Stop removing Makefile in distclean target (closes: #31)
-* Change --enable-docdir --enable-builddir to --withXX (closes: #32)
+* Changes the version to 0.2.2 in TopMakefile.in (closes: FS#33)
+* Stop removing Makefile in distclean target (closes: FS#31)
+* Change --enable-docdir --enable-builddir to --withXX (closes: FS#32)
 * Configure now test that ocamlfind is not detected and that we want to
-	use ocamlfind (closes: #34)
-* Correct error concerning parsing of "" as a current dir (closes: #40)
+	use ocamlfind (closes: FS#34)
+* Correct error concerning parsing of "" as a current dir (closes: FS#40)
 * Correct error concerning the test Has_extension (closes: #41)
 * Use a new CurrenDir of (Long|Short) to denote the difference between "" and "."
 * Implement readlink
-* Implement pwd (closes: #39)
-* Implement cmp (closes: #37, #38)
+* Implement pwd (closes: FS#39)
+* Implement cmp (closes: FS#37, FS#38)
 * Implement new test: Has_no_extension | Basename_is | Dirname_is
 * Implement an anti recursion system (experimental, need to be tested) :
 	* Use a type action_link: Follow, Skip, SkipInform, AskFollow
@@ -207,3 +207,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 	cross platform operation and will never support it (ie links for
 	example, won't be supported).
 * This release is an alpha release. 0.2 will be the stable one.
+
+
+## BTS references
+
+* FS#XX: Flyspray BTS (pre-2008)
+* OF#XX: OCaml Forge BTS (pre-2019)
