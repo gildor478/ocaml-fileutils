@@ -110,11 +110,7 @@ doc-dev-dist: doc fix-perms
 #  Deploy/release the software.
 
 deploy: doc
-	mkdir dist || true
-	./doc-dist.sh --version $(shell oasis query version)
-	admin-gallu-deploy --verbose \
-		--forge_upload --forge_group ocaml-fileutils --forge_user gildor-admin \
-	  --forge_extra_file "dist/ocaml-fileutils-doc-$(shell oasis query version).tar.gz"
+	dispakan ${DEPLOY_FLAGS}
 	admin-gallu-oasis-increment \
 	  --setup_run --setup_args "-setup-update dynamic" --use_vcs
 

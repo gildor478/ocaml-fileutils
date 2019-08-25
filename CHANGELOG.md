@@ -8,9 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2019-08-25
+
 ### Fixed
 
 - Migrate CHANGELOG to [Keep a Changelog] format.
+- umask returns 0 on Windows, this is consistent with
+  [Perl, Python and Ruby
+  behavior](https://github.com/gildor478/ocaml-fileutils/pull/6#issuecomment-509062371).
+  Thanks to @dmbaturin.
 
 ### Removed
 
