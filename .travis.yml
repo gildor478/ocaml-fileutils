@@ -8,10 +8,23 @@ cache:
 env:
   global:
     - PACKAGE=fileutils
-  matrix:
-    # Only use an old version for backward compatibility and the latest version.
-    - OCAML_VERSION=4.05
-    - OCAML_VERSION=4.08
-os:
-  - linux
-  - osx
+matrix:
+  include:
+    - os:
+        - linux
+      env:
+        - OCAML_VERSION=4.08
+
+    - os:
+        - linux
+      env:
+        # Use an old version for backward compatibility.
+        - OCAML_VERSION=4.05
+
+    - os:
+        - osx
+      env:
+        - OCAML_VERSION=4.08
+      cache:
+        directories:
+          - $HOME/Library/Caches/Homebrew
