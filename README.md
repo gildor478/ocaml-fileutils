@@ -28,7 +28,7 @@ It also providesa module to manipulate abstract filenames:
 Installation
 ------------
 
-The recommended way to install dune is via the [opam package manager][opam]:
+The recommended way to install fileutils is via the [opam package manager][opam]:
 
 ```sh
 $ opam install fileutils
