@@ -19,60 +19,35 @@
 #  Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA             #
 ##############################################################################
 
-defaultl: test
+default: test
 
-# OASIS_START
-# DO NOT EDIT (digest: a3c674b4239234cbbe53afe090018954)
+build:
+	dune build
 
-SETUP = ocaml setup.ml
+doc:
+	dune build @doc
 
-build: setup.data
-	$(SETUP) -build $(BUILDFLAGS)
-
-doc: setup.data build
-	$(SETUP) -doc $(DOCFLAGS)
-
-test: setup.data build
-	$(SETUP) -test $(TESTFLAGS)
+test:
+	dune runtest
 
 all:
-	$(SETUP) -all $(ALLFLAGS)
+	dune build @all
 
-install: setup.data
-	$(SETUP) -install $(INSTALLFLAGS)
+install: all
+	dune install
 
-uninstall: setup.data
-	$(SETUP) -uninstall $(UNINSTALLFLAGS)
-
-reinstall: setup.data
-	$(SETUP) -reinstall $(REINSTALLFLAGS)
+uninstall:
+	dune uninstall
 
 clean:
-	$(SETUP) -clean $(CLEANFLAGS)
+	dune clean
 
-distclean:
-	$(SETUP) -distclean $(DISTCLEANFLAGS)
-
-setup.data:
-	$(SETUP) -configure $(CONFIGUREFLAGS)
-
-configure:
-	$(SETUP) -configure $(CONFIGUREFLAGS)
-
-.PHONY: build doc test all install uninstall reinstall clean distclean configure
-
-# OASIS_STOP
+.PHONY: build doc test all install uninstall clean
 
 # Precommit target
 #  Check style of code.
 PRECOMMIT_ARGS= \
-	    --exclude myocamlbuild.ml \
-	    --exclude setup.ml \
-	    --exclude README.txt \
-	    --exclude INSTALL.txt \
-	    --exclude Makefile \
-	    --exclude configure \
-	    --exclude _tags
+	    --exclude Makefile
 
 precommit:
 	-@if command -v OCamlPrecommit > /dev/null; then \
@@ -124,11 +99,7 @@ fix-perms:
 website-clean:
 	cd website && $(MAKE) clean
 
-clean: website-clean
-
 website-distclean:
 	cd website && $(MAKE) distclean
-
-distclean: website-distclean
 
 .PHONY: website-distclean website-clean

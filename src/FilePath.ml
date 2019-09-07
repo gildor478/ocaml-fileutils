@@ -222,7 +222,7 @@ struct
 
   (* Is_valid *)
 
-  let is_valid path =
+  let is_valid _ =
     (* As we are manipulating abstract filename,
        and that it has been parsed, we are
        sure that all is correct *)

@@ -83,7 +83,7 @@ let string_of_size ?(fuzzy=false) sz =
     if i = 0L then
       szstr i unt acc
     else begin
-      (** Continue with upper unit *)
+      (* Continue with upper unit *)
       let r =
         Int64.rem i 1024L
       in

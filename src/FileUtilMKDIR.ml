@@ -48,7 +48,7 @@ let mkdir
              Printf.sprintf
                "Unable to create directory %s, an upper directory is missing."
                fn
-         | `MkdirChmod (dn, mode, str, e) ->
+         | `MkdirChmod (dn, mode, str, _) ->
              Printf.sprintf
                "Recursive error in 'mkdir %s' in 'chmod %04o %s': %s"
                dn mode dn str
