@@ -39,7 +39,6 @@ include FileUtilMV
 include FileUtilCMP
 include FileUtilDU
 
-type exc = FileUtilMisc.exc
 type 'a error_handler = string -> 'a -> unit
 
 module Mode = FileUtilMode

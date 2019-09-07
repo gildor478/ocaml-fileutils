@@ -56,8 +56,7 @@ type cp_error =
 let same_file st1 st2 =
   st1.device = st2.device && st1.inode = st2.inode
 
-
-let cp
+let[@ warning "-27"] cp
     ?(follow=Skip)
     ?(force=Force)
     ?(recurse=false)
@@ -107,7 +106,7 @@ let cp
            spf "'%s' and '%s' are the same file." fn_src fn_dst
        | `UnhandledType(fn_src, _) ->
            spf "Cannot handle the type of kind for file '%s'." fn_src
-       | `CannotCopyFilesToFile(fn_src_lst, fn_dst) ->
+       | `CannotCopyFilesToFile(_, fn_dst) ->
            spf "Cannot copy a list of files to another file '%s'." fn_dst
        | #exc -> "")
   in

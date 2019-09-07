@@ -42,9 +42,8 @@ let rec simple fn =
           ()
 
 let () =
-  let dir =
-    "/home/gildor"
-  in
+  if not Sys.unix then exit 0;
+  let dir = Sys.getenv "HOME" in
   let sys_find () =
     let _i: int =
       Sys.command ("find "^(Filename.quote dir)^" -name '*.mp3' \

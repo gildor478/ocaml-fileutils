@@ -1,0 +1,9 @@
+(test
+  (name benchFind)
+  (modules benchFind)
+  (libraries fileutils))
+
+(test
+  (name test)
+  (modules test)
+  (libraries fileutils fileutils_str oUnit stdlib-shims))
