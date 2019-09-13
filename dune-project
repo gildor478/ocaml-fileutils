@@ -1,3 +1,3 @@
 (lang dune 1.11)
-(name ocaml-fileutils)
+(name fileutils)
 (explicit_js_mode)

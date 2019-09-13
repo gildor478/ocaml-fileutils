@@ -85,9 +85,8 @@ doc-dev-dist: doc fix-perms
 #  Deploy/release the software.
 
 deploy: doc
-	dispakan ${DEPLOY_FLAGS}
-	admin-gallu-oasis-increment \
-	  --setup_run --setup_args "-setup-update dynamic" --use_vcs
+	dune-release tag
+	dune-release
 
 .PHONY: deploy
 

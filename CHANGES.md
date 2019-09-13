@@ -1,14 +1,11 @@
-# Changelog
-All notable changes to this project will be documented in this file.
+## v0.6.1 - 2019-09-12
 
-The format is based on [Keep a Changelog],
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+### Fixed
 
-[Keep a Changelog]: https://keepachangelog.com/en/1.0.0
+- Migrate the build system to dune (thanks to zapashcanon).
+- Migrate CHANGELOG to CHANGES for dune-release.
 
-## [Unreleased]
-
-## [0.6.0] - 2019-08-25
+## v0.6.0 - 2019-08-25
 
 ### Fixed
 
@@ -22,25 +19,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Support for MacOS 9, since OCaml doesn't support it since 3.09 (Closes: #8).
 
-## [0.5.3] - 2017-11-12
+## v0.5.3 - 2017-11-12
 
 * Minor release:
 	- Use bytes rather than string to be compatible with OCaml 4.06.0.
 	(Closes: #5)
 
-## [0.5.2] - 2017-05-23
+## v0.5.2 - 2017-05-23
 
 * Minor release:
 	- Test file existence with Unix.LargeFile.lstat in FileUtilRM.
 	(Closes: OF#1749)
 
-## [0.5.1] - 2016-11-02
+## v0.5.1 - 2016-11-02
 
 * Minor release:
 	- Fix non POSIX behavior of cp with links when "recurse:false".
 	(Closes: OF#1649)
 
-## [0.5.0] - 2015-07-10
+## v0.5.0 - 2015-07-10
 
 * Major release to account all the API changes:
 * Rebuild the exception/reporting framework:
@@ -61,32 +58,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Upgrade OUnit to OUnit2.
 * Fix typo in cp (Closes: OF#816, OF#1317).
 
-## [0.4.5] - 2013-06-03
+## v0.4.5 - 2013-06-03
 
 * Fix fd leaking cmp (Closes: OF#1012).
 * Fix test suite for BSD system.
 
-## [0.4.4] - 2012-06-12
+## v0.4.4 - 2012-06-12
 
 * Regenerate with oasis 0.3.0~rc6
 
-## [0.4.3] - 2011-05-26
+## v0.4.3 - 2011-05-26
 
 * OASIS enabled
 
-## [0.4.2] - 2010-09-06
+## v0.4.2 - 2010-09-06
 
 * Apply patch from Rüdiger Schmitt, fix handling for '.' in find and ls
 	(Close: OF#418, OF#736)
 
-## [0.4.1] - 2010-09-01
+## v0.4.1 - 2010-09-01
 
 * Apply patch from S. Glondu to use the right find function in FileUtilStr
 	(Closes: OF#731)
 * Fix some typo in documentation
 * Apply patch from Debian to use a byte plugin for ocamlbuild
 
-## [0.4.0] - 2009-09-09
+## v0.4.0 - 2009-09-09
 
 * Simplify interface, avoid nested module when possible:
 	* Add filename information to all exception
@@ -127,7 +124,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Optimize FileUtil.find speed, now only 2x slower than UNIX find (was 40x slower before)
 	(Closes: FS#65)
 
-## [0.3.0]
+## v0.3.0
 
 * Change the version to 0.3 (lot of changes for a minor version)
 * Update webpages
@@ -136,7 +133,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Correct a bug that prevent to parse the initial current dir (ie produce nothing
 	when use find "." or find "/a/")
 
-## [0.2.2]
+## v0.2.2
 
 * Changes the version to 0.2.2 in TopMakefile.in (closes: FS#33)
 * Stop removing Makefile in distclean target (closes: FS#31)
@@ -169,11 +166,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Reworked unitary tests: include test for symlink and anti recursion
 * Unitary tests change from Fort to OUnit test suite
 
-## [0.2.1]
+## v0.2.1
 
 * Minor bug fixes to correct website aspect
 
-## [0.2.0]
+## v0.2.0
 
 * Use module/functor to abstract a lot of operation.
 * Generate a decent ocamldoc documentation
@@ -189,7 +186,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 	more consistent regarding the name of the library (i was not convinced, that
 	sysPath represents anything).
 
-## [0.1.1] - 2004-01-30
+## v0.1.1 - 2004-01-30
 
 * Fix some weird comportement with reduce (especially
 	when trying to reduce filename which try to .. a root)
