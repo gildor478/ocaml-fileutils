@@ -86,6 +86,8 @@ doc-dev-dist: doc fix-perms
 
 deploy: doc
 	dune-release tag
+	git push --all
+	git push --tag
 	dune-release
 
 .PHONY: deploy
