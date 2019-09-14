@@ -79,11 +79,6 @@ headache:
 
 .PHONY: headache
 
-doc-dev-dist: doc fix-perms
-	./doc-dist.sh --version dev
-
-.PHONY: doc-dev-dist
-
 # Deploy target
 #  Deploy/release the software.
 
@@ -94,16 +89,3 @@ deploy: doc
 	dune-release
 
 .PHONY: deploy
-
-fix-perms:
-	chmod +x doc-dist.sh
-
-.PHONY: fix-perms
-
-website-clean:
-	cd website && $(MAKE) clean
-
-website-distclean:
-	cd website && $(MAKE) distclean
-
-.PHONY: website-distclean website-clean
