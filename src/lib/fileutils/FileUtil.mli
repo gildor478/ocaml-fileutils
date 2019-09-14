@@ -128,13 +128,16 @@ sig
       `Other (`Remove (`List [`Read; `Write; `Exec]))]
    *)
   type t = clause list
+
+  val to_string: t -> string
+  val apply: is_dir:bool -> umask:int -> Unix.file_perm -> t -> Unix.file_perm
 end
 
 (*********************************************************************)
 (**
 
    {2 Size operation}
- 
+
   *)
 
 (** File size
@@ -208,9 +211,9 @@ val stat: ?dereference:bool -> filename -> stat
 
 (*********************************************************************)
 (**
- 
+
   {2 umask }
-   
+
   *)
 
 exception UmaskError of string
@@ -336,7 +339,7 @@ type mkdir_error =
 val mkdir:
   ?error:(mkdir_error error_handler) ->
   ?parent:bool ->
-  ?mode:[< `Octal of Unix.file_perm | `Symbolic of FileUtilMode.t ] ->
+  ?mode:[< `Octal of Unix.file_perm | `Symbolic of Mode.t ] ->
   filename -> unit
 
 (*********************************************************************)

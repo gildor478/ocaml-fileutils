@@ -1,3 +1,10 @@
+## unreleased
+
+### Fixed
+
+- Improve documentation: hide modules for the implementation.
+- Move fileutils and fileutils.str in their own directories.
+
 ## v0.6.1 - 2019-09-12
 
 ### Fixed

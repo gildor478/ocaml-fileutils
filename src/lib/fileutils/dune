@@ -1,0 +1,33 @@
+(library
+  (name fileutils)
+  (public_name fileutils)
+  (wrapped false)
+  (private_modules
+    commonPath
+    extensionPath
+    filePath_type
+    fileStringExt
+    fileUtilCHMOD
+    fileUtilCMP
+    fileUtilCP
+    fileUtilDU
+    fileUtilFIND
+    fileUtilLS
+    fileUtilMKDIR
+    fileUtilMV
+    fileUtilMisc
+    fileUtilMode
+    fileUtilPWD
+    fileUtilPermission
+    fileUtilREADLINK
+    fileUtilRM
+    fileUtilSTAT
+    fileUtilSize
+    fileUtilTEST
+    fileUtilTOUCH
+    fileUtilTypes
+    fileUtilUMASK
+    fileUtilWHICH
+    unixPath
+    win32Path)
+  (libraries unix bytes stdlib-shims))

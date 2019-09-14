@@ -523,7 +523,7 @@ let test_fileutil =
               assert_equal
                 ~printer:(fun s -> s)
                 str
-                (FileUtilMode.to_string mode))
+                (FileUtil.Mode.to_string mode))
            [
              "u+r", [`User (`Add `Read)];
              "u+rw", [`User (`Add (`List [`Read; `Write]))];
@@ -540,9 +540,10 @@ let test_fileutil =
          List.iter
            (fun (is_dir, umask, i, m, e) ->
               assert_equal
-                ~msg:(Printf.sprintf "0o%04o + %s" i (FileUtilMode.to_string m))
+                ~msg:(Printf.sprintf
+                        "0o%04o + %s" i (FileUtil.Mode.to_string m))
                 ~printer:(Printf.sprintf "0o%04o")
-                e (FileUtilMode.apply ~is_dir ~umask i m))
+                e (FileUtil.Mode.apply ~is_dir ~umask i m))
            [
              false, 0o022, 0o0600,
              [`Group (`Add `Read)], 0o0640;
@@ -1203,7 +1204,7 @@ let test_fileutil =
          test_umask
          (umask (`Octal (fun i -> i)));
        assert_equal
-         ~printer:FileUtilMode.to_string
+         ~printer:FileUtil.Mode.to_string
          [`User (`Set (`List [`Read; `Write; `Exec]));
           `Group (`Set (`List [`Read; `Exec]));
           `Other (`Set (`List [`Read; `Exec]))]
@@ -1236,7 +1237,7 @@ let test_fileutil =
                  assert_equal
                    ~msg:(Printf.sprintf
                            "0o%04o + %s -> 0o%04o"
-                           msk (FileUtilMode.to_string s) e)
+                           msk (FileUtil.Mode.to_string s) e)
                    ~printer:(Printf.sprintf "0o%04o")
                    e (umask ~mode:(`Symbolic s) (`Octal (fun i -> i)))))
          [
