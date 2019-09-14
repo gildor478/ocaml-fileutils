@@ -42,6 +42,9 @@ uninstall:
 clean:
 	dune clean
 
+bench:
+	dune exec test/benchFind.exe
+
 .PHONY: build doc test all install uninstall clean
 
 # Precommit target
