@@ -1,7 +1,7 @@
 opam-version: "2.0"
 maintainer: "Sylvain Le Gall <sylvain+ocaml@le-gall.net>"
 authors: [ "Sylvain Le Gall" ]
-homepage: "http://ocaml-fileutils.forge.ocamlcore.org/"
+homepage: "https://github.com/gildor478/ocaml-fileutils"
 license: "LGPL-2.1 with OCaml linking exception"
 dev-repo: "git+https://github.com/gildor478/ocaml-fileutils.git"
 bug-reports: "https://github.com/gildor478/ocaml-fileutils/issues"
