@@ -89,10 +89,12 @@ val parent_dir: filename
 (** Make a filename from a set of strings. *)
 val make_filename: string list -> filename
 
-(** Extract only the file name of a filename. *)
+(** Extract only the file name of a filename.
+    Returns an empty string for directory-only paths like ["dir/"]. *)
 val basename: filename -> filename
 
-(** Extract the directory name of a filename. *)
+(** Extract the directory name of a filename.
+    Returns an empty string for file-only paths like ["file"]. *)
 val dirname: filename -> filename
 
 (** Append a filename to a filename. *)
@@ -145,13 +147,15 @@ val is_parent: filename -> bool
 (** Remove extension and the trailing ".". *)
 val chop_extension: filename -> filename
 
-(** Extract the extension. *)
+(** Extracts the extension. Raises [Not_found] if there is no extension. *)
 val get_extension: filename -> extension
 
 (** Check the extension. *)
 val check_extension: filename -> extension -> bool
 
-(** Add an extension with a "." before. *)
+(** Add an extension with a "." before.
+    Using this function with an empty extension string creates a filename
+    with a trailing dot.*)
 val add_extension: filename -> extension -> filename
 
 (** Replace extension. *)
