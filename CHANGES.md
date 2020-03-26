@@ -1,8 +1,10 @@
-## unreleased
+## v0.6.2 - 2020-03-26
 
 ### Fixed
 
-- Improve documentation: hide modules for the implementation.
+- Improve documentation:
+  - hide modules for the implementation.
+  - clarify usage of chop_extension/add_extension.
 - Move fileutils and fileutils.str in their own directories.
 
 ## v0.6.1 - 2019-09-12
