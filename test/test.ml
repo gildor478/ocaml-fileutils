@@ -712,6 +712,15 @@ let test_fileutil =
          rm ~recurse:true [dir1];
          assert_bool "no dir" (not (test Exists dir2)));
 
+    "Mkdir with trailing slash" >::
+    (fun test_ctxt ->
+       let tmp_dir = bracket_tmpdir test_ctxt in
+       let dir =
+         Filename.concat tmp_dir (Filename.concat "nonexistent-dir" "")
+       in
+       mkdir ~parent:true dir;
+       assert_bool "mkdir" (test Is_dir dir));
+
     "Find v0" >::
     (fun test_ctxt ->
        let tmp_dir = bracket_tmpdir test_ctxt in

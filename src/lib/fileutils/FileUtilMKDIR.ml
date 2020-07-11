@@ -74,19 +74,25 @@ let mkdir
       if test (Not Is_dir) dn then
         handle_error ~fatal:true (`DirnameAlreadyUsed dn);
     end else begin
-      if parent then
-        mkdir_simple mode_parent (dirname dn);
-      try
-        Unix.mkdir dn mode;
-        chmod
-          ~error:(fun str e ->
-                    handle_error ~fatal:true
-                      (`MkdirChmod (dn, mode, str, e)))
-          (`Octal mode) [dn]
-      with Unix.Unix_error(Unix.ENOENT, _, _)
-        | Unix.Unix_error(Unix.ENOTDIR, _, _) ->
-            handle_error ~fatal:true (`MissingComponentPath dn)
-        | e -> handle_exception ~fatal:true e
+      if parent then begin
+        mkdir_simple mode_parent (dirname dn)
+      end;
+      (* Make sure that the directory has not been created as a side effect
+       * of creating the parent.
+       *)
+      if not (test_exists dn) then begin
+        try
+          Unix.mkdir dn mode;
+          chmod
+            ~error:(fun str e ->
+                      handle_error ~fatal:true
+                        (`MkdirChmod (dn, mode, str, e)))
+            (`Octal mode) [dn]
+        with Unix.Unix_error(Unix.ENOENT, _, _)
+          | Unix.Unix_error(Unix.ENOTDIR, _, _) ->
+              handle_error ~fatal:true (`MissingComponentPath dn)
+          | e -> handle_exception ~fatal:true e
+      end
     end
   in
-    mkdir_simple mode_self dn
+    mkdir_simple mode_self dn (* (FilePath.reduce dn) *)

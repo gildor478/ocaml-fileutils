@@ -1,3 +1,14 @@
+## v0.6.3 - 2020-07-11
+
+## Fixed
+
+- Fix mkdir when trying to create directory with ~parent:true and a directory
+  ending with "/". For example:
+```
+mkdir ~parent:true "non-existent/"
+```
+(Closes: #14)
+
 ## v0.6.2 - 2020-03-26
 
 ### Fixed
