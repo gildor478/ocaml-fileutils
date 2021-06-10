@@ -65,10 +65,10 @@ exception InvalidFilename of filename
 
 (** {2 Ordering} *)
 
-(** [is_subdir fl1 fl2] Is [fl2] a sub directory of [fl1] *)
+(** [is_subdir child parent] Is [child] really a sub directory of [parent] *)
 val is_subdir: filename -> filename -> bool
 
-(** [is_updir fl1 fl2] Is [fl1] a sub directory of [fl2] *)
+(** [is_updir parent child] Is [parent] really a parent directory of [child] *)
 val is_updir: filename -> filename -> bool
 
 (** [compare fl1 fl2] Give an order between the two filename. The
