@@ -100,10 +100,10 @@ type permission =
   }
 
 (** Translate POSIX integer permission. *)
-val permission_of_int: int -> permission
+val permission_of_int: int -> permission [@@pure]
 
 (** Return the POSIX integer permission *)
-val int_of_permission: permission -> int
+val int_of_permission: permission -> int [@@pure]
 
 (** Permission symbolic mode. *)
 module Mode:
@@ -129,7 +129,7 @@ sig
    *)
   type t = clause list
 
-  val to_string: t -> string
+  val to_string: t -> string [@@pure]
   val apply: is_dir:bool -> umask:int -> Unix.file_perm -> t -> Unix.file_perm
 end
 
@@ -150,21 +150,21 @@ type size =
   | B  of int64 (** Bytes *)
 
 (** Convert size to bytes. *)
-val byte_of_size: size -> int64
+val byte_of_size: size -> int64 [@@pure]
 
 (** Add two sizes. *)
-val size_add: size -> size -> size
+val size_add: size -> size -> size [@@pure]
 
 (** Compare two sizes, using the classical compare function. If fuzzy is set to
     true, the comparison is done on the most significant size unit of both
     value.
   *)
-val size_compare: ?fuzzy:bool -> size -> size -> int
+val size_compare: ?fuzzy:bool -> size -> size -> int [@@pure]
 
 (** Convert a value to a string representation. If fuzzy is set to true, only
     consider the most significant unit
   *)
-val string_of_size: ?fuzzy:bool -> size -> string
+val string_of_size: ?fuzzy:bool -> size -> string [@@pure]
 
 (*********************************************************************)
 (**
