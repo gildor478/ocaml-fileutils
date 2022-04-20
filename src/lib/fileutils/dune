@@ -30,4 +30,4 @@
     fileUtilWHICH
     unixPath
     win32Path)
-  (libraries unix bytes stdlib-shims))
+  (libraries unix bytes stdlib-shims camlp-streams))
