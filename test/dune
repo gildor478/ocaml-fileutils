@@ -6,4 +6,4 @@
 (test
   (name test)
   (modules test)
-  (libraries fileutils fileutils_str oUnit stdlib-shims))
+  (libraries fileutils fileutils_str ounit2 stdlib-shims))
