@@ -15,8 +15,8 @@ build: [
 depends: [
   "ocaml" {>= "4.03"}
   "base-unix"
-  "base-bytes"
   "stdlib-shims"
+  "seq"
   "dune" {>= "1.11.0"}
   "ounit2" {with-test & >= "2.0.0"}
 ]
