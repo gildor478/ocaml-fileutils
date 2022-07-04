@@ -23,6 +23,10 @@ open FileUtilTypes
 open FilePath
 open FileUtilTEST
 
+let rec seq_of_channel ch () =
+  match input_char ch with
+  | exception End_of_file -> Seq.Nil
+  | char -> Seq.Cons (char, seq_of_channel ch)
 
 let cmp ?(skip1 = 0) fln1 ?(skip2 = 0) fln2 =
   if (reduce fln1) = (reduce fln2) then
@@ -37,42 +41,18 @@ let cmp ?(skip1 = 0) fln1 ?(skip2 = 0) fln2 =
         ()
     in
 
-    let test_empty st =
-      try
-        Stream.empty st;
-        true
-      with Stream.Failure ->
-        false
-    in
-
     let _ = seek_in fd1 skip1 in
     let _ = seek_in fd2 skip2 in
-    let stream1 = Stream.of_channel fd1 in
-    let stream2 = Stream.of_channel fd2 in
-    try
-      begin
-        while ((Stream.next stream1) = (Stream.next stream2)) do
-          ()
-        done;
-        clean_fd ();
-        Some (Stream.count stream1)
-      end
-    with
-      | Stream.Failure ->
-          begin
-            match ((test_empty stream1), (test_empty stream2)) with
-                true, true  ->
-                  None
-              | true, false
-              | false, true
-              (* Don't know how this case could be... *)
-              | false, false ->
-                  clean_fd ();
-                  Some (Stream.count stream1)
-          end
-      | e ->
-          clean_fd ();
-          raise e
+    let stream1 = seq_of_channel fd1 in
+    let stream2 = seq_of_channel fd2 in
+    let rec loop count s1 s2 =
+      match s1, s2 with
+      | Seq.Cons (v1, s1), Seq.Cons (v2, s2) when v1 = v2 -> loop (count + 1) (s1 ()) (s2 ())
+      | _ -> count
+    in
+    let count = loop 0 (stream1 ()) (stream2 ()) in
+    clean_fd ();
+    Some count
   end else
     Some (-1)
 
