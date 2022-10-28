@@ -31,7 +31,7 @@ This library provides an API to perform POSIX like operations on files like:
 - touch
 - which...
 
-It also providesa module to manipulate abstract filenames:
+It also provides a module to manipulate abstract filenames:
 
 - classification
 - make_relative: made a filename relative to another
