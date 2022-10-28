@@ -1,6 +1,15 @@
+## v0.6.4 - 2022-10-28
+
+### Fixed
+
+- Fix documentation for FilePath.is_updir and FilePath.is_subdir. Thanks to
+  dmbaturin for the contribution.
+- Support for OCaml 5 (thanks to Leonidas-from-XIV and kit-ty-kate)
+
+
 ## v0.6.3 - 2020-07-11
 
-## Fixed
+### Fixed
 
 - Fix mkdir when trying to create directory with ~parent:true and a directory
   ending with "/". For example:
