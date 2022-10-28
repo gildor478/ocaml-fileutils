@@ -223,6 +223,20 @@ struct
         assert_equal
           res
           (OsPath.is_relative filename))
+
+  let is_updir (parent, child, res) =
+    (test_name "is_updir") >::
+     (fun _ ->
+       assert_equal
+         res
+         (OsPath.is_updir parent child))
+
+  let is_subdir (child, parent, is) =
+    (test_name "is_subdir") >::
+     (fun _ ->
+       assert_equal
+         is
+         (OsPath.is_subdir child parent))
 end
 
 
@@ -337,6 +351,22 @@ let test_unix =
        ("/a/b/c.d",   "/a/b/c",   "d");
        ("/a/b.c/d.e", "/a/b.c/d", "e");
        ("a.",         "a",        "");
+      ]
+    )
+
+    @ (
+      List.map TestUnix.is_updir
+      [
+       ("foo", "foo/bar/baz", true);
+       ("bar", "foo", false);
+      ]
+    )
+
+    @ (
+      List.map TestUnix.is_subdir
+      [
+       ("foo/bar", "foo", true);
+       ("bar", "foo", false);
       ]
     )
   )
