@@ -3,6 +3,7 @@ Fileutils - OCaml API to manipulate real files (POSIX like) and filenames
 
 [![Travis status][travis-img]][travis]
 [![AppVeyor status][appveyor-img]][appveyor]
+[![OCaml-CI Build Status](https://img.shields.io/endpoint?url=https://ci.ocamllabs.io/badge/gildor478/ocaml-fileutils/master&logo=ocaml)](https://ci.ocamllabs.io/github/gildor478/ocaml-fileutils)
 
 Features of the project:
 
