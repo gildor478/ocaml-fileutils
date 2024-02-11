@@ -53,6 +53,8 @@ type cp_error =
   | `UnhandledType of filename * kind ]
 
 
+let silent_close fd = try Unix.close fd with _ -> ()
+
 let same_file st1 st2 =
   st1.device = st2.device && st1.inode = st2.inode
 
@@ -190,11 +192,13 @@ let[@ warning "-27"] cp
             Unix.close fd_dst;
             copy_time_props st_src fn_dst
           with e ->
-            Unix.close fd_src;
-            raise e
+            let bt = Printexc.get_raw_backtrace () in
+            silent_close fd_src;
+            Printexc.raise_with_backtrace e bt
       with e ->
-        Unix.close fd_dst;
-        raise e
+        let bt = Printexc.get_raw_backtrace () in
+        silent_close fd_dst;
+        Printexc.raise_with_backtrace e bt
   in
 
   let cp_symlink fn_src fn_dst =
