@@ -498,8 +498,8 @@ val which:
 
 (** [cmp skip1 fln1 skip2 fln2] Compare files [fln1] and [fln2] starting at pos
     [skip1] [skip2] and returning the first octect where a difference occurs.
-    Returns [Some -1] if one of the file is not readable or if it is not a
-    file.
+    Returns [Some -1] if one of the files is not readable or if it is not a
+    file.  Returns [None] if given two identical files.
     See {{:http://pubs.opengroup.org/onlinepubs/007904875/utilities/cmp.html}POSIX documentation}.
   *)
 val cmp:
