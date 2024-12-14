@@ -48,11 +48,14 @@ let cmp ?(skip1 = 0) fln1 ?(skip2 = 0) fln2 =
     let rec loop count s1 s2 =
       match s1, s2 with
       | Seq.Cons (v1, s1), Seq.Cons (v2, s2) when v1 = v2 -> loop (count + 1) (s1 ()) (s2 ())
+      | Seq.Nil, Seq.Nil -> (-1)
       | _ -> count
     in
     let count = loop 0 (stream1 ()) (stream2 ()) in
     clean_fd ();
-    Some count
+    match count with
+    | (-1) -> None
+    | x -> Some x
   end else
     Some (-1)
 
