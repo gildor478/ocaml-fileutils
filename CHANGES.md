@@ -1,3 +1,11 @@
+## v0.6.5 - 2024-12-27
+
+### Fixed
+
+- `cmp` returns None when comparing two identical files and add some tests for
+  that. (thanks to jamesjer).
+- require OCaml > 4.14, which is now the default in Debian stable.
+
 ## v0.6.4 - 2022-10-28
 
 ### Fixed
