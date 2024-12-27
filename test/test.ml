@@ -491,10 +491,12 @@ let test_fileutil =
      (fun test_ctxt ->
         let tmp_dir = bracket_tmpdir test_ctxt in
         let () =
+          if Sys.os_type <> "Win32" then begin
             (* On FreeBSD the default group for a newly created file is
                the group of the directory. This will result in having a
                group to be "wheel" on FreeBSD. *)
             Unix.chown tmp_dir (-1) (Unix.getegid ())
+          end
         in
         let file_test =
           let fn, chn = bracket_tmpfile test_ctxt in
