@@ -54,6 +54,12 @@ end)
 let assert_equal_string ~msg =
   assert_equal ~printer:(fun x -> x) ~msg:msg
 
+let assert_equal_optional_int ~msg =
+  assert_equal
+  ~printer:(function
+    | Some x -> Printf.sprintf "Some(%d)" x
+    | None -> "None")
+  ~msg:msg
 
 module DiffSetFilename =
   OUnitDiff.SetMake
@@ -1287,6 +1293,50 @@ let test_fileutil =
          ];
        ()
     );
+
+    "Cmp" >:::
+    [
+      "same file has no differences" >::
+        (fun test_ctxt ->
+          let tmp_dir = bracket_tmpdir test_ctxt in
+          let file1 = make_filename [tmp_dir; "file1.txt"] in
+          let () =
+            let fd = open_out file1 in
+            output_string fd "Content of file1.";
+            close_out fd
+          in
+          assert_equal_optional_int ~msg:"" None (cmp file1 file1));
+
+      "two identical files have no differences" >::
+        (fun test_ctxt ->
+          let tmp_dir = bracket_tmpdir test_ctxt in
+          let file1 = make_filename [tmp_dir; "file1.txt"] in
+          let file2 = make_filename [tmp_dir; "file2.txt"] in
+          let () =
+            let fd = open_out file1 in
+            output_string fd "Content of file1.";
+            close_out fd
+          in
+          cp [file1] file2;
+          assert_equal_optional_int ~msg:"" None (cmp file1 file2));
+
+      "two different files have differences" >::
+        (fun test_ctxt ->
+          let tmp_dir = bracket_tmpdir test_ctxt in
+          let file1 = make_filename [tmp_dir; "file1.txt"] in
+          let file2 = make_filename [tmp_dir; "file2.txt"] in
+          let () =
+            let fd = open_out file1 in
+            output_string fd "Content of file1.";
+            close_out fd
+          in
+          let () =
+            let fd = open_out file2 in
+            output_string fd "Content of file2.";
+            close_out fd
+          in
+          assert_equal_optional_int ~msg:"" (Some 15) (cmp file1 file2));
+    ];
 
     "Size" >:::
     [
