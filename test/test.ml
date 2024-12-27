@@ -494,6 +494,10 @@ let test_fileutil =
           let fn, chn = bracket_tmpfile test_ctxt in
             output_string chn "foo";
             close_out chn;
+            (* On FreeBSD the default group for a newly created file is
+               the group of the directory. This will result in having a
+               group to be "wheel" on FreeBSD. *)
+            Unix.chown fn (-1) (Unix.getegid ());
             fn
         in
         let non_fatal_test file (stest, expr, res) =
