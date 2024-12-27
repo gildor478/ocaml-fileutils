@@ -500,8 +500,10 @@ let test_fileutil =
           non_fatal test_ctxt
             (fun _ ->
                assert_bool
-                 ("Test "^stest^" on "^file)
-                 (res = (test expr file)))
+                (Printf.sprintf
+                  "Test %s on file %s (group ID %d, current group ID %d)"
+                  stest file (Unix.stat file).st_gid (Unix.getegid ()))
+                (res = (test expr file)))
         in
           non_fatal_test file_test ("Size_not_null",   Size_not_null, true);
           List.iter
