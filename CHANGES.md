@@ -1,3 +1,10 @@
+## v0.6.6 - 2024-12-28
+
+### Fixed
+
+- Remove useless dependencies (stdlib-shims and seq) which are shipped with
+  OCaml 4.14+.
+
 ## v0.6.5 - 2024-12-27
 
 ### Fixed
