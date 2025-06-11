@@ -46,3 +46,10 @@ Documentation
 
 API documentation is
 [available online](https://gildor478.github.io/ocaml-fileutils).
+
+
+Examples
+--------
+
+See the directory `examples`. This is a separate dune workspace, so install
+Fileutils first. 
